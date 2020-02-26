@@ -14,5 +14,7 @@ services:
     container_name: node-micmac-1
     ports:
       - "3000"
+    networks:
+      - default
     restart: unless-stopped
     oom_score_adj: 500

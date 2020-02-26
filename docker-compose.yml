@@ -12,6 +12,8 @@ services:
       - "5432"
     volumes:
       - dbdata:/var/lib/postgresql/data:Z
+    networks:
+      - default
     restart: unless-stopped
     oom_score_adj: -100
   webapp:
@@ -20,6 +22,8 @@ services:
     entrypoint: /bin/bash -c "chmod +x /webodm/*.sh && /bin/bash -c \"/webodm/wait-for-postgres.sh db /webodm/wait-for-it.sh -t 0 broker:6379 -- /webodm/start.sh\""
     volumes:
       - ${WO_MEDIA_DIR}:/webodm/app/media:z
+    networks:
+      - default
     ports:
       - "${WO_PORT}:8000"
     depends_on:
@@ -37,6 +41,8 @@ services:
   broker:
     image: redis
     container_name: broker
+    networks:
+      - default
     restart: unless-stopped
     oom_score_adj: -500
   worker:
@@ -45,6 +51,8 @@ services:
     entrypoint: /bin/bash -c "/webodm/wait-for-postgres.sh db /webodm/wait-for-it.sh -t 0 broker:6379 -- /webodm/wait-for-it.sh -t 0 webapp:8000 -- /webodm/worker.sh start"
     volumes:
       - ${WO_MEDIA_DIR}:/webodm/app/media:z
+    networks:
+      - default
     depends_on:
       - db
       - broker
@@ -53,3 +61,6 @@ services:
       - WO_DEBUG
     restart: unless-stopped
     oom_score_adj: 250
+
+networks:
+  default:
