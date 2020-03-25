@@ -40,6 +40,7 @@ class ShareButton extends React.Component {
   }
 
   render() {
+    return(<div/>); // Hide share button
     const popup = <SharePopup 
             task={this.state.task}
             taskChanged={this.handleTaskChanged}
