@@ -83,6 +83,8 @@ class GrassContext:
         # Make sure working directory exists
         if not os.path.exists(self.get_cwd()):
             os.mkdir(self.get_cwd())
+        
+        location_dir = os.path.join(os.path.abspath(self.get_cwd()), "location")
 
         # Create param list
         params = ["{}={}".format(opt,value) for opt,value in self.script_opts.items()]
@@ -93,9 +95,9 @@ class GrassContext:
         err = ""
 
         # Execute it
-        logger.info("Executing grass script from {}: {} -c {} location --exec python {} {}".format(self.get_cwd(), self.grass_binary, self.location, script, " ".join(params)))
+        logger.info("Executing grass script from {}: {} -c {} {} --exec python {} {}".format(self.get_cwd(), self.grass_binary, self.location, location_dir, script, " ".join(params)))
         
-        command = [self.grass_binary, '-c', self.location, 'location', '--exec', 'python', script] + params
+        command = [self.grass_binary, '-c', self.location, location_dir, '--exec', 'python', script] + params
         if platform.system() == "Windows":
             # communicate() hangs on Windows so we use check_output instead
             try:
