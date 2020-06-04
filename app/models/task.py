@@ -167,6 +167,7 @@ class Task(models.Model):
     ASSETS_MAP = {
             'all.zip': 'all.zip',
             'orthophoto.tif': os.path.join('odm_orthophoto', 'odm_orthophoto.tif'),
+            'orthophoto.png': os.path.join('odm_orthophoto', 'odm_orthophoto.png'),
             'orthophoto.mbtiles': os.path.join('odm_orthophoto', 'odm_orthophoto.mbtiles'),
             'georeferenced_model.las': os.path.join('odm_georeferencing', 'odm_georeferenced_model.las'),
             'georeferenced_model.laz': os.path.join('odm_georeferencing', 'odm_georeferenced_model.laz'),
@@ -191,6 +192,7 @@ class Task(models.Model):
                 'deferred_compress_dir': 'orthophoto_tiles'
             },
             'cameras.json': 'cameras.json',
+            'shots.geojson': os.path.join('odm_report', 'shots.geojson'),
     }
 
     STATUS_CODES = (
@@ -758,13 +760,17 @@ class Task(models.Model):
         if 'dsm.tif' in self.available_assets: types.append('dsm')
         if 'dtm.tif' in self.available_assets: types.append('dtm')
 
+        camera_shots = ''
+        if 'shots.geojson' in self.available_assets: camera_shots = '/api/projects/{}/tasks/{}/download/shots.geojson'.format(self.project.id, self.id)
+
         return {
             'tiles': [{'url': self.get_tile_base_url(t), 'type': t} for t in types],
             'meta': {
                 'task': {
                     'id': str(self.id),
                     'project': self.project.id,
-                    'public': self.public
+                    'public': self.public,
+                    'camera_shots': camera_shots
                 }
             }
         }
