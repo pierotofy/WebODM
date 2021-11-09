@@ -19,8 +19,9 @@ from app import models, pending_actions
 from nodeodm import status_codes
 from nodeodm.models import ProcessingNode
 from worker import tasks as worker_tasks
-from .common import get_and_check_project
+from .common import get_and_check_project, get_asset_download_filename
 from app.security import path_traversal_check
+from django.utils.translation import gettext_lazy as _
 
 
 def flatten_files(request_files):
@@ -39,12 +40,16 @@ class TaskSerializer(serializers.ModelSerializer):
     processing_node = serializers.PrimaryKeyRelatedField(queryset=ProcessingNode.objects.all()) 
     processing_node_name = serializers.SerializerMethodField()
     can_rerun_from = serializers.SerializerMethodField()
+    statistics = serializers.SerializerMethodField()
 
     def get_processing_node_name(self, obj):
         if obj.processing_node is not None:
             return str(obj.processing_node)
         else:
             return None
+
+    def get_statistics(self, obj):
+        return obj.get_statistics()
 
     def get_can_rerun_from(self, obj):
         """
@@ -175,7 +180,7 @@ class TaskViewSet(viewsets.ViewSet):
         task.images_count = models.ImageUpload.objects.filter(task=task).count()
 
         if task.images_count < 2:
-            raise exceptions.ValidationError(detail="You need to upload at least 2 images before commit")
+            raise exceptions.ValidationError(detail=_("You need to upload at least 2 images before commit"))
 
         task.save()
         worker_tasks.process_task.delay(task.id)
@@ -197,13 +202,36 @@ class TaskViewSet(viewsets.ViewSet):
         files = flatten_files(request.FILES)
 
         if len(files) == 0:
-            raise exceptions.ValidationError(detail="No files uploaded")
+            raise exceptions.ValidationError(detail=_("No files uploaded"))
 
         with transaction.atomic():
             for image in files:
                 models.ImageUpload.objects.create(task=task, image=image)
 
+        task.images_count = models.ImageUpload.objects.filter(task=task).count()
+        # Update other parameters such as processing node, task name, etc.
+        serializer = TaskSerializer(task, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        
         return Response({'success': True}, status=status.HTTP_200_OK)
+
+    @detail_route(methods=['post'])
+    def duplicate(self, request, pk=None, project_pk=None):
+        """
+        Duplicate a task
+        """
+        get_and_check_project(request, project_pk, ('change_project', ))
+        try:
+            task = self.queryset.get(pk=pk, project=project_pk)
+        except (ObjectDoesNotExist, ValidationError):
+            raise exceptions.NotFound()
+
+        new_task = task.duplicate()
+        if new_task:
+            return Response({'success': True, 'task': TaskSerializer(new_task).data}, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': _("Cannot duplicate task")}, status=status.HTTP_200_OK)
 
     def create(self, request, project_pk=None):
         project = get_and_check_project(request, project_pk, ('change_project', ))
@@ -220,7 +248,7 @@ class TaskViewSet(viewsets.ViewSet):
             files = flatten_files(request.FILES)
 
             if len(files) <= 1:
-                raise exceptions.ValidationError(detail="Cannot create task, you need at least 2 images")
+                raise exceptions.ValidationError(detail=_("Cannot create task, you need at least 2 images"))
 
             with transaction.atomic():
                 task = models.Task.objects.create(project=project,
@@ -285,8 +313,10 @@ class TaskNestedView(APIView):
         return task
 
 
-def download_file_response(request, filePath, content_disposition):
+def download_file_response(request, filePath, content_disposition, download_filename=None):
     filename = os.path.basename(filePath)
+    if download_filename is None: 
+        download_filename = filename
     filesize = os.stat(filePath).st_size
     file = open(filePath, "rb")
 
@@ -300,13 +330,26 @@ def download_file_response(request, filePath, content_disposition):
                                 content_type=(mimetypes.guess_type(filename)[0] or "application/zip"))
 
     response['Content-Type'] = mimetypes.guess_type(filename)[0] or "application/zip"
-    response['Content-Disposition'] = "{}; filename={}".format(content_disposition, filename)
+    response['Content-Disposition'] = "{}; filename={}".format(content_disposition, download_filename)
     response['Content-Length'] = filesize
 
     # For testing
     if stream:
         response['_stream'] = 'yes'
 
+    return response
+
+
+def download_file_stream(request, stream, content_disposition, download_filename=None):
+    response = HttpResponse(FileWrapper(stream),
+                            content_type=(mimetypes.guess_type(download_filename)[0] or "application/zip"))
+
+    response['Content-Type'] = mimetypes.guess_type(download_filename)[0] or "application/zip"
+    response['Content-Disposition'] = "{}; filename={}".format(content_disposition, download_filename)
+
+    # For testing
+    response['_stream'] = 'yes'
+    
     return response
 
 
@@ -323,14 +366,19 @@ class TaskDownloads(TaskNestedView):
 
         # Check and download
         try:
-            asset_path = task.get_asset_download_path(asset)
+            asset_fs, is_zipstream = task.get_asset_file_or_zipstream(asset)
         except FileNotFoundError:
-            raise exceptions.NotFound("Asset does not exist")
+            raise exceptions.NotFound(_("Asset does not exist"))
 
-        if not os.path.exists(asset_path):
-            raise exceptions.NotFound("Asset does not exist")
+        if not is_zipstream and not os.path.isfile(asset_fs):
+            raise exceptions.NotFound(_("Asset does not exist"))
+        
+        download_filename = request.GET.get('filename', get_asset_download_filename(task, asset))
 
-        return download_file_response(request, asset_path, 'attachment')
+        if not is_zipstream:
+            return download_file_response(request, asset_fs, 'attachment', download_filename=download_filename)
+        else:
+            return download_file_stream(request, asset_fs, 'attachment', download_filename=download_filename)
 
 """
 Raw access to the task's asset folder resources
@@ -347,10 +395,10 @@ class TaskAssets(TaskNestedView):
         try:
             asset_path = path_traversal_check(task.assets_path(unsafe_asset_path), task.assets_path(""))
         except SuspiciousFileOperation:
-            raise exceptions.NotFound("Asset does not exist")
+            raise exceptions.NotFound(_("Asset does not exist"))
 
         if (not os.path.exists(asset_path)) or os.path.isdir(asset_path):
-            raise exceptions.NotFound("Asset does not exist")
+            raise exceptions.NotFound(_("Asset does not exist"))
 
         return download_file_response(request, asset_path, 'inline')
 
@@ -366,13 +414,13 @@ class TaskAssetsImport(APIView):
 
         files = flatten_files(request.FILES)
         import_url = request.data.get('url', None)
-        task_name = request.data.get('name', 'Imported Task')
+        task_name = request.data.get('name', _('Imported Task'))
 
         if not import_url and len(files) != 1:
-            raise exceptions.ValidationError(detail="Cannot create task, you need to upload 1 file")
+            raise exceptions.ValidationError(detail=_("Cannot create task, you need to upload 1 file"))
 
         if import_url and len(files) > 0:
-            raise exceptions.ValidationError(detail="Cannot create task, either specify a URL or upload 1 file.")
+            raise exceptions.ValidationError(detail=_("Cannot create task, either specify a URL or upload 1 file."))
 
         with transaction.atomic():
             task = models.Task.objects.create(project=project,

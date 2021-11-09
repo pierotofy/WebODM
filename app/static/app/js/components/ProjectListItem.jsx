@@ -12,13 +12,17 @@ import csrf from '../django/csrf';
 import HistoryNav from '../classes/HistoryNav';
 import PropTypes from 'prop-types';
 import ResizeModes from '../classes/ResizeModes';
+import exifr from '../vendor/exifr';
+import { _, interpolate } from '../classes/gettext';
 import $ from 'jquery';
 
 class ProjectListItem extends React.Component {
   static propTypes = {
       history: PropTypes.object.isRequired,
       data: PropTypes.object.isRequired, // project json
-      onDelete: PropTypes.func
+      onDelete: PropTypes.func,
+      onTaskMoved: PropTypes.func,
+      onProjectDuplicated: PropTypes.func
   }
 
   constructor(props){
@@ -45,6 +49,7 @@ class ProjectListItem extends React.Component {
     this.handleEditProject = this.handleEditProject.bind(this);
     this.updateProject = this.updateProject.bind(this);
     this.taskDeleted = this.taskDeleted.bind(this);
+    this.taskMoved = this.taskMoved.bind(this);
     this.hasPermission = this.hasPermission.bind(this);
   }
 
@@ -180,7 +185,7 @@ class ProjectListItem extends React.Component {
                     file.retries++;
                     this.dz.processQueue();
                 }else{
-                    throw new Error(`Cannot upload ${file.name}, exceeded max retries (${MAX_RETRIES})`);
+                    throw new Error(interpolate(_('Cannot upload %(filename)s, exceeded max retries (%(max_retries)s)'), {filename: file.name, max_retries: MAX_RETRIES}));
                 }
             };
 
@@ -229,17 +234,17 @@ class ProjectListItem extends React.Component {
                     if (task && task.id){
                         this.newTaskAdded();
                     }else{
-                        this.setUploadState({error: `Cannot create new task. Invalid response from server: ${JSON.stringify(task)}`});
+                        this.setUploadState({error: interpolate(_('Cannot create new task. Invalid response from server: %(error)s'), { error: JSON.stringify(task) }) });
                     }
                   }).fail(() => {
-                    this.setUploadState({error: "Cannot create new task. Please try again later."});
+                    this.setUploadState({error: _("Cannot create new task. Please try again later.")});
                   });
             }else if (this.dz.getQueuedFiles() === 0){
                 // Done but didn't upload all?
                 this.setUploadState({
                     totalCount: this.state.upload.totalCount - remainingFilesCount,
                     uploading: false,
-                    error: `${remainingFilesCount} files cannot be uploaded. As a reminder, only images (.jpg, .tif, .png) and GCP files (.txt) can be uploaded. Try again.`
+                    error: interpolate(_('%(count)s files cannot be uploaded. As a reminder, only images (.jpg, .tif, .png) and GCP files (.txt) can be uploaded. Try again.'), { count: remainingFilesCount })
                 });
             }
         })
@@ -302,6 +307,11 @@ class ProjectListItem extends React.Component {
     this.refresh();
   }
 
+  taskMoved(task){
+    this.refresh();
+    if (this.props.onTaskMoved) this.props.onTaskMoved(task);
+  }
+
   handleDelete(){
     return $.ajax({
           url: `/api/projects/${this.state.data.id}/`,
@@ -341,11 +351,11 @@ class ProjectListItem extends React.Component {
             this.dz.options.url = `/api/projects/${this.state.data.id}/tasks/${task.id}/upload/`;
             this.dz.processQueue();
         }else{
-            this.setState({error: `Cannot create new task. Invalid response from server: ${JSON.stringify(task)}`});
+            this.setState({error: interpolate(_('Cannot create new task. Invalid response from server: %(error)s'), { error: JSON.stringify(task) }) });
             this.handleTaskCanceled();
         }
       }).fail(() => {
-        this.setState({error: "Cannot create new task. Please try again later."});
+        this.setState({error: _("Cannot create new task. Please try again later.")});
         this.handleTaskCanceled();
       });
   }
@@ -368,14 +378,15 @@ class ProjectListItem extends React.Component {
 
   updateProject(project){
     return $.ajax({
-        url: `/api/projects/${this.state.data.id}/`,
+        url: `/api/projects/${this.state.data.id}/edit/`,
         contentType: 'application/json',
         data: JSON.stringify({
           name: project.name,
           description: project.descr,
+          permissions: project.permissions
         }),
         dataType: 'json',
-        type: 'PATCH'
+        type: 'POST'
       }).done(() => {
         this.refresh();
       });
@@ -393,27 +404,97 @@ class ProjectListItem extends React.Component {
     this.setState({importing: false});
   }
 
+  handleTaskTitleHint = () => {
+      return new Promise((resolve, reject) => {
+          if (this.state.upload.files.length > 0){
+
+              // Find first image in list
+              let f = null;
+              for (let i = 0; i < this.state.upload.files.length; i++){
+                  if (this.state.upload.files[i].type.indexOf("image") === 0){
+                      f = this.state.upload.files[i];
+                      break;
+                  }
+              }
+              if (!f){
+                  reject();
+                  return;
+              }
+              
+              // Parse EXIF
+              const options = {
+                ifd0: false,
+                exif: [0x9003],
+                gps: [0x0001, 0x0002, 0x0003, 0x0004],
+                interop: false,
+                ifd1: false // thumbnail
+              };
+              exifr.parse(f, options).then(gps => {
+                if (!gps.latitude || !gps.longitude){
+                    reject();
+                    return;
+                }
+
+                let dateTime = gps["36867"];
+
+                // Try to parse the date from EXIF to JS
+                const parts = dateTime.split(" ");
+                if (parts.length == 2){
+                    let [ d, t ] = parts;
+                    d = d.replace(/:/g, "-");
+                    const tm = Date.parse(`${d} ${t}`);
+                    if (!isNaN(tm)){
+                        dateTime = new Date(tm).toLocaleDateString();
+                    }
+                }
+                
+                // Fallback to file modified date if 
+                // no exif info is available
+                if (!dateTime) dateTime = f.lastModifiedDate.toLocaleDateString();
+
+                // Query nominatim OSM
+                $.ajax({
+                    url: `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${gps.latitude}&lon=${gps.longitude}`,
+                    contentType: 'application/json',
+                    type: 'GET'
+                }).done(json => {
+                    if (json.name) resolve(`${json.name} - ${dateTime}`);
+                    else if (json.address && json.address.road) resolve(`${json.address.road} - ${dateTime}`);
+                    else reject(new Error("Invalid json"));
+                }).fail(reject);
+              }).catch(reject);
+          }
+      });
+  }
+
   render() {
     const { refreshing, data } = this.state;
     const numTasks = data.tasks.length;
+    const canEdit = this.hasPermission("change");
 
     return (
       <li className={"project-list-item list-group-item " + (refreshing ? "refreshing" : "")}
          href="javascript:void(0);"
          ref={this.setRef("dropzone")}
          >
-
-        <EditProjectDialog 
-          ref={(domNode) => { this.editProjectDialog = domNode; }}
-          title="Edit Project"
-          saveLabel="Save Changes"
-          savingLabel="Saving changes..."
-          saveIcon="far fa-edit"
-          projectName={data.name}
-          projectDescr={data.description}
-          saveAction={this.updateProject}
-          deleteAction={this.hasPermission("delete") ? this.handleDelete : undefined}
-        />
+        
+        {canEdit ? 
+            <EditProjectDialog 
+            ref={(domNode) => { this.editProjectDialog = domNode; }}
+            title={_("Edit Project")}
+            saveLabel={_("Save Changes")}
+            savingLabel={_("Saving changes...")}
+            saveIcon="far fa-edit"
+            showDuplicate={true}
+            onDuplicated={this.props.onProjectDuplicated}
+            projectName={data.name}
+            projectDescr={data.description}
+            projectId={data.id}
+            saveAction={this.updateProject}
+            showPermissions={this.hasPermission("change")}
+            deleteAction={this.hasPermission("delete") ? this.handleDelete : undefined}
+            />
+        : ""}
 
         <div className="row no-margin">
           <ErrorMessage bind={[this, 'error']} />
@@ -425,12 +506,12 @@ class ProjectListItem extends React.Component {
                       onClick={this.handleUpload}
                       ref={this.setRef("uploadButton")}>
                   <i className="glyphicon glyphicon-upload"></i>
-                  Select Images and GCP
+                  {_("Select Images and GCP")}
                 </button>
                 <button type="button" 
                       className="btn btn-default btn-sm"
                       onClick={this.handleImportTask}>
-                  <i className="glyphicon glyphicon-import"></i> Import
+                  <i className="glyphicon glyphicon-import"></i> {_("Import")}
                 </button>
                 {this.state.buttons.map((button, i) => <React.Fragment key={i}>{button}</React.Fragment>)}
               </div>
@@ -445,7 +526,7 @@ class ProjectListItem extends React.Component {
             </button> 
 
             <button type="button" className="btn btn-default btn-sm" onClick={this.viewMap}>
-              <i className="fa fa-globe"></i> View Map
+              <i className="fa fa-globe"></i> {_("View Map")}
             </button>
           </div>
 
@@ -460,14 +541,16 @@ class ProjectListItem extends React.Component {
               <span>
                 <i className='fa fa-tasks'>
                 </i> <a href="javascript:void(0);" onClick={this.toggleTaskList}>
-                  {numTasks} Tasks <i className={'fa fa-caret-' + (this.state.showTaskList ? 'down' : 'right')}></i>
+                  {interpolate(_("%(count)s Tasks"), { count: numTasks})} <i className={'fa fa-caret-' + (this.state.showTaskList ? 'down' : 'right')}></i>
                 </a>
               </span>
               : ""}
 
-            <i className='far fa-edit'>
-            </i> <a href="javascript:void(0);" onClick={this.handleEditProject}> Edit
-            </a>
+            {canEdit ? 
+                [<i key="edit-icon" className='far fa-edit'>
+                </i>,<a key="edit-text" href="javascript:void(0);" onClick={this.handleEditProject}> {_("Edit")}
+                </a>]
+            : ""}
           </div>
         </div>
         <i className="drag-drop-icon fa fa-inbox"></i>
@@ -476,7 +559,7 @@ class ProjectListItem extends React.Component {
           
           {this.state.upload.error !== "" ? 
             <div className="alert alert-warning alert-dismissible">
-                <button type="button" className="close" aria-label="Close" onClick={this.closeUploadError}><span aria-hidden="true">&times;</span></button>
+                <button type="button" className="close" title={_("Close")} onClick={this.closeUploadError}><span aria-hidden="true">&times;</span></button>
                 {this.state.upload.error}
             </div>
             : ""}
@@ -485,6 +568,7 @@ class ProjectListItem extends React.Component {
             <NewTaskPanel
               onSave={this.handleTaskSaved}
               onCancel={this.handleTaskCanceled}
+              suggestedTaskName={this.handleTaskTitleHint}
               filesCount={this.state.upload.totalCount}
               showResize={true}
               getFiles={() => this.state.upload.files }
@@ -504,6 +588,8 @@ class ProjectListItem extends React.Component {
                 ref={this.setRef("taskList")} 
                 source={`/api/projects/${data.id}/tasks/?ordering=-created_at`}
                 onDelete={this.taskDeleted}
+                onTaskMoved={this.taskMoved}
+                hasPermission={this.hasPermission}
                 history={this.props.history}
             /> : ""}
 

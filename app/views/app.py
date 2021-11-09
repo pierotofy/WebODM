@@ -43,7 +43,7 @@ def dashboard(request):
     if Project.objects.count() == 0:
         Project.objects.create(owner=request.user, name=_("First Project"))
 
-    return render(request, 'app/dashboard.html', {'title': 'Dashboard',
+    return render(request, 'app/dashboard.html', {'title': _('Dashboard'),
         'no_processingnodes': no_processingnodes,
         'no_tasks': no_tasks
     })
@@ -60,10 +60,10 @@ def map(request, project_pk=None, task_pk=None):
         
         if task_pk is not None:
             task = get_object_or_404(Task.objects.defer('orthophoto_extent', 'dsm_extent', 'dtm_extent'), pk=task_pk, project=project)
-            title = task.name
+            title = task.name or task.id
             mapItems = [task.get_map_items()]
         else:
-            title = project.name
+            title = project.name or project.id
             mapItems = project.get_map_items()
 
     return render(request, 'app/map.html', {
@@ -71,7 +71,8 @@ def map(request, project_pk=None, task_pk=None):
             'params': {
                 'map-items': json.dumps(mapItems),
                 'title': title,
-                'public': 'false'
+                'public': 'false',
+                'share-buttons': 'false' if settings.DESKTOP_MODE else 'true'
             }.items()
         })
 
@@ -87,7 +88,7 @@ def model_display(request, project_pk=None, task_pk=None):
 
         if task_pk is not None:
             task = get_object_or_404(Task.objects.defer('orthophoto_extent', 'dsm_extent', 'dtm_extent'), pk=task_pk, project=project)
-            title = task.name
+            title = task.name or task.id
         else:
             raise Http404()
 
@@ -95,10 +96,13 @@ def model_display(request, project_pk=None, task_pk=None):
             'title': title,
             'params': {
                 'task': json.dumps(task.get_model_display_params()),
-                'public': 'false'
+                'public': 'false',
+                'share-buttons': 'false' if settings.DESKTOP_MODE else 'true'
             }.items()
         })
 
+def about(request):
+    return render(request, 'app/about.html', {'title': _('About'), 'version': settings.VERSION})
 
 @login_required
 def processing_node(request, processing_node_id):
@@ -108,7 +112,7 @@ def processing_node(request, processing_node_id):
 
     return render(request, 'app/processing_node.html', 
             {
-                'title': 'Processing Node', 
+                'title': _('Processing Node'), 
                 'processing_node': pn,
                 'available_options_json': pn.get_available_options_json(pretty=True)
             })
@@ -142,7 +146,7 @@ def welcome(request):
 
     return render(request, 'app/welcome.html',
                   {
-                      'title': 'Welcome',
+                      'title': _('Welcome'),
                       'firstuserform': fuf
                   })
 

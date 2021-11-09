@@ -7,7 +7,8 @@ from django.shortcuts import render
 
 from app.api.tasks import TaskSerializer
 from app.models import Task
-
+from django.views.decorators.csrf import ensure_csrf_cookie
+from webodm import settings
 
 def get_public_task(task_pk):
     """
@@ -18,6 +19,7 @@ def get_public_task(task_pk):
        raise Http404()
     return task
 
+@ensure_csrf_cookie
 def handle_map(request, template, task_pk=None, hide_title=False):
     task = get_public_task(task_pk)
 
@@ -26,7 +28,8 @@ def handle_map(request, template, task_pk=None, hide_title=False):
         'params': {
             'map-items': json.dumps([task.get_map_items()]),
             'title': task.name if not hide_title else '',
-            'public': 'true'
+            'public': 'true',
+            'share-buttons': 'false' if settings.DESKTOP_MODE else 'true'
         }.items()
     })
 
@@ -36,6 +39,7 @@ def map(request, task_pk=None):
 def map_iframe(request, task_pk=None):
     return handle_map(request, 'app/public/map_iframe.html', task_pk, True)
 
+@ensure_csrf_cookie
 def handle_model_display(request, template, task_pk=None):
     task = get_public_task(task_pk)
 
@@ -43,7 +47,8 @@ def handle_model_display(request, template, task_pk=None):
             'title': task.name,
             'params': {
                 'task': json.dumps(task.get_model_display_params()),
-                'public': 'true'
+                'public': 'true',
+                'share-buttons': 'false' if settings.DESKTOP_MODE else 'true'
             }.items()
         })
 

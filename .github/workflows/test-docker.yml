@@ -1,0 +1,20 @@
+name: Test Docker
+
+on:
+  pull_request:
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+      name: Checkout
+     
+    - name: Build and Test
+      run: |
+        docker-compose -f docker-compose.yml -f docker-compose.build.yml build --build-arg TEST_BUILD=ON
+        docker-compose -f docker-compose.yml -f docker-compose.build.yml up -d
+        sleep 20
+        docker-compose exec -T webapp /webodm/webodm.sh test

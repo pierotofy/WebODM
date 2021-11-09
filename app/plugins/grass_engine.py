@@ -26,8 +26,6 @@ class GrassEngine:
 
         if self.grass_binary is None:
             logger.warning("Could not find a GRASS 7 executable. GRASS scripts will not work.")
-        else:
-            logger.info("Initializing GRASS engine using {}".format(self.grass_binary))
 
     def create_context(self, serialized_context = {}):
         if self.grass_binary is None: raise GrassEngineException("GRASS engine is unavailable")
@@ -94,16 +92,17 @@ class GrassContext:
         err = ""
 
         # Setup env
-        env = None
+        env = os.environ.copy()
+        env["LC_ALL"] = "C.UTF-8"
+        
         if self.python_path:
-            env = os.environ.copy()
             sep = ";" if platform.system() == "Windows" else ":"
             env["PYTHONPATH"] = "%s%s%s" % (self.python_path, sep, env.get("PYTHONPATH", ""))
 
         # Execute it
-        logger.info("Executing grass script from {}: {} -c {} location --exec python {} {}".format(self.get_cwd(), self.grass_binary, self.location, script, " ".join(params)))
+        logger.info("Executing grass script from {}: {} -c {} location --exec python3 {} {}".format(self.get_cwd(), self.grass_binary, self.location, script, " ".join(params)))
         
-        command = [self.grass_binary, '-c', self.location, 'location', '--exec', 'python', script] + params
+        command = [self.grass_binary, '-c', self.location, 'location', '--exec', 'python3', script] + params
         if platform.system() == "Windows":
             # communicate() hangs on Windows so we use check_output instead
             try:

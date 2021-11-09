@@ -2,7 +2,24 @@
 <html lang="en">
 <head>
     {% load i18n static settings compress plugins %}
+    <!-- 
+    WebODM - User-friendly, commercial grade software for processing aerial imagery.
+    Copyright (C) 2020  WebODM Authors
 
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+    -->
+    
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -20,6 +37,7 @@
     <script src="{% static 'app/js/vendor/es6-shim.min.js' %}"></script>
     <script src="{% static 'app/js/vendor/jquery-1.11.2.min.js' %}"></script>
     <script src="{% static 'app/js/vendor/system.js' %}"></script>
+    <script src="{% url 'javascript-catalog' %}"></script>
 
     {% block headers-before-bundle %}{% endblock %}
 
@@ -37,32 +55,31 @@
     <link rel="stylesheet" type="text/x-scss" href="{% static 'app/css/theme.scss' %}" />
     {% endcompress %}
 
+    {% is_desktop_mode as desktop_mode %}
+    {% if desktop_mode %}
+    <!-- Hide top nav bar -->
+    <style type="text/css">
+        .navbar-header { display: none; }
+        #navbar-top .navbar-default.sidebar{ top: 0; position: fixed; margin-top: 1px; }
+        #navbar-top { height: 0; min-height: 0; }
+        .map-view { height: calc(100% + 30px) !important; }
+        .model-view { height: calc(100% + 50px) !important; }
+    </style>
+    {% endif %}
+
     <style type="text/css">
         {{ SETTINGS.theme.css|safe }}
     </style>
 </head>
 <body data-admin-utc-offset="{% now "Z" %}">
+{% if desktop_mode %}
+    <div class='topLine' style="background: #e7e7e7; position: absolute; left: 0; right: 0; height: 1px;"></div>
+{% endif %}
+
 {% block body %}
     <!--[if lt IE 8]>
         <p class="browserupgrade">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
     <![endif]-->
-    <!--
-            {% if request.user.is_authenticated %}
-                {% if user.is_superuser %}          
-                <li>
-                    <a class="page-scroll" href="/admin/">Admin Panel</a>
-                </li>
-                {% endif %}
-                <li>
-                    <a class="page-scroll" href="/logout/">Logout</a>
-                </li>
-            {% else %}
-                 <li>
-                    <a class="page-scroll" href="/login/">Login</a>
-                </li>
-            {% endif %}
-            </ul>
--->
     <div id="wrapper">
         {{ SETTINGS.theme.html_before_header|safe }}
 
@@ -96,11 +113,18 @@ $(function(){
     $('#side-menu').metisMenu();
 
     $(window).bind("load resize", function() {
+        {% if desktop_mode %}
+        var topOffset = 0;
+        {% else %}
         var topOffset = 50;
+        {% endif %}
+
         var width = (this.window.innerWidth > 0) ? this.window.innerWidth : this.screen.width;
         if (width < 768) {
             $('div.navbar-collapse').addClass('collapse');
+            {% if not desktop_mode %}
             topOffset = 100; // 2-row-menu
+            {% endif %}
         } else {
             $('div.navbar-collapse').removeClass('collapse');
         }

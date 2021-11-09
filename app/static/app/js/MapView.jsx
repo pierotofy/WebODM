@@ -3,20 +3,23 @@ import './css/MapView.scss';
 import Map from './components/Map';
 import $ from 'jquery';
 import PropTypes from 'prop-types';
+import { _, interpolate } from './classes/gettext';
 
 class MapView extends React.Component {
   static defaultProps = {
     mapItems: [],
     selectedMapType: 'orthophoto',
     title: "",
-    public: false
+    public: false,
+    shareButtons: true
   };
 
   static propTypes = {
       mapItems: PropTypes.array.isRequired, // list of dictionaries where each dict is a {mapType: 'orthophoto', url: <tiles.json>},
       selectedMapType: PropTypes.oneOf(['orthophoto', 'plant', 'dsm', 'dtm']),
       title: PropTypes.string,
-      public: PropTypes.bool
+      public: PropTypes.bool,
+      shareButtons: PropTypes.bool
   };
 
   constructor(props){
@@ -61,22 +64,22 @@ class MapView extends React.Component {
   render(){
     let mapTypeButtons = [
       {
-        label: "Orthophoto",
+        label: _("Orthophoto"),
         type: "orthophoto",
         icon: "far fa-image"
       },
       {
-        label: "Plant Health",
+        label: _("Plant Health"),
         type: "plant",
         icon: "fa fa-seedling"
       },
       {
-        label: "Surface Model",
+        label: _("Surface Model"),
         type: "dsm",
         icon: "fa fa-chart-area"
       },
       {
-        label: "Terrain Model",
+        label: _("Terrain Model"),
         type: "dtm",
         icon: "fa fa-chart-area"
       }
@@ -105,6 +108,7 @@ class MapView extends React.Component {
                 showBackground={true} 
                 mapType={this.state.selectedMapType} 
                 public={this.props.public}
+                shareButtons={this.props.shareButtons}
             />
         </div>
       </div>);

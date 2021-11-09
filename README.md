@@ -1,6 +1,6 @@
 <img alt="WebODM" src="https://user-images.githubusercontent.com/1951843/34074943-8f057c3c-e287-11e7-924d-3ccafa60c43a.png" width="180">
 
-[![Build Status](https://travis-ci.org/OpenDroneMap/WebODM.svg?branch=master)](https://travis-ci.org/OpenDroneMap/WebODM) [![GitHub version](https://badge.fury.io/gh/OpenDroneMap%2FWebODM.svg)](https://badge.fury.io/gh/OpenDroneMap%2FWebODM)
+[![Build Status](https://travis-ci.org/OpenDroneMap/WebODM.svg?branch=master)](https://travis-ci.org/OpenDroneMap/WebODM) [![Translated](https://hosted.weblate.org/widgets/webodm/-/svg-badge.svg)](https://hosted.weblate.org/engage/webodm/)
 
 A user-friendly, commercial grade software for drone image processing. Generate georeferenced maps, point clouds, elevation models and textured 3D models from aerial images. It supports multiple engines for processing, currently [ODM](https://github.com/OpenDroneMap/ODM) and [MicMac](https://github.com/dronemapper-io/NodeMICMAC/).
 
@@ -22,11 +22,13 @@ A user-friendly, commercial grade software for drone image processing. Generate 
  * [Roadmap](#roadmap)
  * [Getting Help](#getting-help)
  * [Support the Project](#support-the-project)
+ * [Translations](#translations)
  * [Become a Contributor](#become-a-contributor)
  * [Architecture Overview](#architecture-overview)
  * [Run the docker version as a Linux Service](#run-the-docker-version-as-a-linux-service)
  * [Run it natively](#run-it-natively)
  * [Run it on the cloud (Google Compute, Amazon AWS)](#run-it-on-the-cloud-google-compute-amazon-aws)
+ * [License](#license)
  
 ![image](https://user-images.githubusercontent.com/1951843/73680589-8213fa80-468a-11ea-9225-442fdcc8b7c8.png)
 
@@ -35,8 +37,6 @@ A user-friendly, commercial grade software for drone image processing. Generate 
 ## Getting Started
 
 Windows and macOS users can purchase an automated [installer](https://www.opendronemap.org/webodm/download#installer), which makes the installation process easier.
-
-You can also run WebODM from a Live USB/DVD. See [LiveODM](https://www.opendronemap.org/liveodm/).
 
 Windows users looking for a UI-only native installation can also download the "Desktop App" available from [webodm.net](https://webodm.net).
 
@@ -49,15 +49,21 @@ To install WebODM manually, these steps should get you up and running:
   - Python
   - Pip
 
-* Windows users have a choice between Docker Toolbox (Windows 10 Home or older) and Docker for Windows (Windows 10 Pro or newer). Docker for Windows users should set up their Docker environment before launching WebODM using the Docker utility in the system tray: 1) make sure Linux containers are enabled (Switch to Linux Containers...), 2) give Docker enough CPUs (default 2) and RAM (>4Gb, 16Gb better but leave some for Windows) by going to Settings -- Advanced, and 3) select where on your hard drive you want virtual hard drives to reside (Settings -- Advanced -- Images & Volumes). 
+* Windows users should install [Docker Desktop](https://hub.docker.com/editions/community/docker-ce-desktop-windows) and 1) make sure Linux containers are enabled (Switch to Linux Containers...), 2) give Docker enough CPUs (default 2) and RAM (>4Gb, 16Gb better but leave some for Windows) by going to Settings -- Advanced, and 3) select where on your hard drive you want virtual hard drives to reside (Settings -- Advanced -- Images & Volumes).
 
 * From the Docker Quickstart Terminal or Git Bash (Windows), or from the command line (Mac / Linux), type:
 ```bash
 git clone https://github.com/OpenDroneMap/WebODM --config core.autocrlf=input --depth 1
 cd WebODM
+./webodm.sh start 
+```
+* If you face any issues at the last step on Linux, make sure your user is part of the docker group:
+```bash
+sudo usermod -aG docker $USER
+exit
+(restart shell by logging out and then back-in)
 ./webodm.sh start
 ```
-
 * Open a Web Browser to `http://localhost:8000` (unless you are on Windows using Docker Toolbox, see below)
 
 Docker Toolbox users need to find the IP of their docker machine by running this command from the Docker Quickstart Terminal:
@@ -264,10 +270,31 @@ There are many ways to contribute back to the project:
  - [Share](http://community.opendronemap.org/c/datasets) your aerial datasets.
  - Help answer questions on the community [forum](http://community.opendronemap.org/c/webodm) and [chat](https://gitter.im/OpenDroneMap/web-development).
  - ⭐️ us on GitHub.
+ - Help us [translate](#translations) WebODM in your language.
  - Spread the word about WebODM and OpenDroneMap on social media.
  - While we don't accept donations, you can purchase an [installer](https://webodm.org/download#installer), a [book](https://odmbook.com/) or a [sponsor package](https://github.com/users/pierotofy/sponsorship).
  - You can [pledge funds](https://fund.webodm.org) for getting new features built and bug fixed.
  - Become a contributor 🤘
+
+## Translations
+
+It's easy to translate WebODM in a different language!
+
+ - Visit https://hosted.weblate.org/engage/webodm/ and register an account (it's free)
+ - Pick a language to translate, or [start a new translation](https://hosted.weblate.org/new-lang/webodm/webodm/)
+ - Start translating! It's that easy.
+
+If you want to preview your translation work, start WebODM in developer mode:
+
+```
+./webodm.sh restart --dev
+```
+
+Then edit the [LOCALES](https://github.com/OpenDroneMap/WebODM/blob/master/LOCALES) file to include your translation locale code. Finally, visit the `Developer Tools` panel from WebODM's dashboard and press the `Download and Replace Translation Files` button:
+
+![image](https://user-images.githubusercontent.com/1951843/102927263-a294a100-4464-11eb-956e-888b73dc5b94.png)
+
+The latest translation files from weblate.org will be downloaded and applied to the installation of WebODM.
 
 ## Become a Contributor
 
@@ -345,12 +372,12 @@ Ubuntu 16.04 LTS users can refer to [this community script](/contrib/ubuntu_1604
 To run WebODM, you will need to install:
  * PostgreSQL (>= 9.5)
  * PostGIS 2.3
- * Python 3.5
- * GDAL (>= 2.1)
+ * Python 3.6
+ * GDAL (>= 3)
  * Node.js (>= 6.0)
  * Nginx (Linux/MacOS) - OR - Apache + mod_wsgi or Waitress (Windows)
  * Redis (>= 2.6)
- * GRASS GIS (>= 7.6)
+ * GRASS GIS (>= 7.8)
 
 On Linux, make sure you have:
 
@@ -474,3 +501,6 @@ These steps are for Google Cloud, but can also be used for Amazon AWS, and other
 To setup the firewall on Google Cloud, open the instance, on the middle of the instance settings page find NIC0. Open it, and then add the TCP Port 8000 for ingress, and egress on the Firewall.
 
 
+## License
+
+WebODM is licensed under the terms of the [GNU Affero General Public License v3.0](https://github.com/OpenDroneMap/WebODM/blob/master/LICENSE.md).

@@ -6,14 +6,65 @@ import AssetDownloadButtons from './components/AssetDownloadButtons';
 import Standby from './components/Standby';
 import ShareButton from './components/ShareButton';
 import ImagePopup from './components/ImagePopup';
-import epsg from 'epsg';
 import PropTypes from 'prop-types';
 import * as THREE from 'THREE';
 import $ from 'jquery';
+import { _, interpolate } from './classes/gettext';
 
 require('./vendor/OBJLoader');
 require('./vendor/MTLLoader');
 require('./vendor/ColladaLoader');
+
+class SetCameraView extends React.Component{
+    static propTypes = {
+        viewer: PropTypes.object.isRequired,
+        task: PropTypes.object.isRequired
+    }
+
+    constructor(props){
+        super(props);
+        
+        this.state = {
+            error: "",
+            showOk: false
+        }
+    }
+
+    handleClick = () => {
+        const { view } = Potree.saveProject(this.props.viewer);
+        const showError = () => {
+            this.setState({error: _("Cannot set initial camera view")});
+            setTimeout(() => this.setState({error: ""}), 3000);
+        };
+        const showOk = () => {
+            this.setState({showOk: true});
+            setTimeout(() => this.setState({showOk: false}), 2000);
+        }
+
+        $.ajax({
+            url: `/api/projects/${this.props.task.project}/tasks/${this.props.task.id}/3d/cameraview`,
+            contentType: 'application/json',
+            data: JSON.stringify(view),
+            dataType: 'json',
+            type: 'POST'
+          }).done(result => {
+            if (result.success) showOk();
+            else showError();
+          }).fail(() => {
+            showError();
+          });
+    }
+
+    render(){
+        return ([<input key="btn" type="button" onClick={this.handleClick} 
+                    style={{marginBottom: 12, display: 'inline-block'}} name="set_camera_view" 
+                    value={_("set initial camera view")} />,
+                this.state.showOk ? (<div key="ok" style={{color: 'lightgreen', display: 'inline-block', marginLeft: 12}}>✓</div>) : "",
+                this.state.error ? (<div key="error" style={{color: 'red'}}>{this.state.error}</div>) : ""
+                ]
+        );
+    }
+}
 
 class TexturedModelMenu extends React.Component{
     static propTypes = {
@@ -26,6 +77,9 @@ class TexturedModelMenu extends React.Component{
         this.state = {
             showTexturedModel: false
         }
+        
+        // Translation for sidebar.html
+        _("Cameras");
     }
 
     handleClick = (e) => {
@@ -38,7 +92,7 @@ class TexturedModelMenu extends React.Component{
                             type="checkbox" 
                             checked={this.state.showTexturedModel}
                             onChange={this.handleClick}
-                        /> Show Model</label>);
+                        /> {_("Show Model")}</label>);
     }
 }
 
@@ -65,19 +119,21 @@ class CamerasMenu extends React.Component{
                             type="checkbox" 
                             checked={this.state.showCameras}
                             onChange={this.handleClick}
-                        /> Show Cameras</label>);
+                        /> {_("Show Cameras")}</label>);
     }
 }
 
 class ModelView extends React.Component {
   static defaultProps = {
     task: null,
-    public: false
+    public: false,
+    shareButtons: true
   };
 
   static propTypes = {
       task: PropTypes.object.isRequired, // The object should contain two keys: {id: <taskId>, project: <projectId>}
-      public: PropTypes.bool // Is the view being displayed via a shared link?
+      public: PropTypes.bool, // Is the view being displayed via a shared link?
+      shareButtons: PropTypes.bool
   };
 
   constructor(props){
@@ -88,6 +144,7 @@ class ModelView extends React.Component {
       showTexturedModel: false,
       initializingModel: false,
       selectedCamera: null,
+      modalOpen: false
     };
 
     this.pointCloud = null;
@@ -118,24 +175,41 @@ class ModelView extends React.Component {
   }
 
   loadGeoreferencingOffset = (cb) => {
-    $.ajax({
-        url: `${this.assetsPath()}/odm_georeferencing/odm_georeferencing_model_geo.txt`,
-        type: 'GET',
-        error: () => {
-            console.warn("Cannot find odm_georeferencing_model_geo.txt (not georeferenced?)")
-            cb({x: 0, y: 0});
-        },
-        success: (data) => {
-            const lines = data.split("\n");
-            if (lines.length >= 2){
-                const [ x, y ] = lines[1].split(" ").map(parseFloat);
-                cb({x, y});
-            }else{
-                console.warn(`Malformed odm_georeferencing_model_geo.txt: ${data}`);
+    const geoFile = `${this.assetsPath()}/odm_georeferencing/coords.txt`;
+    const legacyGeoFile = `${this.assetsPath()}/odm_georeferencing/odm_georeferencing_model_geo.txt`;
+    const getGeoOffsetFromUrl = (url) => {
+        $.ajax({
+            url: url,
+            type: 'GET',
+            error: () => {
+                console.warn(`Cannot find ${url} (not georeferenced?)`);
                 cb({x: 0, y: 0});
+            },
+            success: (data) => {
+                const lines = data.split("\n");
+                if (lines.length >= 2){
+                    const [ x, y ] = lines[1].split(" ").map(parseFloat);
+                    cb({x, y});
+                }else{
+                    console.warn(`Malformed georeferencing file: ${data}`);
+                    cb({x: 0, y: 0});
+                }
             }
-        }
+        });
+    };
+
+    $.ajax({
+        type: "HEAD",
+        url: legacyGeoFile
+    }).done(() => {
+        // If a legacy georeferencing file is present
+        // we'll use that
+        getGeoOffsetFromUrl(legacyGeoFile);
+    }).fail(() => {
+        getGeoOffsetFromUrl(geoFile);
     });
+
+    
   }
 
   pointCloudFilePath = (cb) => {
@@ -167,6 +241,9 @@ class ModelView extends React.Component {
   }
 
   objFilePath(cb){
+    // Mostly for backward compatibility
+    // as newer versions of ODM do not have 
+    // a odm_textured_model.obj
     const geoUrl = this.texturedModelDirectoryPath() + 'odm_textured_model_geo.obj';
     const nongeoUrl = this.texturedModelDirectoryPath() + 'odm_textured_model.obj';
 
@@ -180,9 +257,32 @@ class ModelView extends React.Component {
     });
   }
 
-  mtlFilename(){
-    // For some reason, loading odm_textured_model_geo.mtl does not load textures properly
-    return 'odm_textured_model.mtl';
+  mtlFilename(cb){
+    // Mostly for backward compatibility
+    // as newer versions of ODM do not have 
+    // a odm_textured_model.mtl
+    const geoUrl = this.texturedModelDirectoryPath() + 'odm_textured_model_geo.mtl';
+
+    $.ajax({
+        type: "HEAD",
+        url: geoUrl
+    }).done(() => {
+        cb("odm_textured_model_geo.mtl");
+    }).fail(() => {
+        cb("odm_textured_model.mtl");
+    });
+  }
+
+  getSceneData(){
+      let json = Potree.saveProject(window.viewer);
+
+      // Remove view, settings since we don't want to trigger
+      // scene updates when these change.
+      delete json.view;
+      delete json.settings;
+      delete json.cameraAnimations;
+
+      return json;
   }
 
   componentDidMount() {
@@ -193,7 +293,7 @@ class ModelView extends React.Component {
     viewer.setEDLEnabled(true);
     viewer.setFOV(60);
     viewer.setPointBudget(1*1000*1000);
-    viewer.setEDLEnabled(false); // Temporary fix: https://github.com/OpenDroneMap/WebODM/issues/873
+    viewer.setEDLEnabled(true);
     viewer.loadSettingsFromURL();
         
     viewer.loadGUI(() => {
@@ -213,6 +313,12 @@ class ModelView extends React.Component {
       }else{
           $("#cameras").hide();
           $("#cameras_container").hide();
+      }
+
+      if (!this.props.public){
+          const $scv = $("<div id='set-camera-view'></div>");
+          $scv.prependTo($("#scene_export").parent());
+          window.ReactDOM.render(<SetCameraView viewer={viewer} task={this.props.task} />, $scv.get(0));
       }
     });
 
@@ -238,7 +344,82 @@ class ModelView extends React.Component {
           material.size = 1;
 
           viewer.fitToScreen();
-        });     
+
+          // Load saved scene (if any)
+          $.ajax({
+              type: "GET",
+              url: `/api/projects/${this.props.task.project}/tasks/${this.props.task.id}/3d/scene`
+          }).done(sceneData => {
+            let localSceneData = Potree.saveProject(viewer);
+
+            // Check if we do not have a view set
+            // if so, just keep the current view information
+            if (!sceneData.view || !sceneData.view.position){
+                sceneData.view = localSceneData.view;
+            }
+
+            const keepKeys = ['pointclouds', 'settings', 'cameraAnimations'];
+            for (let k of keepKeys){
+                sceneData[k] = localSceneData[k];
+            }
+            
+            for (let k in localSceneData){
+                if (keepKeys.indexOf(k) === -1){
+                    sceneData[k] = sceneData[k] || localSceneData[k];
+                }
+            }
+
+            // Load
+            const potreeLoadProject = () => {
+                Potree.loadProject(viewer, sceneData);
+                viewer.removeEventListener("update", potreeLoadProject);
+            };
+            viewer.addEventListener("update", potreeLoadProject);
+
+            // Every 3 seconds, check if the scene has changed
+            // if it has, save the changes server-side
+            // Unfortunately Potree does not have reliable events
+            // for trivially detecting changes in measurements
+            let saveSceneReq = null;
+            let saveSceneInterval = null;
+            let saveSceneErrors = 0;
+            let prevSceneData = JSON.stringify(this.getSceneData());
+            
+            const postSceneData = (sceneData) => {
+                if (saveSceneReq){
+                    saveSceneReq.abort();
+                    saveSceneReq = null;
+                }
+    
+                saveSceneReq = $.ajax({
+                    url: `/api/projects/${this.props.task.project}/tasks/${this.props.task.id}/3d/scene`,
+                    contentType: 'application/json',
+                    data: sceneData,
+                    dataType: 'json',
+                    type: 'POST'
+                    }).done(result => {
+                        if (result.success){
+                            saveSceneErrors = 0;
+                            prevSceneData = sceneData;
+                        }else{
+                            console.warn("Cannot save Potree scene");
+                        }
+                    }).fail(() => {
+                        console.error("Cannot save Potree scene");
+                        if (++saveSceneErrors === 5) clearInterval(saveSceneInterval);
+                    });
+            };
+
+            const checkScene = () => {
+                const sceneData = JSON.stringify(this.getSceneData());
+                if (sceneData !== prevSceneData) postSceneData(sceneData);
+            };
+
+            saveSceneInterval = setInterval(checkScene, 3000);
+          }).fail(e => {
+            console.error("Cannot load 3D scene information", e);
+          });
+        });
     });
 
     viewer.renderer.domElement.addEventListener( 'mousedown', this.handleRenderMouseClick );
@@ -359,7 +540,7 @@ class ModelView extends React.Component {
                     const cameraMesh = new THREE.Mesh(cameraObj.geometry, material);
                     cameraMesh.matrixAutoUpdate = false;
                     let scale = 1.0;
-                    if (!this.pointCloud.projection) scale = 0.1;
+                    // if (!this.pointCloud.projection) scale = 0.1;
 
                     cameraMesh.matrix.set(...getMatrix(feat.properties.translation, feat.properties.rotation, scale).elements);
                     
@@ -376,9 +557,14 @@ class ModelView extends React.Component {
   }
 
   setPointCloudsVisible = (flag) => {
-    for(let pointcloud of viewer.scene.pointclouds){
-        pointcloud.visible = flag;
-    }
+    viewer.setEDLEnabled(true);
+    
+    // Using opacity we can still perform measurements
+    viewer.setEDLOpacity(flag ? 1 : 0);
+
+    // for(let pointcloud of viewer.scene.pointclouds){
+    //     pointcloud.visible = flag;
+    // }
   }
 
   toggleCameras(e){
@@ -403,24 +589,26 @@ class ModelView extends React.Component {
         const mtlLoader = new THREE.MTLLoader();
         mtlLoader.setPath(this.texturedModelDirectoryPath());
 
-        mtlLoader.load(this.mtlFilename(), (materials) => {
-            materials.preload();
-
-            const objLoader = new THREE.OBJLoader();
-            objLoader.setMaterials(materials);
-            this.objFilePath(filePath => {
-                objLoader.load(filePath, (object) => {
-                    this.loadGeoreferencingOffset((offset) => {
-                        object.translateX(offset.x);
-                        object.translateY(offset.y);
-        
-                        viewer.scene.scene.add(object);
-        
-                        this.modelReference = object;
-                        this.setPointCloudsVisible(false);
-        
-                        this.setState({
-                            initializingModel: false,
+        this.mtlFilename(mtlPath => {
+            mtlLoader.load(mtlPath, (materials) => {
+                materials.preload();
+    
+                const objLoader = new THREE.OBJLoader();
+                objLoader.setMaterials(materials);
+                this.objFilePath(filePath => {
+                    objLoader.load(filePath, (object) => {
+                        this.loadGeoreferencingOffset((offset) => {
+                            object.translateX(offset.x);
+                            object.translateY(offset.y);
+            
+                            viewer.scene.scene.add(object);
+            
+                            this.modelReference = object;
+                            this.setPointCloudsVisible(false);
+            
+                            this.setState({
+                                initializingModel: false,
+                            });
                         });
                     });
                 });
@@ -452,13 +640,15 @@ class ModelView extends React.Component {
                 <div id="potree_sidebar_container"> </div>
           </div>
 
-          <div className="model-action-buttons">
+          <div className={"model-action-buttons " + (this.state.modalOpen ? "modal-open" : "")}>
             <AssetDownloadButtons 
                             task={this.props.task} 
                             direction="up" 
                             showLabel={false}
-                            buttonClass="btn-secondary" />
-            {(!this.props.public) ? 
+                            buttonClass="btn-secondary"
+                            onModalOpen={() => this.setState({modalOpen: true})}
+                            onModalClose={() => this.setState({modalOpen: false})} />
+            {(this.props.shareButtons && !this.props.public) ? 
             <ShareButton 
                 ref={(ref) => { this.shareButton = ref; }}
                 task={this.props.task} 
@@ -478,7 +668,7 @@ class ModelView extends React.Component {
         </div> : ""}
 
           <Standby 
-            message="Loading textured model..."
+            message={_("Loading textured model...")}
             show={this.state.initializingModel}
             />
       </div>);
@@ -486,14 +676,18 @@ class ModelView extends React.Component {
 }
 
 $(function(){
-    // Add more proj definitions
-    const defs = [];
-    for (let k in epsg){
-        if (epsg[k]){
-            defs.push([k, epsg[k]]);
-        }
-    }
-    window.proj4.defs(defs);
+    // Use gettext for translations
+    const oldInit = i18n.init;
+    i18n.addPostProcessor("gettext", function(v, k, opts){
+        if (v){
+            return _(v);
+        }else return v;
+    });
+    i18n.init = function(opts, cb){
+        opts.preload = ['en'];
+        opts.postProcess = "gettext";
+        oldInit(opts, cb);
+    };
 
     $("[data-modelview]").each(function(){
         let props = $(this).data();

@@ -6,7 +6,7 @@ import ProjectListItem from './ProjectListItem';
 import Paginated from './Paginated';
 import Paginator from './Paginator';
 import ErrorMessage from './ErrorMessage';
-import { Route } from 'react-router-dom';
+import { _, interpolate } from '../classes/gettext';
 import PropTypes from 'prop-types';
 
 class ProjectList extends Paginated {
@@ -53,14 +53,14 @@ class ProjectList extends Paginated {
                     this.updatePagination(this.PROJECTS_PER_PAGE, json.count);
                 }else{
                     this.setState({ 
-                        error: `Invalid JSON response: ${JSON.stringify(json)}`,
+                        error: interpolate(_("Invalid JSON response: %(error)s"), {error: JSON.stringify(json)}),
                         loading: false
                     });
                 }
             })
             .fail((jqXHR, textStatus, errorThrown) => {
                 this.setState({ 
-                    error: `Could not load projects list: ${textStatus}`,
+                    error: interpolate(_("Could not load projects list: %(error)s"), {error: textStatus}),
                     loading: false
                 });
             })
@@ -85,9 +85,19 @@ class ProjectList extends Paginated {
         });
     }
 
+    handleTaskMoved = (task) => {
+        if (this["projectListItem_" + task.project]){
+            this["projectListItem_" + task.project].newTaskAdded();
+        }
+    }
+
+    handleProjectDuplicated = () => {
+        this.refresh();
+    }
+
     render() {
         if (this.state.loading){
-            return (<div className="project-list">Loading projects... <i className="fa fa-sync fa-spin fa-fw"></i></div>);
+            return (<div className="project-list text-center"><i className="fa fa-sync fa-spin fa-2x fa-fw"></i></div>);
         }else{
             return (<div className="project-list">
                 <ErrorMessage bind={[this, 'error']} />
@@ -95,9 +105,12 @@ class ProjectList extends Paginated {
                     <ul className={"list-group project-list " + (this.state.refreshing ? "refreshing" : "")}>
                         {this.state.projects.map(p => (
                             <ProjectListItem 
+                                ref={(domNode) => { this["projectListItem_" + p.id] = domNode }}
                                 key={p.id} 
                                 data={p} 
-                                onDelete={this.handleDelete} 
+                                onDelete={this.handleDelete}
+                                onTaskMoved={this.handleTaskMoved}
+                                onProjectDuplicated={this.handleProjectDuplicated}
                                 history={this.props.history} /> 
                         ))}
                     </ul>
