@@ -21,6 +21,7 @@ from django.contrib.gis.gdal import GDALRaster
 from django.contrib.gis.gdal import OGRGeometry
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.postgres import fields
+from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.core.exceptions import ValidationError, SuspiciousFileOperation
 from django.db import models
 from django.db import transaction
@@ -277,6 +278,7 @@ class Task(models.Model):
     potree_scene = fields.JSONField(default=dict, blank=True, help_text=_("Serialized potree scene information used to save/load measurements and camera view angle"), verbose_name=_("Potree Scene"))
     epsg = models.IntegerField(null=True, default=None, blank=True, help_text=_("EPSG code of the dataset (if georeferenced)"), verbose_name="EPSG")
     tags = models.TextField(db_index=True, default="", blank=True, help_text=_("Task tags"), verbose_name=_("Tags"))
+    orthophoto_bands = fields.JSONField(default=list, blank=True, help_text=_("List of orthophoto bands"), verbose_name=_("Orthophoto Bands"))
     
     class Meta:
         verbose_name = _("Task")
@@ -310,15 +312,6 @@ class Task(models.Model):
                 shutil.move(old_task_folder, new_task_folder_parent)
 
                 logger.info("Moved task folder from {} to {}".format(old_task_folder, new_task_folder))
-
-                with transaction.atomic():
-                    for img in self.imageupload_set.all():
-                        prev_name = img.image.name
-                        img.image.name = assets_directory_path(self.id, new_project_id,
-                                                               os.path.basename(img.image.name))
-                        logger.info("Changing {} to {}".format(prev_name, img))
-                        img.save()
-
             else:
                 logger.warning("Project changed for task {}, but either {} doesn't exist, or {} already exists. This doesn't look right, so we will not move any files.".format(self,
                                                                                                              old_task_folder,
@@ -429,16 +422,6 @@ class Task(models.Model):
                 task.refresh_from_db()
 
                 logger.info("Duplicating {} to {}".format(self, task))
-
-                for img in self.imageupload_set.all():
-                    img.pk = None
-                    img.task = task
-
-                    prev_name = img.image.name
-                    img.image.name = assets_directory_path(task.id, task.project.id,
-                                                            os.path.basename(img.image.name))
-                    
-                    img.save()
 
                 if os.path.isdir(self.task_path()):
                     try:
@@ -629,7 +612,8 @@ class Task(models.Model):
                 if not self.uuid and self.pending_action is None and self.status is None:
                     logger.info("Processing... {}".format(self))
 
-                    images = [image.path() for image in self.imageupload_set.all()]
+                    images_path = self.task_path()
+                    images = [os.path.join(images_path, i) for i in self.scan_images()]
 
                     # Track upload progress, but limit the number of DB updates
                     # to every 2 seconds (and always record the 100% progress)
@@ -828,6 +812,11 @@ class Task(models.Model):
                         else:
                             # FAILED, CANCELED
                             self.save()
+                            
+                            if self.status == status_codes.FAILED:
+                                from app.plugins import signals as plugin_signals
+                                plugin_signals.task_failed.send_robust(sender=self.__class__, task_id=self.id)
+
                     else:
                         # Still waiting...
                         self.save()
@@ -895,6 +884,7 @@ class Task(models.Model):
 
         self.update_available_assets_field()
         self.update_epsg_field()
+        self.update_orthophoto_bands_field()
         self.potree_scene = {}
         self.running_progress = 1.0
         self.console_output += gettext("Done!") + "\n"
@@ -916,8 +906,9 @@ class Task(models.Model):
 
     def get_map_items(self):
         types = []
-        if 'orthophoto.tif' in self.available_assets: types.append('orthophoto')
-        if 'orthophoto.tif' in self.available_assets: types.append('plant')
+        if 'orthophoto.tif' in self.available_assets: 
+            types.append('orthophoto')
+            types.append('plant')
         if 'dsm.tif' in self.available_assets: types.append('dsm')
         if 'dtm.tif' in self.available_assets: types.append('dtm')
 
@@ -936,7 +927,8 @@ class Task(models.Model):
                     'public': self.public,
                     'camera_shots': camera_shots,
                     'ground_control_points': ground_control_points,
-                    'epsg': self.epsg
+                    'epsg': self.epsg,
+                    'orthophoto_bands': self.orthophoto_bands,
                 }
             }
         }
@@ -1007,6 +999,22 @@ class Task(models.Model):
                 epsg = None
 
         self.epsg = epsg
+        if commit: self.save()
+
+
+    def update_orthophoto_bands_field(self, commit=False):
+        """
+        Updates the orthophoto bands field with the correct value
+        :param commit: when True also saves the model, otherwise the user should manually call save()
+        """
+        bands = []
+        orthophoto_path = self.assets_path(self.ASSETS_MAP['orthophoto.tif'])
+
+        if os.path.isfile(orthophoto_path):
+            with rasterio.open(orthophoto_path) as f:
+                bands = [c.name for c in f.colorinterp]
+
+        self.orthophoto_bands = bands
         if commit: self.save()
 
 
@@ -1122,3 +1130,34 @@ class Task(models.Model):
                 pass
             else:
                 raise
+
+    def scan_images(self):
+        tp = self.task_path()
+        try:
+            return [e.name for e in os.scandir(tp) if e.is_file()]
+        except:
+            return []
+
+    def get_image_path(self, filename):
+        p = self.task_path(filename)
+        return path_traversal_check(p, self.task_path())
+    
+    def handle_images_upload(self, files):
+        for file in files:
+            name = file.name
+            if name is None:
+                continue
+
+            tp = self.task_path()
+            if not os.path.exists(tp):
+                os.makedirs(tp, exist_ok=True)
+
+            dst_path = self.get_image_path(name)
+
+            with open(dst_path, 'wb+') as fd:
+                if isinstance(file, InMemoryUploadedFile):
+                    for chunk in file.chunks():
+                        fd.write(chunk)
+                else:
+                    with open(file.temporary_file_path(), 'rb') as f:
+                        shutil.copyfileobj(f, fd)

@@ -590,7 +590,10 @@ class ModelView extends React.Component {
     }
 
     const isVisible = this.cameraMeshes[0].visible;
-    this.cameraMeshes.forEach(cam => cam.visible = !isVisible);
+    this.cameraMeshes.forEach(cam => {
+        cam.visible = !isVisible;
+        cam.parent.visible = cam.visible;
+    });
   }
 
   loadGltf = (url, cb) => {
