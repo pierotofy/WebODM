@@ -55,9 +55,12 @@ start(){
 	celery -A worker worker --autoscale $(grep -c '^processor' /proc/cpuinfo),2 --max-tasks-per-child 1000 --loglevel=warn > /dev/null
 }
 
+sched_pid="./celerybeat.pid"
+check_scheduler_pid="./sched_check.pid"
+
 start_scheduler(){
 	stop_scheduler
-	if [[ ! -f ./celerybeat.pid ]]; then
+	if [[ ! -f $sched_pid ]]; then
 		celery -A worker beat &
 	else
 		echo "Scheduler already running (celerybeat.pid exists)."
@@ -65,12 +68,48 @@ start_scheduler(){
 }
 
 stop_scheduler(){
-	if [[ -f ./celerybeat.pid ]]; then
-		kill -9 $(cat ./celerybeat.pid) 2>/dev/null
-		rm ./celerybeat.pid 2>/dev/null
+	if [[ -f $sched_pid ]]; then
+		kill -9 $(cat $sched_pid) 2>/dev/null
+		rm $sched_pid 2>/dev/null
 		echo "Scheduler has shutdown."
 	else
 		echo "Scheduler is not running."
+	fi
+}
+
+is_scheduler_running(){
+	if [[ -f $sched_pid ]]; then
+		pid=$(cat $sched_pid )
+		if kill -0 $pid 2>/dev/null; then
+			return 1
+		else
+			return 0
+		fi
+	else
+		return 0
+	fi
+}
+
+start_check_scheduler(){
+    stop_check_scheduler
+	echo "Started scheduler check"
+	sched_pid=$$
+	echo $sched_pid > $check_scheduler_pid
+
+    while [[ -f $check_scheduler_pid ]]; do
+        sleep 10
+        if ! is_scheduler_running; then
+            echo "Scheduler not running, restarting..."
+            start_scheduler
+        fi
+    done
+}
+
+stop_check_scheduler() {
+	if [[ -f $check_scheduler_pid ]]; then
+		kill -9 $(cat $check_scheduler_pid) 2>/dev/null
+		rm $check_scheduler_pid 2>/dev/null
+		echo "Scheduler check has shutdown."
 	fi
 }
 
@@ -80,9 +119,12 @@ if [[ $1 = "start" ]]; then
 elif [[ $1 = "scheduler" ]]; then
 	if [[ $2 = "start" ]]; then
 		environment_check
+		stop_check_scheduler
 		start_scheduler
+		start_check_scheduler &
 	elif [[ $2 = "stop" ]]; then
 		environment_check
+		stop_check_scheduler
 		stop_scheduler
 	else
 		usage
