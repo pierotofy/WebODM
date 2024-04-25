@@ -28,6 +28,14 @@ app.conf.beat_schedule = {
         	'retry': False
         }
     },
+    'cleanup-tasks': {
+        'task': 'worker.tasks.cleanup_tasks',
+        'schedule': 3600,
+        'options': {
+            'expires': 1799,
+            'retry': False
+        }
+    },
     'cleanup-tmp-directory': {
         'task': 'worker.tasks.cleanup_tmp_directory',
         'schedule': 3600,
@@ -41,6 +49,14 @@ app.conf.beat_schedule = {
         'schedule': 5,
         'options': {
         	'expires': 2,
+        	'retry': False
+        }
+    },
+    'check-quotas': {
+        'task': 'worker.tasks.check_quotas',
+        'schedule': 3600,
+        'options': {
+        	'expires': 1799,
         	'retry': False
         }
     },

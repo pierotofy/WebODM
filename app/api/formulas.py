@@ -54,10 +54,6 @@ algos = {
         'expr': '(2 * G) - (R + B)',
         'help': _('Excess Green Index (derived from only the RGB bands) emphasizes the greenness of leafy crops such as potatoes.')
     },
-    'TGI': {
-        'expr': '(G - 0.39) * (R - 0.61) * B',
-        'help': _('Triangular Greenness Index (derived from only the RGB bands) performs similarly to EXG but with improvements over certain environments.')
-    },
     'BAI': {
         'expr': '1.0 / (((0.1 - R) ** 2) + ((0.06 - N) ** 2))',
         'help': _('Burn Area Index hightlights burned land in the red to near-infrared spectrum.')
@@ -144,15 +140,19 @@ camera_filters = [
     'NRB',
 
     'RGBN',
+    'RGNRe',
     'GRReN',
 
+    'RGBNRe',
     'BGRNRe',
     'BGRReN',
-    'RGBNRe',
     'RGBReN',
 
+    'RGBNReL',
     'BGRNReL',
     'BGRReNL',
+
+    'RGBNRePL',
 
     'L', # FLIR camera has a single LWIR band
 
@@ -169,7 +169,7 @@ def lookup_formula(algo, band_order = 'RGB'):
 
     if algo not in algos:
         raise ValueError("Cannot find algorithm " + algo)
-
+    
     input_bands = tuple(b for b in re.split(r"([A-Z][a-z]*)", band_order) if b != "")
     
     def repl(matches):
@@ -191,7 +191,7 @@ def get_algorithm_list(max_bands=3):
         if k.startswith("_"):
             continue
         
-        cam_filters = get_camera_filters_for(algos[k], max_bands)
+        cam_filters = get_camera_filters_for(algos[k]['expr'], max_bands)
         
         if len(cam_filters) == 0:
             continue
@@ -204,9 +204,9 @@ def get_algorithm_list(max_bands=3):
 
     return res
 
-def get_camera_filters_for(algo, max_bands=3):
+@lru_cache(maxsize=100)
+def get_camera_filters_for(expr, max_bands=3):
     result = []
-    expr = algo['expr']
     pattern = re.compile("([A-Z]+?[a-z]*)")
     bands = list(set(re.findall(pattern, expr)))
     for f in camera_filters:
@@ -224,3 +224,45 @@ def get_camera_filters_for(algo, max_bands=3):
 
     return result
 
+@lru_cache(maxsize=1)
+def get_bands_lookup():
+    bands_aliases = {
+        'R': ['red', 'r'],
+        'G': ['green', 'g'],
+        'B': ['blue', 'b'],
+        'N': ['nir', 'n'],
+        'Re': ['rededge', 're'],
+        'P': ['panchro', 'p'],
+        'L': ['lwir', 'l']
+    }
+    bands_lookup = {}
+    for band in bands_aliases:
+        for a in bands_aliases[band]:
+            bands_lookup[a] = band
+    return bands_lookup
+
+def get_auto_bands(orthophoto_bands, formula):
+    algo = algos.get(formula)
+    if not algo:
+        raise ValueError("Cannot find formula: " + formula)
+
+    max_bands = len(orthophoto_bands) - 1 # minus alpha
+    filters = get_camera_filters_for(algo['expr'], max_bands)
+    if not filters:
+        raise valueError(f"Cannot find filters for {algo} with max bands {max_bands}")
+
+    bands_lookup = get_bands_lookup()
+    band_order = ""
+
+    for band in orthophoto_bands:
+        if band['name'] == 'alpha' or (not band['description']):
+            continue
+        f_band = bands_lookup.get(band['description'].lower())
+
+        if f_band is not None:
+            band_order += f_band
+    
+    if band_order in filters:
+        return band_order, True
+    else:
+        return filters[0], False # Fallback

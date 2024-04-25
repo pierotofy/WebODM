@@ -60,6 +60,7 @@ class ProjectListItem extends React.Component {
     this.toggleTaskList = this.toggleTaskList.bind(this);
     this.closeUploadError = this.closeUploadError.bind(this);
     this.cancelUpload = this.cancelUpload.bind(this);
+    this.handleCancel = this.handleCancel.bind(this);
     this.handleTaskSaved = this.handleTaskSaved.bind(this);
     this.viewMap = this.viewMap.bind(this);
     this.handleDelete = this.handleDelete.bind(this);
@@ -143,6 +144,7 @@ class ProjectListItem extends React.Component {
           autoProcessQueue: false,
           createImageThumbnails: false,
           clickable: this.uploadButton,
+          maxFilesize: 131072, // 128G
           chunkSize: 2147483647,
           timeout: 2147483647,
           
@@ -207,7 +209,9 @@ class ProjectListItem extends React.Component {
                     file.deltaBytesSent = 0;
                     file.trackedBytesSent = 0;
                     file.retries++;
-                    this.dz.processQueue();
+                    setTimeout(() => {
+                      this.dz.processQueue();
+                    }, 5000 * file.retries);
                 }else{
                     throw new Error(interpolate(_('Cannot upload %(filename)s, exceeded max retries (%(max_retries)s)'), {filename: file.name, max_retries: MAX_RETRIES}));
                 }
@@ -215,6 +219,14 @@ class ProjectListItem extends React.Component {
 
             try{
                 if (file.status === "error"){
+                    if ((file.size / 1024) > this.dz.options.maxFilesize) {
+                        // Delete from upload queue
+                        this.setUploadState({
+                            totalCount: this.state.upload.totalCount - 1,
+                            totalBytes: this.state.upload.totalBytes - file.size
+                        });
+                        throw new Error(interpolate(_('Cannot upload %(filename)s, file is too large! Default MaxFileSize is %(maxFileSize)s MB!'), { filename: file.name, maxFileSize: this.dz.options.maxFilesize }));
+                    }
                     retry();
                 }else{
                     // Check response
@@ -239,13 +251,19 @@ class ProjectListItem extends React.Component {
                     }
                 }
             }catch(e){
-                this.setUploadState({error: `${e.message}`, uploading: false});
-                this.dz.cancelUpload();
+                if (this.manuallyCanceled){
+                  // Manually canceled, ignore error
+                  this.setUploadState({uploading: false});
+                }else{
+                  this.setUploadState({error: `${e.message}`, uploading: false});
+                }
+
+                if (this.dz.files.length) this.dz.cancelUpload();
             }
         })
         .on("queuecomplete", () => {
             const remainingFilesCount = this.state.upload.totalCount - this.state.upload.uploadedCount;
-            if (remainingFilesCount === 0){
+            if (remainingFilesCount === 0 && this.state.upload.uploadedCount > 0){
                 // All files have uploaded!
                 this.setUploadState({uploading: false});
 
@@ -323,8 +341,24 @@ class ProjectListItem extends React.Component {
     this.setUploadState({error: ""});
   }
 
-  cancelUpload(e){
+  cancelUpload(){
     this.dz.removeAllFiles(true);
+  }
+
+  handleCancel(){
+    this.manuallyCanceled = true;
+    this.cancelUpload();
+    if (this.dz._taskInfo && this.dz._taskInfo.id !== undefined){
+      $.ajax({
+        url: `/api/projects/${this.state.data.id}/tasks/${this.dz._taskInfo.id}/remove/`,
+        contentType: 'application/json',
+        dataType: 'json',
+        type: 'POST'
+      });
+    }
+    setTimeout(() => {
+      this.manuallyCanceled = false;
+    }, 500);
   }
 
   taskDeleted(){
@@ -398,6 +432,20 @@ class ProjectListItem extends React.Component {
 
   handleEditProject(){
     this.editProjectDialog.show();
+  }
+
+  handleHideProject = (deleteWarning, deleteAction) => {
+    return () => {
+      if (window.confirm(deleteWarning)){
+        this.setState({error: "", refreshing: true});
+        deleteAction()
+          .fail(e => {
+            this.setState({error: e.message || (e.responseJSON || {}).detail || e.responseText || _("Could not delete item")});
+          }).always(() => {
+            this.setState({refreshing: false});
+          });
+      }
+    }
   }
 
   updateProject(project){
@@ -605,7 +653,7 @@ class ProjectListItem extends React.Component {
             <button disabled={this.state.upload.error !== ""} 
                     type="button"
                     className={"btn btn-danger btn-sm " + (!this.state.upload.uploading ? "hide" : "")} 
-                    onClick={this.cancelUpload}>
+                    onClick={this.handleCancel}>
               <i className="glyphicon glyphicon-remove-circle"></i>
               Cancel Upload
             </button> 
@@ -681,6 +729,12 @@ class ProjectListItem extends React.Component {
                 [<i key="edit-icon" className='far fa-edit'></i>
                 ,<a key="edit-text" href="javascript:void(0);" onClick={this.handleEditProject}> {_("Edit")}
                 </a>]
+            : ""}
+
+            {!canEdit && !data.owned ? 
+              [<i key="edit-icon" className='far fa-eye-slash'></i>
+              ,<a key="edit-text" href="javascript:void(0);" onClick={this.handleHideProject(deleteWarning, this.handleDelete)}> {_("Delete")}
+              </a>]
             : ""}
 
           </div>

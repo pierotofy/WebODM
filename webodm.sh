@@ -56,13 +56,13 @@ case $key in
     shift # past argument
     shift # past value
     ;;
-	--media-dir)
+    --media-dir)
     WO_MEDIA_DIR=$(realpath "$2")
     export WO_MEDIA_DIR
     shift # past argument
     shift # past value
     ;;
-	--db-dir)
+    --db-dir)
     WO_DB_DIR=$(realpath "$2")
     export WO_DB_DIR
     shift # past argument
@@ -72,19 +72,19 @@ case $key in
     export WO_SSL=YES
     shift # past argument
     ;;
-	--ssl-key)
+    --ssl-key)
     WO_SSL_KEY=$(realpath "$2")
     export WO_SSL_KEY
     shift # past argument
     shift # past value
     ;;
-	--ssl-cert)
-	WO_SSL_CERT=$(realpath "$2")
-	export WO_SSL_CERT
+    --ssl-cert)
+    WO_SSL_CERT=$(realpath "$2")
+    export WO_SSL_CERT
     shift # past argument
     shift # past value
     ;;
-	--ssl-insecure-port-redirect)
+    --ssl-insecure-port-redirect)
     export WO_SSL_INSECURE_PORT_REDIRECT="$2"
     shift # past argument
     shift # past value
@@ -103,11 +103,11 @@ case $key in
     dev_mode=true
     shift # past argument
     ;;
-	--gpu)
+    --gpu)
     gpu=true
     shift # past argument
     ;;
-	--broker)
+    --broker)
     export WO_BROKER="$2"
     shift # past argument
     shift # past value
@@ -130,6 +130,24 @@ case $key in
     shift # past argument
     shift # past value
     ;;
+    --settings)
+    WO_SETTINGS=$(realpath "$2")
+    export WO_SETTINGS
+    shift # past argument
+    shift # past value
+    ;;    
+    --worker-memory)
+    WO_WORKER_MEMORY="$2"
+    export WO_WORKER_MEMORY
+    shift # past argument
+    shift # past value
+    ;;	
+    --worker-cpus)
+    WO_WORKER_CPUS="$2"
+    export WO_WORKER_CPUS
+    shift # past argument
+    shift # past value
+    ;;
     *)    # unknown option
     POSITIONAL+=("$1") # save it in an array for later
     shift # past argument
@@ -148,6 +166,7 @@ usage(){
   echo "	stop			Stop WebODM"
   echo "	down			Stop and remove WebODM's docker containers"
   echo "	update			Update WebODM to the latest release"
+  echo "	liveupdate		Update WebODM to the latest release without stopping it"
   echo "	rebuild			Rebuild all docker containers and perform cleanups"
   echo "	checkenv		Do an environment check and install missing components"
   echo "	test			Run the unit test suite (developers only)"
@@ -170,6 +189,10 @@ usage(){
   echo "	--broker	Set the URL used to connect to the celery broker (default: $DEFAULT_BROKER)"
   echo "	--detached	Run WebODM in detached mode. This means WebODM will run in the background, without blocking the terminal (default: disabled)"
   echo "	--gpu	Use GPU NodeODM nodes (Linux only) (default: disabled)"
+  echo "	--settings	Path to a settings.py file to enable modifications of system settings (default: None)"
+  echo "	--worker-memory	Maximum amount of memory allocated for the worker process (default: unlimited)"
+  echo "	--worker-cpus	Maximum number of CPUs allocated for the worker process (default: all)"
+  
   exit
 }
 
@@ -319,13 +342,27 @@ run(){
 	eval "$1"
 }
 
+get_secret(){
+	if [ ! -e ./.secret_key ] && [ -e /dev/random ]; then
+		echo "Generating secret in ./.secret_key"
+		export WO_SECRET_KEY=$(head -c50 < /dev/random | base64)
+		echo $WO_SECRET_KEY > ./.secret_key
+	elif [ -e ./.secret_key ]; then
+		export WO_SECRET_KEY=$(cat ./.secret_key)
+	else
+		export WO_SECRET_KEY=""
+	fi
+}
+
 start(){
-    if [[ $dev_mode = true ]]; then
-	    echo "Starting WebODM in development mode..."
-        down
-    else
-        echo "Starting WebODM..."
-    fi
+	get_secret
+
+	if [[ $dev_mode = true ]]; then
+		echo "Starting WebODM in development mode..."
+		down
+	else
+		echo "Starting WebODM..."
+	fi
 	echo ""
 	echo "Using the following environment:"
 	echo "================================"
@@ -339,6 +376,9 @@ start(){
 	echo "SSL insecure port redirect: $WO_SSL_INSECURE_PORT_REDIRECT"
 	echo "Celery Broker: $WO_BROKER"
 	echo "Default Nodes: $WO_DEFAULT_NODES"
+	echo "Settings: $WO_SETTINGS"
+	echo "Worker memory limit: $WO_WORKER_MEMORY"
+	echo "Worker cpus limit: $WO_WORKER_CPUS"
 	echo "================================"
 	echo "Make sure to issue a $0 down if you decide to change the environment."
 	echo ""
@@ -399,6 +439,22 @@ start(){
 		fi
 
 		echo "Will enable SSL ($method)"
+	fi
+
+	if [ ! -z "$WO_SETTINGS" ]; then
+		if [ ! -e "$WO_SETTINGS" ]; then
+			echo -e "\033[91mSettings file does not exist: $WO_SETTINGS\033[39m"
+			exit 1
+		fi
+		command+=" -f docker-compose.settings.yml"
+	fi
+
+	if [ ! -z "$WO_WORKER_MEMORY" ]; then
+		command+=" -f docker-compose.worker-memory.yml"
+	fi
+
+	if [ ! -z "$WO_WORKER_CPUS" ]; then
+		command+=" -f docker-compose.worker-cpu.yml"
 	fi
 
 	command="$command up"
@@ -477,6 +533,40 @@ resetpassword(){
 	fi
 }
 
+update(){
+	echo "Updating WebODM..."
+
+	hash git 2>/dev/null || git_not_found=true
+	if [[ $git_not_found ]]; then
+		echo "Skipping source update (git not found)"
+	else
+		if [[ -d .git ]]; then
+			run "git pull origin master"
+		else
+			echo "Skipping source update (.git directory not found)"
+		fi
+	fi
+
+	command="$docker_compose -f docker-compose.yml"
+
+	if [[ $WO_DEFAULT_NODES -gt 0 ]]; then
+		if [ "${GPU_NVIDIA}" = true ]; then
+			command+=" -f docker-compose.nodeodm.gpu.nvidia.yml"
+		elif [ "${GPU_INTEL}" = true ]; then
+			command+=" -f docker-compose.nodeodm.gpu.intel.yml"
+		else
+			command+=" -f docker-compose.nodeodm.yml"
+		fi
+	fi
+
+	if [[ $load_micmac_node = true ]]; then
+		command+=" -f docker-compose.nodemicmac.yml"
+	fi
+
+	command+=" pull"
+	run "$command"
+}
+
 if [[ $1 = "start" ]]; then
 	environment_check
 	start
@@ -512,38 +602,12 @@ elif [[ $1 = "rebuild" ]]; then
 elif [[ $1 = "update" ]]; then
 	environment_check
 	down
-	echo "Updating WebODM..."
-
-	hash git 2>/dev/null || git_not_found=true
-	if [[ $git_not_found ]]; then
-		echo "Skipping source update (git not found)"
-	else
-		if [[ -d .git ]]; then
-			run "git pull origin master"
-		else
-			echo "Skipping source update (.git directory not found)"
-		fi
-	fi
-
-	command="$docker_compose -f docker-compose.yml"
-
-	if [[ $WO_DEFAULT_NODES -gt 0 ]]; then
-		if [ "${GPU_NVIDIA}" = true ]; then
-			command+=" -f docker-compose.nodeodm.gpu.nvidia.yml"
-		elif [ "${GPU_INTEL}" = true ]; then
-			command+=" -f docker-compose.nodeodm.gpu.intel.yml"
-		else
-			command+=" -f docker-compose.nodeodm.yml"
-		fi
-	fi
-
-	if [[ $load_micmac_node = true ]]; then
-		command+=" -f docker-compose.nodemicmac.yml"
-	fi
-
-	command+=" pull"
-	run "$command"
+	update
 	echo -e "\033[1mDone!\033[0m You can now start WebODM by running $0 start"
+elif [[ $1 = "liveupdate" ]]; then
+	environment_check
+	update
+	echo -e "\033[1mDone!\033[0m You can now finish the update by running $0 restart"
 elif [[ $1 = "checkenv" ]]; then
 	environment_check
 elif [[ $1 = "test" ]]; then

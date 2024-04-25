@@ -2,6 +2,7 @@ import logging
 import os
 import shutil
 import time
+import struct
 import uuid as uuid_module
 from app.vendor import zipfly
 
@@ -46,6 +47,7 @@ from django.utils.translation import gettext_lazy as _, gettext
 
 from functools import partial
 import subprocess
+from app.classes.console import Console
 
 logger = logging.getLogger('app.logger')
 
@@ -156,7 +158,7 @@ def resize_image(image_path, resize_to, done=None):
         os.rename(resized_image_path, image_path)
 
         logger.info("Resized {} to {}x{}".format(image_path, resized_width, resized_height))
-    except (IOError, ValueError) as e:
+    except (IOError, ValueError, struct.error) as e:
         logger.warning("Cannot resize {}: {}.".format(image_path, str(e)))
         if done is not None:
             done()
@@ -247,7 +249,6 @@ class Task(models.Model):
     last_error = models.TextField(null=True, blank=True, help_text=_("The last processing error received"), verbose_name=_("Last Error"))
     options = fields.JSONField(default=dict, blank=True, help_text=_("Options that are being used to process this task"), validators=[validate_task_options], verbose_name=_("Options"))
     available_assets = fields.ArrayField(models.CharField(max_length=80), default=list, blank=True, help_text=_("List of available assets to download"), verbose_name=_("Available Assets"))
-    console_output = models.TextField(null=False, default="", blank=True, help_text=_("Console output of the processing node"), verbose_name=_("Console Output"))
 
     orthophoto_extent = GeometryField(null=True, blank=True, srid=4326, help_text=_("Extent of the orthophoto"), verbose_name=_("Orthophoto Extent"))
     dsm_extent = GeometryField(null=True, blank=True, srid=4326, help_text="Extent of the DSM", verbose_name=_("DSM Extent"))
@@ -279,6 +280,7 @@ class Task(models.Model):
     epsg = models.IntegerField(null=True, default=None, blank=True, help_text=_("EPSG code of the dataset (if georeferenced)"), verbose_name="EPSG")
     tags = models.TextField(db_index=True, default="", blank=True, help_text=_("Task tags"), verbose_name=_("Tags"))
     orthophoto_bands = fields.JSONField(default=list, blank=True, help_text=_("List of orthophoto bands"), verbose_name=_("Orthophoto Bands"))
+    size = models.FloatField(default=0.0, blank=True, help_text=_("Size of the task on disk in megabytes"), verbose_name=_("Size"))
     
     class Meta:
         verbose_name = _("Task")
@@ -289,6 +291,8 @@ class Task(models.Model):
 
         # To help keep track of changes to the project id
         self.__original_project_id = self.project.id
+        
+        self.console = Console(self.data_path("console_output.txt"))
 
     def __str__(self):
         name = self.name if self.name is not None else gettext("unnamed")
@@ -352,6 +356,12 @@ class Task(models.Model):
         Get a path relative to the place where assets are stored
         """
         return self.task_path("assets", *args)
+
+    def data_path(self, *args):
+        """
+        Path to task data that does not fit in database fields (e.g. console output)
+        """
+        return self.task_path("data", *args)
 
     def task_path(self, *args):
         """
@@ -432,6 +442,8 @@ class Task(models.Model):
                         shutil.copytree(self.task_path(), task.task_path())
                 else:
                     logger.warning("Task {} doesn't have folder, will skip copying".format(self))
+
+                self.project.owner.profile.clear_used_quota_cache()
             return task
         except Exception as e:
             logger.warning("Cannot duplicate task: {}".format(str(e)))
@@ -487,7 +499,7 @@ class Task(models.Model):
             raise FileNotFoundError("{} is not a valid asset".format(asset))
 
     def handle_import(self):
-        self.console_output += gettext("Importing assets...") + "\n"
+        self.console += gettext("Importing assets...") + "\n"
         self.save()
 
         zip_path = self.assets_path("all.zip")
@@ -706,7 +718,7 @@ class Task(models.Model):
                             self.options = list(filter(lambda d: d['name'] != 'rerun-from', self.options))
                             self.upload_progress = 0
 
-                        self.console_output = ""
+                        self.console.reset()
                         self.processing_time = -1
                         self.status = None
                         self.last_error = None
@@ -737,10 +749,10 @@ class Task(models.Model):
                 # Need to update status (first time, queued or running?)
                 if self.uuid and self.status in [None, status_codes.QUEUED, status_codes.RUNNING]:
                     # Update task info from processing node
-                    if not self.console_output:
+                    if not self.console.output():
                         current_lines_count = 0
                     else:
-                        current_lines_count = len(self.console_output.split("\n"))
+                        current_lines_count = len(self.console.output().split("\n"))
 
                     info = self.processing_node.get_task_info(self.uuid, current_lines_count)
 
@@ -748,7 +760,7 @@ class Task(models.Model):
                     self.status = info.status.value
 
                     if len(info.output) > 0:
-                        self.console_output += "\n".join(info.output) + '\n'
+                        self.console += "\n".join(info.output) + '\n'
 
                     # Update running progress
                     self.running_progress = (info.progress / 100.0) * self.TASK_PROGRESS_LAST_VALUE
@@ -885,9 +897,10 @@ class Task(models.Model):
         self.update_available_assets_field()
         self.update_epsg_field()
         self.update_orthophoto_bands_field()
+        self.update_size()
         self.potree_scene = {}
         self.running_progress = 1.0
-        self.console_output += gettext("Done!") + "\n"
+        self.console += gettext("Done!") + "\n"
         self.status = status_codes.COMPLETED
         self.save()
 
@@ -1012,7 +1025,12 @@ class Task(models.Model):
 
         if os.path.isfile(orthophoto_path):
             with rasterio.open(orthophoto_path) as f:
-                bands = [c.name for c in f.colorinterp]
+                names = [c.name for c in f.colorinterp]
+                for i, n in enumerate(names):
+                    bands.append({
+                        'name': n,
+                        'description': f.descriptions[i]
+                    })
 
         self.orthophoto_bands = bands
         if commit: self.save()
@@ -1033,6 +1051,8 @@ class Task(models.Model):
             shutil.rmtree(directory_to_delete)
         except FileNotFoundError as e:
             logger.warning(e)
+
+        self.project.owner.profile.clear_used_quota_cache()
 
         plugin_signals.task_removed.send_robust(sender=self.__class__, task_id=task_id)
 
@@ -1161,3 +1181,18 @@ class Task(models.Model):
                 else:
                     with open(file.temporary_file_path(), 'rb') as f:
                         shutil.copyfileobj(f, fd)
+
+    def update_size(self, commit=False):
+        try:
+            total_bytes = 0
+            for dirpath, _, filenames in os.walk(self.task_path()):
+                for f in filenames:
+                    fp = os.path.join(dirpath, f)
+                    if not os.path.islink(fp):
+                        total_bytes += os.path.getsize(fp)
+            self.size = (total_bytes / 1024 / 1024)
+            if commit: self.save()
+
+            self.project.owner.profile.clear_used_quota_cache()
+        except Exception as e:
+            logger.warn("Cannot update size for task {}: {}".format(self, str(e)))

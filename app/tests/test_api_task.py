@@ -249,6 +249,9 @@ class TestApiTask(BootTransactionTestCase):
             # Orthophoto bands field should be an empty list
             self.assertEqual(len(task.orthophoto_bands), 0)
 
+            # Size should be zero
+            self.assertEqual(task.size, 0)
+
             # tiles.json, bounds, metadata should not be accessible at this point
             tile_types = ['orthophoto', 'dsm', 'dtm']
             endpoints = ['tiles.json', 'bounds', 'metadata']
@@ -384,6 +387,12 @@ class TestApiTask(BootTransactionTestCase):
              # Orthophoto bands field should be populated
             self.assertEqual(len(task.orthophoto_bands), 4)
 
+            # Size should be updated
+            self.assertTrue(task.size > 0)
+
+            # The owner's used quota should have increased
+            self.assertTrue(task.project.owner.profile.used_quota_cached() > 0)
+
             # Can export orthophoto (when formula and bands are specified)
             res = client.post("/api/projects/{}/tasks/{}/orthophoto/export".format(project.id, task.id), {
                 'formula': 'NDVI'
@@ -488,6 +497,10 @@ class TestApiTask(BootTransactionTestCase):
             self.assertEqual(metadata['algorithms'], [])
             self.assertEqual(metadata['color_maps'], [])
 
+            # Auto bands
+            self.assertEqual(metadata['auto_bands']['filter'], '')
+            self.assertEqual(metadata['auto_bands']['match'], None)
+
             # Address key is removed
             self.assertFalse('address' in metadata)
 
@@ -522,6 +535,10 @@ class TestApiTask(BootTransactionTestCase):
             self.assertTrue(len(metadata['algorithms']) > 0)
             self.assertTrue(len(metadata['color_maps']) > 0)
 
+            # Auto band is populated
+            self.assertEqual(metadata['auto_bands']['filter'], '')
+            self.assertEqual(metadata['auto_bands']['match'], None)
+
             # Algorithms have valid keys
             for k in ['id', 'filters', 'expr', 'help']:
                 for a in metadata['algorithms']:
@@ -547,6 +564,10 @@ class TestApiTask(BootTransactionTestCase):
             # Min/max values have been replaced
             self.assertEqual(metadata['statistics']['1']['min'], algos['VARI']['range'][0])
             self.assertEqual(metadata['statistics']['1']['max'], algos['VARI']['range'][1])
+
+            # Formula can be set to auto
+            res = client.get("/api/projects/{}/tasks/{}/orthophoto/metadata?formula=VARI&bands=auto".format(project.id, task.id))
+            self.assertEqual(res.status_code, status.HTTP_200_OK)
 
             tile_path = {
                 'orthophoto': '17/32042/46185',
@@ -656,7 +677,9 @@ class TestApiTask(BootTransactionTestCase):
                 ("orthophoto", "formula=VARI&bands=RGB", status.HTTP_200_OK),
                 ("orthophoto", "formula=VARI&bands=invalid", status.HTTP_400_BAD_REQUEST),
                 ("orthophoto", "formula=invalid&bands=RGB", status.HTTP_400_BAD_REQUEST),
-
+                ("orthophoto", "formula=NDVI&bands=auto", status.HTTP_200_OK),
+                ("orthophoto", "formula=NDVI&bands=auto", status.HTTP_200_OK),
+                
                 ("orthophoto", "formula=NDVI&bands=RGN&color_map=rdylgn&rescale=-1,1", status.HTTP_200_OK),
                 ("orthophoto", "formula=NDVI&bands=RGN&color_map=rdylgn&rescale=1,-1", status.HTTP_200_OK),
 
@@ -670,7 +693,7 @@ class TestApiTask(BootTransactionTestCase):
 
             for k in algos:
                 a = algos[k]
-                filters = get_camera_filters_for(a)
+                filters = get_camera_filters_for(a['expr'])
 
                 for f in filters:
                     params.append(("orthophoto", "formula={}&bands={}&color_map=rdylgn".format(k, f), status.HTTP_200_OK))
@@ -946,6 +969,7 @@ class TestApiTask(BootTransactionTestCase):
         self.assertTrue(res.data['success'])
         new_task_id = res.data['task']['id']
         self.assertNotEqual(res.data['task']['id'], task.id)
+        self.assertEqual(res.data['task']['size'], task.size)
         
         new_task = Task.objects.get(pk=new_task_id)
 

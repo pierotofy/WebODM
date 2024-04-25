@@ -110,7 +110,7 @@ def build_plugins():
                     # Create entry configuration
                     entry = {}
                     for e in plugin.build_jsx_components():
-                        entry[os.path.splitext(os.path.basename(e))[0]] = [os.path.join('.', e)]
+                        entry[os.path.splitext(os.path.basename(e))[0]] = ['./' + e]
                     wpc_content = tmpl.substitute({
                         'entry_json': json.dumps(entry)
                     })
@@ -210,9 +210,12 @@ def get_plugins():
                         module = importlib.import_module("plugins.{}".format(dir))
 
                     plugin = (getattr(module, "Plugin"))()
-                except (ImportError, AttributeError):
-                    module = importlib.import_module("coreplugins.{}".format(dir))
-                    plugin = (getattr(module, "Plugin"))()
+                except (ImportError, AttributeError) as plugin_error:
+                    try:
+                        module = importlib.import_module("coreplugins.{}".format(dir))
+                        plugin = (getattr(module, "Plugin"))()
+                    except (ImportError, AttributeError) as coreplugin_error:
+                        raise coreplugin_error from plugin_error
 
                 # Check version
                 manifest = plugin.get_manifest()
@@ -237,7 +240,7 @@ def get_plugins():
 
                 plugins.append(plugin)
             except Exception as e:
-                logger.warning("Failed to instantiate plugin {}: {}".format(dir, e))
+                logger.warning("Failed to instantiate plugin {}: {}: {}".format(dir, e, e.__cause__))
 
     return plugins
 

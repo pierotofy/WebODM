@@ -26,7 +26,7 @@ from webodm.wsgi import booted
 def boot():
     # booted is a shared memory variable to keep track of boot status
     # as multiple gunicorn workers could trigger the boot sequence twice
-    if (not settings.DEBUG and booted.value) or settings.MIGRATING: return
+    if (not settings.DEBUG and booted.value) or settings.MIGRATING or settings.FLUSHING: return
 
     booted.value = True
     logger = logging.getLogger('app.logger')
@@ -110,8 +110,7 @@ def add_default_presets():
                                         defaults={'options': [{'name': 'auto-boundary', 'value': True},
                                                               {'name': 'dsm', 'value': True},
                                                               {'name': 'dem-resolution', 'value': '2'},
-                                                              {'name': 'pc-quality', 'value': 'high'},
-                                                              {'name': 'use-3dmesh', 'value': True}]})
+                                                              {'name': 'pc-quality', 'value': 'high'}]})
         Preset.objects.update_or_create(name='3D Model', system=True,
                                         defaults={'options': [{'name': 'auto-boundary', 'value': True},
                                                               {'name': 'mesh-octree-depth', 'value': "12"},
@@ -121,24 +120,13 @@ def add_default_presets():
         Preset.objects.update_or_create(name='Buildings', system=True,
                                         defaults={'options': [{'name': 'auto-boundary', 'value': True},
                                                               {'name': 'mesh-size', 'value': '300000'},
-                                                              {'name': 'pc-geometric', 'value': True},
                                                               {'name': 'feature-quality', 'value': 'high'},
                                                               {'name': 'pc-quality', 'value': 'high'}]})
-        Preset.objects.update_or_create(name='Buildings Ultra Quality', system=True,
-                                        defaults={'options': [{'name': 'auto-boundary', 'value': True},
-                                                              {'name': 'mesh-size', 'value': '300000'},
-                                                              {'name': 'pc-geometric', 'value': True},
-                                                              {'name': 'feature-quality', 'value': 'ultra'},
-                                                              {'name': 'pc-quality', 'value': 'ultra'}]})
-        Preset.objects.update_or_create(name='Point of Interest', system=True,
-                                        defaults={'options': [{'name': 'auto-boundary', 'value': True},
-                                                              {'name': 'mesh-size', 'value': '300000'},
-                                                              {'name': 'use-3dmesh', 'value': True}]})
         Preset.objects.update_or_create(name='Forest', system=True,
                                         defaults={'options': [{'name': 'auto-boundary', 'value': True},
                                                               {'name': 'min-num-features', 'value': '18000'},
                                                               {'name': 'use-3dmesh', 'value': True},
-                                                              {'name': 'feature-quality', 'value': 'ultra'}]})
+                                                              {'name': 'feature-quality', 'value': 'medium'}]})
         Preset.objects.update_or_create(name='DSM + DTM', system=True,
                                         defaults={'options': [{'name': 'auto-boundary', 'value': True},
                                                               {'name': 'dsm', 'value': True},

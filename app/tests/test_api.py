@@ -1,4 +1,5 @@
 import datetime
+import os
 
 from django.contrib.auth.models import User
 from guardian.shortcuts import assign_perm, get_objects_for_user
@@ -140,22 +141,26 @@ class TestApi(BootTestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertTrue(res.data == "")
 
-        task.console_output = "line1\nline2\nline3"
+        data_path = task.data_path()
+        if not os.path.exists(data_path):
+            os.makedirs(data_path, exist_ok=True)
+
+        task.console.reset("line1\nline2\nline3")
         task.save()
 
         res = client.get('/api/projects/{}/tasks/{}/output/'.format(project.id, task.id))
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertTrue(res.data == task.console_output)
+        self.assertEqual(res.data, task.console.output())
 
         # Console output with line num
         res = client.get('/api/projects/{}/tasks/{}/output/?line=2'.format(project.id, task.id))
-        self.assertTrue(res.data == "line3")
+        self.assertEqual(res.data, "line3")
 
         # Console output with line num out of bounds
         res = client.get('/api/projects/{}/tasks/{}/output/?line=3'.format(project.id, task.id))
-        self.assertTrue(res.data == "")
+        self.assertEqual(res.data, "")
         res = client.get('/api/projects/{}/tasks/{}/output/?line=-1'.format(project.id, task.id))
-        self.assertTrue(res.data == task.console_output)
+        self.assertEqual(res.data, task.console.output())
 
         # Cannot list task details for a task belonging to a project we don't have access to
         res = client.get('/api/projects/{}/tasks/{}/'.format(other_project.id, other_task.id))
@@ -253,14 +258,17 @@ class TestApi(BootTestCase):
         for perm in ['delete', 'change', 'add']:
             self.assertFalse(perm in res.data['permissions'])
 
-        # Can't delete a project for which we just have view permissions
-        res = client.delete('/api/projects/{}/'.format(other_temp_project.id))
-        self.assertTrue(res.status_code == status.HTTP_404_NOT_FOUND)
-
-        # Can delete a project for which we have delete permissions
-        assign_perm('delete_project', user, other_temp_project)
+        # Can delete a project for which we just have view permissions
+        # (we will just remove our read permissions without deleting the project)
         res = client.delete('/api/projects/{}/'.format(other_temp_project.id))
         self.assertTrue(res.status_code == status.HTTP_204_NO_CONTENT)
+        
+        # Project still exists
+        self.assertTrue(Project.objects.filter(id=other_temp_project.id).count() == 1)
+
+        # We just can't access it
+        res = client.get('/api/projects/{}/'.format(other_temp_project.id))
+        self.assertTrue(res.status_code == status.HTTP_404_NOT_FOUND)
 
         # A user cannot reassign a task to a
         # project for which he/she has no permissions
@@ -452,6 +460,18 @@ class TestApi(BootTestCase):
         self.assertTrue(len(res.data) == 1)
         self.assertTrue(res.data[0]['name'] == 'a')
 
+        # Test optimistic mode
+        self.assertFalse(p4.is_online())
+
+        settings.NODE_OPTIMISTIC_MODE = True
+
+        self.assertTrue(p4.is_online())
+        res = client.get('/api/processingnodes/')
+        self.assertEqual(len(res.data), 3)
+        for nodes in res.data:
+            self.assertTrue(nodes['online'])
+
+        settings.NODE_OPTIMISTIC_MODE = False
 
     def test_token_auth(self):
         client = APIClient()

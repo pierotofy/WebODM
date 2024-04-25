@@ -33,10 +33,11 @@ services:
       - WO_BROKER
       - WO_DEV
       - WO_DEV_WATCH_PLUGINS
+      - WO_SECRET_KEY
     restart: unless-stopped
     oom_score_adj: 0
   broker:
-    image: redis
+    image: redis:7.0.10
     container_name: broker
     restart: unless-stopped
     oom_score_adj: -500
@@ -52,5 +53,6 @@ services:
     environment:
       - WO_BROKER
       - WO_DEBUG
+      - WO_SECRET_KEY
     restart: unless-stopped
     oom_score_adj: 250
