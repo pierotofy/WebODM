@@ -1,8 +1,8 @@
 {
-	"name": "Lightning Network Bridge",
+	"name": "Lightning",
 	"webodmMinVersion": "0.7.1",
-	"description": "Sync accounts from webodm.net",
-	"version": "0.9.0",
+	"description": "Process in the cloud with webodm.net",
+	"version": "1.0.0",
 	"author": "Piero Toffanin",
 	"email": "pt@masseranolabs.com",
 	"repository": "https://github.com/OpenDroneMap/WebODM",

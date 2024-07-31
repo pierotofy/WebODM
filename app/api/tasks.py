@@ -11,6 +11,8 @@ from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.db import transaction
 from django.http import FileResponse
 from django.http import HttpResponse
+from django.http import StreamingHttpResponse
+from app.vendor import zipfly
 from rest_framework import status, serializers, viewsets, filters, exceptions, permissions, parsers
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
@@ -204,18 +206,17 @@ class TaskViewSet(viewsets.ViewSet):
             raise exceptions.NotFound()
 
         files = flatten_files(request.FILES)
-
         if len(files) == 0:
             raise exceptions.ValidationError(detail=_("No files uploaded"))
 
-        task.handle_images_upload(files)
+        uploaded = task.handle_images_upload(files)
         task.images_count = len(task.scan_images())
         # Update other parameters such as processing node, task name, etc.
         serializer = TaskSerializer(task, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         
-        return Response({'success': True}, status=status.HTTP_200_OK)
+        return Response({'success': True, 'uploaded': uploaded}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'])
     def duplicate(self, request, pk=None, project_pk=None):
@@ -341,8 +342,13 @@ def download_file_response(request, filePath, content_disposition, download_file
 
 
 def download_file_stream(request, stream, content_disposition, download_filename=None):
-    response = HttpResponse(FileWrapper(stream),
-                            content_type=(mimetypes.guess_type(download_filename)[0] or "application/zip"))
+    if isinstance(stream, zipfly.ZipStream):
+        f = stream.generator()
+    else:
+        # This should never happen, but just in case..
+        raise exceptions.ValidationError("stream not a zipstream instance")
+    
+    response = StreamingHttpResponse(f, content_type=(mimetypes.guess_type(download_filename)[0] or "application/zip"))
 
     response['Content-Type'] = mimetypes.guess_type(download_filename)[0] or "application/zip"
     response['Content-Disposition'] = "{}; filename={}".format(content_disposition, download_filename)
@@ -366,19 +372,20 @@ class TaskDownloads(TaskNestedView):
 
         # Check and download
         try:
-            asset_fs, is_zipstream = task.get_asset_file_or_zipstream(asset)
+            asset_fs = task.get_asset_file_or_stream(asset)
         except FileNotFoundError:
             raise exceptions.NotFound(_("Asset does not exist"))
 
-        if not is_zipstream and not os.path.isfile(asset_fs):
+        is_stream = not isinstance(asset_fs, str) 
+        if not is_stream and not os.path.isfile(asset_fs):
             raise exceptions.NotFound(_("Asset does not exist"))
         
         download_filename = request.GET.get('filename', get_asset_download_filename(task, asset))
 
-        if not is_zipstream:
-            return download_file_response(request, asset_fs, 'attachment', download_filename=download_filename)
-        else:
+        if is_stream:
             return download_file_stream(request, asset_fs, 'attachment', download_filename=download_filename)
+        else:
+            return download_file_response(request, asset_fs, 'attachment', download_filename=download_filename)
 
 """
 Raw access to the task's asset folder resources
@@ -401,6 +408,26 @@ class TaskAssets(TaskNestedView):
             raise exceptions.NotFound(_("Asset does not exist"))
 
         return download_file_response(request, asset_path, 'inline')
+
+"""
+Task backup endpoint
+"""
+class TaskBackup(TaskNestedView):
+    def get(self, request, pk=None, project_pk=None):
+        """
+        Downloads a task's backup
+        """
+        task = self.get_and_check_task(request, pk)
+
+        # Check and download
+        try:
+            asset_fs = task.get_task_backup_stream()
+        except FileNotFoundError:
+            raise exceptions.NotFound(_("Asset does not exist"))
+
+        download_filename = request.GET.get('filename', get_asset_download_filename(task, "backup.zip"))
+
+        return download_file_stream(request, asset_fs, 'attachment', download_filename=download_filename)
 
 """
 Task assets import

@@ -140,7 +140,7 @@ class ProjectListItem extends React.Component {
           url : 'TO_BE_CHANGED',
           parallelUploads: 6,
           uploadMultiple: false,
-          acceptedFiles: "image/*,text/*,.las,.laz,video/*,.srt",
+          acceptedFiles: "image/*,text/plain,.las,.laz,video/*,.srt",
           autoProcessQueue: false,
           createImageThumbnails: false,
           clickable: this.uploadButton,
@@ -193,7 +193,7 @@ class ProjectListItem extends React.Component {
         .on("complete", (file) => {
             // Retry
             const retry = () => {
-                const MAX_RETRIES = 10;
+                const MAX_RETRIES = 20;
 
                 if (file.retries < MAX_RETRIES){
                     // Update progress
@@ -219,7 +219,7 @@ class ProjectListItem extends React.Component {
 
             try{
                 if (file.status === "error"){
-                    if ((file.size / 1024) > this.dz.options.maxFilesize) {
+                    if ((file.size / 1024 / 1024) > this.dz.options.maxFilesize) {
                         // Delete from upload queue
                         this.setUploadState({
                             totalCount: this.state.upload.totalCount - 1,
@@ -231,7 +231,7 @@ class ProjectListItem extends React.Component {
                 }else{
                     // Check response
                     let response = JSON.parse(file.xhr.response);
-                    if (response.success){
+                    if (response.success && response.uploaded && response.uploaded[file.name] === file.size){
                         // Update progress by removing the tracked progress and 
                         // use the file size as the true number of bytes
                         let totalBytesSent = this.state.upload.totalBytesSent + file.size;
@@ -284,7 +284,6 @@ class ProjectListItem extends React.Component {
             }else if (this.dz.getQueuedFiles() === 0){
                 // Done but didn't upload all?
                 this.setUploadState({
-                    totalCount: this.state.upload.totalCount - remainingFilesCount,
                     uploading: false,
                     error: interpolate(_('%(count)s files cannot be uploaded. As a reminder, only images (.jpg, .tif, .png) and GCP files (.txt) can be uploaded. Try again.'), { count: remainingFilesCount })
                 });
@@ -477,7 +476,7 @@ class ProjectListItem extends React.Component {
     this.setState({importing: false});
   }
 
-  handleTaskTitleHint = () => {
+  handleTaskTitleHint = (hasGPSCallback) => {
       return new Promise((resolve, reject) => {
           if (this.state.upload.files.length > 0){
 
@@ -502,32 +501,27 @@ class ProjectListItem extends React.Component {
                 interop: false,
                 ifd1: false // thumbnail
               };
-              exifr.parse(f, options).then(gps => {
-                if (!gps.latitude || !gps.longitude){
+              exifr.parse(f, options).then(exif => {
+                if (!exif.latitude || !exif.longitude){
                     reject();
                     return;
                 }
 
-                let dateTime = gps["36867"];
+                if (hasGPSCallback !== undefined) hasGPSCallback();
 
-                // Try to parse the date from EXIF to JS
-                const parts = dateTime.split(" ");
-                if (parts.length == 2){
-                    let [ d, t ] = parts;
-                    d = d.replace(/:/g, "-");
-                    const tm = Date.parse(`${d} ${t}`);
-                    if (!isNaN(tm)){
-                        dateTime = new Date(tm).toLocaleDateString();
-                    }
-                }
+                let dateTime = exif.DateTimeOriginal;
+                if (dateTime && dateTime.toLocaleDateString) dateTime = dateTime.toLocaleDateString();
                 
                 // Fallback to file modified date if 
                 // no exif info is available
-                if (!dateTime) dateTime = f.lastModifiedDate.toLocaleDateString();
+                if (!dateTime){
+                  if (f.lastModifiedDate) dateTime = f.lastModifiedDate.toLocaleDateString();
+                  else if (f.lastModified) dateTime = new Date(f.lastModified).toLocaleDateString();
+                }
 
                 // Query nominatim OSM
                 $.ajax({
-                    url: `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${gps.latitude}&lon=${gps.longitude}`,
+                    url: `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${exif.latitude}&lon=${exif.longitude}`,
                     contentType: 'application/json',
                     type: 'GET'
                 }).done(json => {
@@ -639,12 +633,12 @@ class ProjectListItem extends React.Component {
                       onClick={this.handleUpload}
                       ref={this.setRef("uploadButton")}>
                   <i className="glyphicon glyphicon-upload"></i>
-                  {_("Select Images and GCP")}
+                  <span className="hidden-xs">{_("Select Images and GCP")}</span>
                 </button>
                 <button type="button" 
                       className="btn btn-default btn-sm"
                       onClick={this.handleImportTask}>
-                  <i className="glyphicon glyphicon-import"></i> {_("Import")}
+                  <i className="glyphicon glyphicon-import"></i> <span className="hidden-xs">{_("Import")}</span>
                 </button>
                 {this.state.buttons.map((button, i) => <React.Fragment key={i}>{button}</React.Fragment>)}
               </div>
