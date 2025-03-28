@@ -429,7 +429,7 @@ class ModelView extends React.Component {
                     saveSceneReq.abort();
                     saveSceneReq = null;
                 }
-    
+
                 saveSceneReq = $.ajax({
                     url: `/api/projects/${this.props.task.project}/tasks/${this.props.task.id}/3d/scene`,
                     contentType: 'application/json',

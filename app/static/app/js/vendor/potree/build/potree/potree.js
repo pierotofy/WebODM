@@ -57593,7 +57593,7 @@ uniform int clipMethod;
 
 #if defined(num_clippolygons) && num_clippolygons > 0
 	uniform int uClipPolygonVCount[num_clippolygons];
-	uniform vec3 uClipPolygonVertices[num_clippolygons * 8];
+	uniform vec3 uClipPolygonVertices[num_clippolygons * 1024];
 	uniform mat4 uClipPolygonWVP[num_clippolygons];
 #endif
 
@@ -58253,13 +58253,13 @@ bool pointInClipPolygon(vec3 point, int polyIdx) {
 
 	int j = uClipPolygonVCount[polyIdx] - 1;
 	bool c = false;
-	for(int i = 0; i < 8; i++) {
+	for(int i = 0; i < 1024; i++) {
 		if(i == uClipPolygonVCount[polyIdx]) {
 			break;
 		}
 
-		//vec4 verti = wvp * vec4(uClipPolygonVertices[polyIdx * 8 + i], 1);
-		//vec4 vertj = wvp * vec4(uClipPolygonVertices[polyIdx * 8 + j], 1);
+		//vec4 verti = wvp * vec4(uClipPolygonVertices[polyIdx * 1024 + i], 1);
+		//vec4 vertj = wvp * vec4(uClipPolygonVertices[polyIdx * 1024 + j], 1);
 
 		//verti.xy = verti.xy / verti.w;
 		//vertj.xy = vertj.xy / vertj.w;
@@ -58267,8 +58267,8 @@ bool pointInClipPolygon(vec3 point, int polyIdx) {
 		//verti.xy = verti.xy / verti.w * 0.5 + 0.5;
 		//vertj.xy = vertj.xy / vertj.w * 0.5 + 0.5;
 
-		vec3 verti = uClipPolygonVertices[polyIdx * 8 + i];
-		vec3 vertj = uClipPolygonVertices[polyIdx * 8 + j];
+		vec3 verti = uClipPolygonVertices[polyIdx * 1024 + i];
+		vec3 vertj = uClipPolygonVertices[polyIdx * 1024 + j];
 
 		if( ((verti.y > pointNDC.y) != (vertj.y > pointNDC.y)) && 
 			(pointNDC.x < (vertj.x-verti.x) * (pointNDC.y-verti.y) / (vertj.y-verti.y) + verti.x) ) {
@@ -59372,7 +59372,7 @@ void main() {
 			if(!clipPolygons){
 				return;
 			}
-
+			
 			this.clipPolygons = clipPolygons;
 
 			let doUpdate = (this.clipPolygons.length !== clipPolygons.length);
@@ -63170,13 +63170,13 @@ void main() {
 
 						let flattenedMatrices = [].concat(...worldViewProjMatrices.map(m => m.elements));
 
-						let flattenedVertices = new Array(8 * 3 * material.clipPolygons.length);
+						let flattenedVertices = new Array(1024 * 3 * material.clipPolygons.length);
 						for(let i = 0; i < material.clipPolygons.length; i++){
 							let clipPolygon = material.clipPolygons[i];
 							for(let j = 0; j < clipPolygon.markers.length; j++){
-								flattenedVertices[i * 24 + (j * 3 + 0)] = clipPolygon.markers[j].position.x;
-								flattenedVertices[i * 24 + (j * 3 + 1)] = clipPolygon.markers[j].position.y;
-								flattenedVertices[i * 24 + (j * 3 + 2)] = clipPolygon.markers[j].position.z;
+								flattenedVertices[i * 3072 + (j * 3 + 0)] = clipPolygon.markers[j].position.x;
+								flattenedVertices[i * 3072 + (j * 3 + 1)] = clipPolygon.markers[j].position.y;
+								flattenedVertices[i * 3072 + (j * 3 + 2)] = clipPolygon.markers[j].position.z;
 							}
 						}
 
@@ -67764,7 +67764,7 @@ void main() {
 
 			this.viewer = viewer;
 
-			this.maxPolygonVertices = 8; 
+			this.maxPolygonVertices = 1024; 
 			
 			this.addEventListener("start_inserting_clipping_volume", e => {
 				this.viewer.dispatchEvent({
@@ -89697,7 +89697,7 @@ ENDSEC
 				});
 
 				let clipPolygons = this.scene.polygonClipVolumes.filter(vol => vol.initialized);
-				
+
 				// set clip volumes in material
 				for(let pointcloud of visiblePointClouds){
 					pointcloud.material.setClipBoxes(clipBoxes);
