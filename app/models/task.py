@@ -1537,7 +1537,7 @@ class Task(models.Model):
                             "--output", quote(output_glb_tmp),
                             "--texture-size", str(tex_size),
                             "--simplify-ratio", str(simplify_ratio),
-                            "--texture-compress ktx2"], timeout=180)
+                            "--texture-compress", "ktx2"], timeout=180)
 
             if not os.path.isfile(output_glb_tmp):
                 raise FileNotFoundError("LOD generation failed")

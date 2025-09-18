@@ -2486,7 +2486,7 @@ var GLTFLoader = ( function () {
 		var hasAlpha = true;
 
 		if ( source.mimeType === 'image/jpeg' ) hasAlpha = false;
-
+console.log(source.mimeType);
 		if ( source.bufferView !== undefined ) {
 
 			// Load binary image data from bufferView, if provided.

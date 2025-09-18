@@ -208,7 +208,6 @@ const toktx = function (options) {
 
                 // COMPRESS: Run `ktx create` CLI tool.
                 const [status, _stdout, stderr] = await waitExit(spawn('ktx', params));
-
                 if (status !== 0) {
                     logger.error(`${prefix}: Failed → \n\n${stderr.toString()}`);
                 } else {
@@ -231,7 +230,6 @@ const toktx = function (options) {
             .getRoot()
             .listTextures()
             .some((t) => t.getMimeType() === 'image/ktx2');
-
         if (!usesKTX2) {
             basisuExtension.dispose();
         }
