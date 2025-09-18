@@ -55,6 +55,7 @@
     "meshoptimizer": "^0.25.0",
     "mini-css-extract-plugin": "1.6.2",
     "object.values": "^1.0.3",
+    "p-limit": "^7.1.1",
     "proj4": "^2.4.3",
     "qrcode.react": "^0.7.2",
     "raw-loader": "^0.5.1",
