@@ -16,6 +16,7 @@ require('./vendor/OBJLoader');
 require('./vendor/MTLLoader');
 require('./vendor/GLTFLoader');
 require('./vendor/DRACOLoader');
+require('./vendor/KTX2Loader');
 
 class SetCameraView extends React.Component{
     static propTypes = {
@@ -152,7 +153,7 @@ class ModelView extends React.Component {
       error: "",
       showingTexturedModel: false,
       initializingModel: false,
-      currentLod: 3,
+      currentLod: 3, // Start with this LOD
       currentLodSize: -1,
       selectedCamera: null,
       modalOpen: false
@@ -664,6 +665,11 @@ class ModelView extends React.Component {
           this.dracoLoader.setDecoderPath( '/static/app/js/vendor/draco/' );
           this.gltfLoader.setDRACOLoader( this.dracoLoader );
       }
+      if (!this.ktx2Loader) {
+          this.ktx2Loader = new THREE.KTX2Loader();
+          this.gltfLoader.setKTX2Loader( this.ktx2Loader );
+      }
+      
   }
 
   loadGltf = (url, cb) => {
@@ -729,7 +735,7 @@ class ModelView extends React.Component {
       const loadLOD = (lod) => {
         const LOD_MAX_SIZE = 1024 * 1024 * 90; // MB
         if (lod >= 0 && (this.state.currentLodSize === -1 || this.state.currentLodSize < LOD_MAX_SIZE) && this.state.showingTexturedModel){
-            // console.log("Loading LOD ", lod)
+            console.log("Loading LOD ", lod)
             this.loadProgressiveGltf(this.glbFilePath(lod), (err, gltf, bytesSize) => {
                 if (err){
                     this.setState({initializingModel: false, error: err});
@@ -750,7 +756,7 @@ class ModelView extends React.Component {
                 loadLOD(lod - 1);
             });
         }else{
-            // console.log("Done loading LODs");
+            console.log("Done loading LODs");
         }
       };
 

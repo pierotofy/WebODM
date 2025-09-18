@@ -2524,9 +2524,7 @@ var GLTFLoader = ( function () {
 				if ( loader.isImageBitmapLoader === true ) {
 
 					onLoad = function ( imageBitmap ) {
-
 						resolve( new CanvasTexture( imageBitmap ) );
-
 					};
 
 				}

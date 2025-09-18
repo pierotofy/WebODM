@@ -38,6 +38,7 @@ async function main() {
     let outputFile = '';
     let textureSize = 512;
     let simplifyRatio = 1;
+    let textureCompression = 'auto';
 
     for (let i = 0; i < args.length; i++) {
         if (args[i] === '--input' && i + 1 < args.length) {
@@ -46,6 +47,13 @@ async function main() {
         } else if (args[i] === '--output' && i + 1 < args.length) {
             outputFile = args[i + 1];
             i++;
+        } else if (args[i] === '--texture-compress' && i + 1 < args.length) {
+            textureCompression = args[i + 1];
+            i++;
+            if (["auto", "ktx2"].indexOf(textureCompression) === -1){
+                console.log(`Invalid texture compress: ${textureCompression}`);
+                process.exit(1);
+            }
         } else if (args[i] === '--texture-size' && i + 1 < args.length) {
             textureSize = parseInt(args[i + 1]);
             if (isNaN(textureSize) || textureSize < 1){
@@ -65,26 +73,16 @@ async function main() {
     }
 
     if (!inputFile || !outputFile){
-        console.log('Usage: node glb_optimize.js --input <input.glb> --output <output.glb> [--texture-size <size>] [--simplify-ratio <ratio>]');
+        console.log('Usage: node glb_optimize.js --input <input.glb> --output <output.glb> [--texture-size <size>] [--simplify-ratio <ratio>] [--texture-compress <auto|ktx2>');
         process.exit(1);
     }
 
     const encoder = require('sharp');
 
-    let transforms = [
-        textureCompress({
-            encoder,
-            resize: [textureSize, textureSize],
-            targetFormat: undefined,
-            limitInputPixels: true,
-        }),
-        draco({
-            quantizationVolume: "scene"
-        })
-    ]
-
+    let transforms = [];
     if (simplifyRatio < 1){
-        transforms.unshift(
+        transforms.push(weld());
+        transforms.push(
             simplify({
                 simplifier: MeshoptSimplifier,
                 error: 0.0001,
@@ -92,8 +90,47 @@ async function main() {
                 lockBorder: false,
             }),
         );
-        transforms.unshift(weld());
     }
+
+    const resize = [textureSize, textureSize];
+
+    if (textureCompression === "ktx2"){
+        const slotsUASTC = /(?:(normalTexture|occlusionTexture|metallicRoughnessTexture))/i;
+        const Mode = {
+            ETC1S: 'etc1s',
+            UASTC: 'uastc',
+        };
+        transforms.push(
+            toktx({
+                encoder,
+                resize,
+                mode: Mode.UASTC,
+                slots: slotsUASTC,
+                level: 4,
+                rdo: true,
+                rdoLambda: 4,
+                limitInputPixels: true
+            }),
+            toktx({
+                encoder,
+                resize,
+                mode: Mode.ETC1S,
+                quality: 255,
+                limitInputPixels: true
+            }),
+        );
+    }else{
+        transforms.push(textureCompress({
+            encoder,
+            resize,
+            targetFormat: undefined,
+            limitInputPixels: true,
+        }));
+    }
+    
+    transforms.push(draco({
+        quantizationVolume: "scene"
+    }));
 
     const document = await io.read(inputFile);
     await document.transform(...transforms);
