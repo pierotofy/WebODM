@@ -66,7 +66,7 @@ export default class ExportAssetPanel extends React.Component {
         },
         'csv': {
             label: "CSV",
-            icon: "fa fa-file-text"
+            icon: "fas fa-file-alt"
         }        
     };
 
@@ -75,7 +75,9 @@ export default class ExportAssetPanel extends React.Component {
         format: props.exportFormats[0],
         epsg: this.props.task.epsg || null,
         customEpsg: Storage.getItem("last_export_custom_epsg") || "4326",
-        exporting: false
+        resample: 0,
+        exporting: false,
+        progress: null
     }
   }
 
@@ -97,6 +99,10 @@ export default class ExportAssetPanel extends React.Component {
     this.setState({customEpsg: e.target.value});
   }
 
+  handleChangeResample = e => {
+    this.setState({resample: e.target.value});
+  }
+
   getExportParams = (format) => {
       let params = {};
 
@@ -111,15 +117,23 @@ export default class ExportAssetPanel extends React.Component {
       const epsg = this.getEpsg();
       if (epsg) params.epsg = this.getEpsg();
 
+      if (this.state.resample > 0) params.resample = this.state.resample;
+
       return params;
+  }
+
+  isPointCloud = () => {
+    return this.props.asset == "georeferenced_model";
   }
 
   handleExport = (format) => {
     if (!format) format = this.state.format;
 
     return (cb) => {
+        if (typeof cb !== 'function') cb = undefined;
+        
         const { task } = this.props;
-        this.setState({exporting: true, error: ""});
+        this.setState({exporting: true, error: "", progress: null});
         const data = this.getExportParams(format);
 
         if (this.state.epsg === "custom") Storage.setItem("last_export_custom_epsg", data.epsg);
@@ -139,6 +153,8 @@ export default class ExportAssetPanel extends React.Component {
                             Workers.downloadFile(result.celery_task_id, result.filename);
                             if (cb !== undefined) cb();
                         }
+                    }, (_, progress) => {
+                      this.setState({progress});
                     });
                 }else if (result.url){
                     // Simple download
@@ -169,7 +185,7 @@ export default class ExportAssetPanel extends React.Component {
   }
 
   render(){
-    const {epsg, customEpsg, exporting, format } = this.state;
+    const {epsg, customEpsg, exporting, format, resample, progress } = this.state;
     const { exportFormats } = this.props;
     const utmEPSG = this.props.task.epsg;
 
@@ -198,14 +214,21 @@ export default class ExportAssetPanel extends React.Component {
 
   let exportSelector = null;
   if (this.props.selectorOnly){
-    exportSelector = (<div className="row form-group form-inline">
+    exportSelector = [<div key={1} className="row form-group form-inline">
         <label className="col-sm-3 control-label">{_("Format:")}</label>
         <div className="col-sm-9 ">
         <select className="form-control" value={format} onChange={this.handleSelectFormat}>
             {exportFormats.map(ef => <option key={ef} value={ef}>{this.efInfo[ef].label}</option>)}
         </select>
         </div>
-    </div>);
+    </div>,
+    this.isPointCloud() ? <div key={2} className="row form-group form-inline">
+        <label className="col-sm-3 control-label">{_("Resample (meters):")}</label>
+        <div className="col-sm-9 ">
+          <input type="number" min="0" className="form-control custom-interval" value={resample} onChange={this.handleChangeResample} />
+        </div>
+      </div>
+    : ""];
   }else{
     exportSelector = (<div className="row form-group form-inline">
         <label className="col-sm-3 control-label">{_("Export:")}</label>
@@ -213,7 +236,7 @@ export default class ExportAssetPanel extends React.Component {
             <div className={"btn-group " + (this.props.dropUp ?  "dropup" : "")}>
                 <button onClick={this.handleExport(exportFormats[0])}
                     disabled={disabled} type="button" className="btn btn-sm btn-primary btn-export">
-                    {exporting ? <i className="fa fa-spin fa-circle-notch"/> : <i className={this.efInfo[exportFormats[0]].icon + " fa-fw"}/>} {exporting ? _("Exporting...") : this.efInfo[exportFormats[0]].label}
+                    {exporting ? <i className="fa fa-spin fa-circle-notch"/> : <i className={this.efInfo[exportFormats[0]].icon + " fa-fw"}/>} {exporting ? _("Exporting...") : this.efInfo[exportFormats[0]].label} {exporting && progress !== null ? ` (${progress.toFixed(0)}%)` : ""}
                 </button>
                 <button disabled={disabled} type="button" className="btn btn-sm dropdown-toggle btn-primary" data-toggle="dropdown"><span className="caret"></span></button>
                 <ul className="dropdown-menu pull-right">

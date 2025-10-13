@@ -1,8 +1,3 @@
-[data-mapview]{
-    height: calc(100vh - 100px);
-    height: calc(100dvh - 100px);
-}
-
 .map-view{
     .map-title{
         text-overflow: ellipsis;
@@ -12,7 +7,7 @@
     height: calc(100% - 20px);
     position: relative;
 
-    input[type="range"]{
+    input.opacity[type="range"]{
         margin-left: 4px;
         display: inline-block;
         width: 130px;
@@ -34,5 +29,9 @@
         .map-type-selector{
             flex: none;
         }
+    }
+
+    .crop-button i{
+        color: #191919;
     }
 }

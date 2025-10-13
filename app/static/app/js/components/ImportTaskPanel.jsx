@@ -51,10 +51,11 @@ class ImportTaskPanel extends React.Component {
           createImageThumbnails: false,
           previewTemplate: '<div style="display:none"></div>',
           clickable: this.uploadButton,
-          chunkSize: 2147483647,
           timeout: 2147483647,
           chunking: true,
-          chunkSize: 16000000, // 16MB
+          chunkSize: 8000000, // 8MB,
+          retryChunks: true,
+          retryChunksLimit: 20,
           headers: {
             [csrf.header]: csrf.token
           }
@@ -92,7 +93,7 @@ class ImportTaskPanel extends React.Component {
             }catch(e){
               this.setState({error: interpolate(_('Invalid response from server: %(error)s'), { error: e.message})});
             }
-          }else if (this.state.uploading){
+          }else{
             this.setState({uploading: false, error: _("An error occured while uploading the file. Please try again.")});
           }
         });
@@ -140,8 +141,12 @@ class ImportTaskPanel extends React.Component {
         this.setState({error: json.error || interpolate(_("Invalid JSON response: %(error)s"), {error: JSON.stringify(json)})});
       }
     })
-    .fail(() => {
-        this.setState({importingFromUrl: false, error: _("Cannot import from URL. Check your internet connection.")});
+    .fail((e) => {
+      let error = _("Cannot import from URL. Check your internet connection.");
+      if (e && e.responseJSON && Array.isArray(e.responseJSON) && e.responseJSON.length && typeof e.responseJSON[0] === 'string'){
+        error = e.responseJSON[0];
+      }
+      this.setState({importingFromUrl: false, error});
     });
   }
 

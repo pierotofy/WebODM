@@ -1,5 +1,5 @@
 import React from 'react';
-import ReactDOM from 'react-dom';
+import ReactDOM from 'ReactDOM';
 import L from 'leaflet';
 import PropTypes from 'prop-types';
 import '../css/LayersControl.scss';
@@ -58,7 +58,7 @@ export default L.Control.extend({
     },
 
     update: function(layers, overlays, annotations){
-        ReactDOM.render(<LayersControlButton map={this.map} layers={layers} overlays={overlays} annotations={annotations} />, this.container);
+        ReactDOM.render(<LayersControlButton ref={r => this.layersControlButton = r} map={this.map} layers={layers} overlays={overlays} annotations={annotations} />, this.container);
     }
 });
 

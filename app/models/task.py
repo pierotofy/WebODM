@@ -3,11 +3,13 @@ import os
 import shutil
 import time
 import struct
+import tempfile
 from datetime import datetime
 import uuid as uuid_module
-from app.vendor import zipfly
+from zipstream.ng import ZipStream
 
 import json
+import redis
 from shlex import quote
 
 import errno
@@ -19,6 +21,7 @@ import rasterio
 from shutil import copyfile
 import requests
 from PIL import Image
+Image.MAX_IMAGE_PIXELS = 4096000000
 from django.contrib.gis.gdal import GDALRaster
 from django.contrib.gis.gdal import OGRGeometry
 from django.contrib.gis.geos import GEOSGeometry
@@ -38,6 +41,7 @@ from app.cogeo import assure_cogeo
 from app.pointcloud_utils import is_pointcloud_georeferenced
 from app.testwatch import testWatch
 from app.security import path_traversal_check
+from app.geoutils import geom_transform
 from nodeodm import status_codes
 from nodeodm.models import ProcessingNode
 from pyodm.exceptions import NodeResponseError, NodeConnectionError, NodeServerError, OdmError
@@ -51,6 +55,8 @@ import subprocess
 from app.classes.console import Console
 
 logger = logging.getLogger('app.logger')
+redis_client = redis.Redis.from_url(settings.CELERY_BROKER_URL)
+
 
 class TaskInterruptedException(Exception):
     pass
@@ -158,8 +164,7 @@ def resize_image(image_path, resize_to, done=None):
         os.remove(image_path)
         os.rename(resized_image_path, image_path)
 
-        logger.info("Resized {} to {}x{}".format(image_path, resized_width, resized_height))
-    except (IOError, ValueError, struct.error) as e:
+    except (IOError, ValueError, struct.error, Image.DecompressionBombError) as e:
         logger.warning("Cannot resize {}: {}.".format(image_path, str(e)))
         if done is not None:
             done()
@@ -182,6 +187,7 @@ class Task(models.Model):
             'orthophoto.png': os.path.join('odm_orthophoto', 'odm_orthophoto.png'),
             'orthophoto.mbtiles': os.path.join('odm_orthophoto', 'odm_orthophoto.mbtiles'),
             'orthophoto.kmz': os.path.join('odm_orthophoto', 'odm_orthophoto.kmz'),
+            'cutline.gpkg': os.path.join('odm_orthophoto', 'cutline.gpkg'),
             'georeferenced_model.las': os.path.join('odm_georeferencing', 'odm_georeferenced_model.las'),
             'georeferenced_model.laz': os.path.join('odm_georeferencing', 'odm_georeferenced_model.laz'),
             'georeferenced_model.ply': os.path.join('odm_georeferencing', 'odm_georeferenced_model.ply'),
@@ -234,6 +240,7 @@ class Task(models.Model):
         (pending_actions.RESTART, 'RESTART'),
         (pending_actions.RESIZE, 'RESIZE'),
         (pending_actions.IMPORT, 'IMPORT'),
+        (pending_actions.COMPACT, 'COMPACT'),
     )
 
     TASK_PROGRESS_LAST_VALUE = 0.85
@@ -252,14 +259,16 @@ class Task(models.Model):
     available_assets = fields.ArrayField(models.CharField(max_length=80), default=list, blank=True, help_text=_("List of available assets to download"), verbose_name=_("Available Assets"))
 
     orthophoto_extent = GeometryField(null=True, blank=True, srid=4326, help_text=_("Extent of the orthophoto"), verbose_name=_("Orthophoto Extent"))
-    dsm_extent = GeometryField(null=True, blank=True, srid=4326, help_text="Extent of the DSM", verbose_name=_("DSM Extent"))
-    dtm_extent = GeometryField(null=True, blank=True, srid=4326, help_text="Extent of the DTM", verbose_name=_("DTM Extent"))
+    dsm_extent = GeometryField(null=True, blank=True, srid=4326, help_text=_("Extent of the DSM"), verbose_name=_("DSM Extent"))
+    dtm_extent = GeometryField(null=True, blank=True, srid=4326, help_text=_("Extent of the DTM"), verbose_name=_("DTM Extent"))
 
     # mission
     created_at = models.DateTimeField(default=timezone.now, help_text=_("Creation date"), verbose_name=_("Created at"))
     pending_action = models.IntegerField(choices=PENDING_ACTIONS, db_index=True, null=True, blank=True, help_text=_("A requested action to be performed on the task. The selected action will be performed by the worker at the next iteration."), verbose_name=_("Pending Action"))
 
     public = models.BooleanField(default=False, help_text=_("A flag indicating whether this task is available to the public"), verbose_name=_("Public"))
+    public_edit = models.BooleanField(default=False, help_text=_("A flag indicating whether this public task can be edited"), verbose_name=_("Public Edit"))
+
     resize_to = models.IntegerField(default=-1, help_text=_("When set to a value different than -1, indicates that the images for this task have been / will be resized to the size specified here before processing."), verbose_name=_("Resize To"))
 
     upload_progress = models.FloatField(default=0.0,
@@ -282,6 +291,9 @@ class Task(models.Model):
     tags = models.TextField(db_index=True, default="", blank=True, help_text=_("Task tags"), verbose_name=_("Tags"))
     orthophoto_bands = fields.JSONField(default=list, blank=True, help_text=_("List of orthophoto bands"), verbose_name=_("Orthophoto Bands"))
     size = models.FloatField(default=0.0, blank=True, help_text=_("Size of the task on disk in megabytes"), verbose_name=_("Size"))
+    compacted = models.BooleanField(default=False, help_text=_("A flag indicating whether this task was compacted"), verbose_name=_("Compact"))
+    crop = GeometryField(null=True, blank=True, srid=4326, help_text=_("Polygon defining the crop area of this task"), verbose_name=_("Crop Polygon"))
+
     
     class Meta:
         verbose_name = _("Task")
@@ -347,10 +359,35 @@ class Task(models.Model):
         if errors:
             raise ValidationError(errors)
 
+        # Validate crop area
+        # must be enclosed within all raster extents
+        # and have a positive area
+        if self.crop is not None:
+            if self.crop.valid:
+                has_extents = False
+                for extent in [self.orthophoto_extent, self.dsm_extent, self.dtm_extent]:
+                    if extent is not None:
+                        has_extents = True
+                        self.crop = extent.intersection(self.crop)
+                if not has_extents or self.crop.area <= 0:
+                    self.crop = None
+            else:
+                self.crop = None
+
         self.clean()
         self.validate_unique()
 
         super(Task, self).save(*args, **kwargs)
+    
+    def get_extent(self):
+        if self.orthophoto_extent is not None:
+            return self.orthophoto_extent.extent
+        elif self.dsm_extent is not None:
+            return self.dsm_extent.extent
+        elif self.dtm_extent is not None:
+            return self.dsm_extent.extent
+        else:
+            return None
 
     def assets_path(self, *args):
         """
@@ -408,7 +445,15 @@ class Task(models.Model):
                 points = j.get('point_cloud_statistics', {}).get('stats', {}).get('statistic', [{}])[0].get('count')
             else:
                 points = j.get('reconstruction_statistics', {}).get('reconstructed_points_count')
-                        
+
+            spatial_refs = []
+            if j.get('reconstruction_statistics', {}).get('has_gps'):
+                spatial_refs.append("gps")
+            if j.get('reconstruction_statistics', {}).get('has_gcp') and 'average_error' in j.get('gcp_errors', {}):
+                spatial_refs.append("gcp")
+            if 'align' in j:
+                spatial_refs.append("alignment")
+
             return {
                 'pointcloud':{
                     'points': points,
@@ -417,6 +462,7 @@ class Task(models.Model):
                 'area': j.get('processing_statistics', {}).get('area'),
                 'start_date': j.get('processing_statistics', {}).get('start_date'),
                 'end_date': j.get('processing_statistics', {}).get('end_date'),
+                'spatial_refs': spatial_refs,
             }
         else:
             return {}
@@ -438,9 +484,6 @@ class Task(models.Model):
                     try:
                         # Try to use hard links first
                         shutil.copytree(self.task_path(), task.task_path(), copy_function=os.link)
-
-                        # Make sure the console output is not linked to the original task
-                        task.console.delink()
                     except Exception as e:
                         logger.warning("Cannot duplicate task using hard links, will use normal copy instead: {}".format(str(e)))
                         shutil.copytree(self.task_path(), task.task_path())
@@ -469,7 +512,8 @@ class Task(models.Model):
                 'public': self.public,
                 'resize_to': self.resize_to,
                 'potree_scene': self.potree_scene,
-                'tags': self.tags
+                'tags': self.tags,
+                'crop': json.loads(self.crop.geojson) if self.crop is not None else None,
             }))
     
     def read_backup_file(self):
@@ -489,6 +533,10 @@ class Task(models.Model):
                     self.potree_scene = backup.get('potree_scene', self.potree_scene)
                     self.tags = backup.get('tags', self.tags)
 
+                    crop = backup.get('crop')
+                    if crop is not None:
+                        self.crop = json.dumps(crop)
+
             except Exception as e:
                 logger.warning("Cannot read backup file: %s" % str(e))
 
@@ -496,9 +544,7 @@ class Task(models.Model):
         self.write_backup_file()
         zip_dir = self.task_path("")
         paths = [{'n': os.path.relpath(os.path.join(dp, f), zip_dir), 'fs': os.path.join(dp, f)} for dp, dn, filenames in os.walk(zip_dir) for f in filenames]
-        if len(paths) == 0:
-            raise FileNotFoundError("No files available for export")
-        return zipfly.ZipStream(paths)
+        return self.zip_stream(paths)
     
     def get_asset_file_or_stream(self, asset):
         """
@@ -517,15 +563,25 @@ class Task(models.Model):
                     paths = [{'n': os.path.relpath(os.path.join(dp, f), zip_dir), 'fs': os.path.join(dp, f)} for dp, dn, filenames in os.walk(zip_dir) for f in filenames]
                     if 'deferred_exclude_files' in value and isinstance(value['deferred_exclude_files'], tuple):
                         paths = [p for p in paths if os.path.basename(p['fs']) not in value['deferred_exclude_files']]
-                    if len(paths) == 0:
-                        raise FileNotFoundError("No files available for download")
-                    return zipfly.ZipStream(paths)
+                    
+                    return self.zip_stream(paths)
                 else:
                     raise FileNotFoundError("{} is not a valid asset (invalid dict values)".format(asset))
             else:
                 raise FileNotFoundError("{} is not a valid asset (invalid map)".format(asset))
         else:
             raise FileNotFoundError("{} is not a valid asset".format(asset))
+
+    def zip_stream(self, paths):
+        if len(paths) == 0:
+            raise FileNotFoundError("No files available for download")
+
+        zs = ZipStream(sized=True)
+        zs.comment = "Generated by WebODM"
+        for p in paths:
+            zs.add_path(p['fs'], p['n'])
+        
+        return zs
 
     def get_asset_download_path(self, asset):
         """
@@ -593,16 +649,18 @@ class Task(models.Model):
 
                             fd.write(chunk)
 
-                except (requests.exceptions.Timeout, requests.exceptions.ConnectionError, ReadTimeoutError) as e:
+                except (requests.exceptions.Timeout, requests.exceptions.ConnectionError, ReadTimeoutError, requests.exceptions.MissingSchema) as e:
                     raise NodeServerError(e)
 
         self.refresh_from_db()
 
         try:
             self.extract_assets_and_complete()
-        except zipfile.BadZipFile:
+        except (zipfile.BadZipFile, FileNotFoundError):
             raise NodeServerError(gettext("Invalid zip file"))
-
+        except NotImplementedError:
+            raise NodeServerError(gettext("Unsupported compression method"))
+        
         images_json = self.assets_path("images.json")
         if os.path.exists(images_json):
             try:
@@ -639,7 +697,7 @@ class Task(models.Model):
                 # No processing node assigned and need to auto assign
                 if self.processing_node is None:
                     # Assign first online node with lowest queue count
-                    self.processing_node = ProcessingNode.find_best_available_node()
+                    self.processing_node = ProcessingNode.find_best_available_node(self.project.owner)
                     if self.processing_node:
                         self.processing_node.queue_count += 1 # Doesn't have to be accurate, it will get overridden later
                         self.processing_node.save()
@@ -793,6 +851,14 @@ class Task(models.Model):
 
                     # Stop right here!
                     return
+                
+                elif self.pending_action == pending_actions.COMPACT:
+                    logger.info("Compacting {}".format(self))
+                    time.sleep(2) # Purely to make sure the user sees the "compacting..." message in the UI since this is so fast
+                    self.compact()
+                    self.pending_action = None
+                    self.save()
+                    return
 
             if self.processing_node:
                 # Need to update status (first time, queued or running?)
@@ -888,7 +954,7 @@ class Task(models.Model):
             logger.warning("{} connection/timeout error: {}. We'll try reprocessing at the next tick.".format(self, str(e)))
         except TaskInterruptedException as e:
             # Task was interrupted during image resize / upload
-            logger.warning("{} interrupted".format(self, str(e)))
+            logger.warning("{} interrupted: {}".format(self, str(e)))
 
     def extract_assets_and_complete(self):
         """
@@ -921,16 +987,21 @@ class Task(models.Model):
             except shutil.Error as e:
                 logger.warning("Cannot restore from backup: %s" % str(e))
                 raise NodeServerError("Cannot restore from backup")
+        else:
+            # Check if the zip file contained a top level directory
+            # which shouldn't be there and try to fix the structure
+            top_level = [os.path.join(assets_dir, d) for d in os.listdir(assets_dir)]
+            if len(top_level) == 1 and os.path.isdir(top_level[0]) and (not top_level[0].endswith("odm_orthophoto")):
+                second_level = [os.path.join(top_level[0], f) for f in os.listdir(top_level[0])]
+                if len(second_level) > 0:
+                    logger.info("Top level directory found in imported archive, attempting to fix")
+                    for f in second_level:
+                        shutil.move(f, assets_dir)
+                    shutil.rmtree(top_level[0])
+
 
         # Populate *_extent fields
-        extent_fields = [
-            (os.path.realpath(self.assets_path("odm_orthophoto", "odm_orthophoto.tif")),
-             'orthophoto_extent'),
-            (os.path.realpath(self.assets_path("odm_dem", "dsm.tif")),
-             'dsm_extent'),
-            (os.path.realpath(self.assets_path("odm_dem", "dtm.tif")),
-             'dtm_extent'),
-        ]
+        extent_fields = self.get_extent_fields()
 
         for raster_path, field in extent_fields:
             if os.path.exists(raster_path):
@@ -956,24 +1027,100 @@ class Task(models.Model):
                 setattr(self, field, GEOSGeometry(extent.wkt, srid=raster.srid))
 
                 logger.info("Populated extent field with {} for {}".format(raster_path, self))
+        
+        self.check_ept()
+
+        # Flushes the changes to the *_extent fields
+        # and immediately reads them back into Python
+        # This is required because GEOS screws up the X/Y conversion
+        # from the raster CRS to 4326, whereas PostGIS seems to do it correctly :/
+        self.status = status_codes.RUNNING # avoid telling clients that task is completed prematurely
+        self.save()
+        self.refresh_from_db()
 
         self.update_available_assets_field()
         self.update_epsg_field()
         self.update_orthophoto_bands_field()
         self.update_size()
+        self.clear_task_assets_cache()
         self.potree_scene = {}
         self.running_progress = 1.0
+        self.crop = None
         self.status = status_codes.COMPLETED
 
         if is_backup:
             self.read_backup_file()
+            self.import_url = ""
         else:
             self.console += gettext("Done!") + "\n"
+
+        task_output = self.assets_path("task_output.txt")
+        if os.path.isfile(task_output):
+            # Guarantee consistency, save space
+            self.console.link(task_output)
         
         self.save()
 
         from app.plugins import signals as plugin_signals
         plugin_signals.task_completed.send_robust(sender=self.__class__, task_id=self.id)
+
+    def check_ept(self, threads=1):
+        # Make sure that the entwine_pointcloud/ept.json file exists
+        # and generate it otherwise
+        ept_file = self.assets_path("entwine_pointcloud", "ept.json")
+        if os.path.isfile(ept_file):
+            return
+        
+        point_cloud = self.get_point_cloud()
+        if point_cloud is None:
+            return
+        
+        # We have the point cloud, but no EPT. Generate EPT.
+        entwine = shutil.which('entwine')
+        if not entwine:
+            logger.warning("Cannot create EPT, entwine program is missing")
+            return None
+        
+        ept_dir = self.assets_path("entwine_pointcloud")
+        try:
+            if not os.path.exists(settings.MEDIA_TMP):
+                os.makedirs(settings.MEDIA_TMP)
+
+            tmp_ept_path = tempfile.mkdtemp('_ept', dir=settings.MEDIA_TMP)
+            params = [entwine, "build", "--threads", str(threads), 
+                "--tmp", quote(tmp_ept_path),
+                "-i", quote(point_cloud),
+                "-o", quote(ept_dir)]
+            
+            subprocess.run(params, timeout=12*60*60)
+
+            if os.path.isdir(tmp_ept_path):
+                shutil.rmtree(tmp_ept_path)
+            return True
+        except Exception as e:
+            logger.warning("Cannot create EPT for %s (%s). 3D point cloud will not display properly." % (point_cloud, str(e)))
+
+
+    def get_extent_fields(self):
+        return [
+            (os.path.realpath(self.assets_path("odm_orthophoto", "odm_orthophoto.tif")),
+             'orthophoto_extent'),
+            (os.path.realpath(self.assets_path("odm_dem", "dsm.tif")),
+             'dsm_extent'),
+            (os.path.realpath(self.assets_path("odm_dem", "dtm.tif")),
+             'dtm_extent'),
+        ]
+
+    def get_reference_raster(self):
+        extent_fields = self.get_extent_fields()
+        for file, field in extent_fields:
+            if getattr(self, field) is not None:
+                return file 
+    
+    def get_point_cloud(self):
+        f = os.path.realpath(self.assets_path(self.ASSETS_MAP["georeferenced_model.laz"]))
+        if os.path.isfile(f):
+            return f
 
     def get_tile_path(self, tile_type, z, x, y):
         return self.assets_path("{}_tiles".format(tile_type), z, x, "{}.png".format(y))
@@ -1007,13 +1154,22 @@ class Task(models.Model):
                     'name': self.name,
                     'project': self.project.id,
                     'public': self.public,
+                    'public_edit': self.public_edit,
                     'camera_shots': camera_shots,
                     'ground_control_points': ground_control_points,
                     'epsg': self.epsg,
                     'orthophoto_bands': self.orthophoto_bands,
+                    'crop': self.crop is not None,
+                    'extent': self.get_extent(),
                 }
             }
         }
+
+    def get_projected_crop(self):
+        if self.crop is None or self.epsg is None:
+            return None
+        
+        return geom_transform(self.crop, self.epsg)
 
     def get_model_display_params(self):
         """
@@ -1024,7 +1180,9 @@ class Task(models.Model):
             'project': self.project.id,
             'available_assets': self.available_assets,
             'public': self.public,
-            'epsg': self.epsg
+            'public_edit': self.public_edit,
+            'epsg': self.epsg,
+            'crop_projected': self.get_projected_crop() 
         }
 
     def generate_deferred_asset(self, archive, directory, stream=False):
@@ -1104,7 +1262,6 @@ class Task(models.Model):
         self.orthophoto_bands = bands
         if commit: self.save()
 
-
     def delete(self, using=None, keep_parents=False):
         task_id = self.id
         from app.plugins import signals as plugin_signals
@@ -1112,6 +1269,7 @@ class Task(models.Model):
 
         directory_to_delete = os.path.join(settings.MEDIA_ROOT,
                                            task_directory_path(self.id, self.project.id))
+        self.clear_task_assets_cache()
 
         super(Task, self).delete(using, keep_parents)
 
@@ -1124,6 +1282,29 @@ class Task(models.Model):
         self.project.owner.profile.clear_used_quota_cache()
 
         plugin_signals.task_removed.send_robust(sender=self.__class__, task_id=task_id)
+
+    def compact(self):
+        # Remove all images
+        images_path = self.task_path()
+        images = [os.path.join(images_path, i) for i in self.scan_images()]
+        for im in images:
+            try:
+                os.unlink(im)
+            except Exception as e:
+                logger.warning(e)
+
+        self.compacted = True
+        self.update_size(commit=True)
+
+    def check_public_edit(self):
+        """
+        Returns whether we need to check change permissions on this task
+        during an API call that needs to make edits
+        """
+        public = self.public or self.project.public
+        public_edit = self.public_edit or self.project.public_edit
+
+        return (not public) or (public and not public_edit)
 
     def set_failure(self, error_message):
         logger.error("FAILURE FOR {}: {}".format(self, error_message))
@@ -1140,7 +1321,8 @@ class Task(models.Model):
     def check_if_canceled(self):
         # Check if task has been canceled/removed
         if Task.objects.only("pending_action").get(pk=self.id).pending_action in [pending_actions.CANCEL,
-                                                                                  pending_actions.REMOVE]:
+                                                                                  pending_actions.REMOVE,
+                                                                                  pending_actions.COMPACT]:
             raise TaskInterruptedException()
 
     def resize_images(self):
@@ -1174,8 +1356,9 @@ class Task(models.Model):
                 self.check_if_canceled()
                 last_update = time.time()
 
-        resized_images = list(map(partial(resize_image, resize_to=self.resize_to, done=callback), images_path))
-
+        resized_images = [im for im in list(map(partial(resize_image, resize_to=self.resize_to, done=callback), images_path)) 
+                          if im is not None]
+        
         Task.objects.filter(pk=self.id).update(resize_progress=1.0)
 
         return resized_images
@@ -1233,8 +1416,32 @@ class Task(models.Model):
     def get_image_path(self, filename):
         p = self.task_path(filename)
         return path_traversal_check(p, self.task_path())
+
+    def set_alignment_file_from(self, align_task):
+        tp = self.task_path()
+        if not os.path.exists(tp):
+            os.makedirs(tp, exist_ok=True)
+
+        alignment_file = align_task.assets_path(self.ASSETS_MAP['georeferenced_model.laz'])
+        dst_file = self.task_path("align.laz")
+
+        if os.path.exists(dst_file):
+            os.unlink(dst_file)
+
+        if os.path.exists(alignment_file):
+            try:
+                os.link(alignment_file, dst_file)
+            except:
+                shutil.copy(alignment_file, dst_file)
+        else:
+            logger.warn("Cannot set alignment file for {}, {} does not exist".format(self, alignment_file))
     
-    def handle_images_upload(self, files):
+    def get_check_file_asset_path(self, asset):
+        file = self.assets_path(self.ASSETS_MAP[asset])
+        if isinstance(file, str) and os.path.isfile(file):
+            return file
+
+    def handle_images_upload(self, files, chunk_info=None):
         uploaded = {}
         for file in files:
             name = file.name
@@ -1245,15 +1452,35 @@ class Task(models.Model):
             if not os.path.exists(tp):
                 os.makedirs(tp, exist_ok=True)
 
+            if chunk_info is not None:
+                if os.path.isfile(chunk_info['tmp_upload_file']) and chunk_info['chunk_index'] == 0:
+                    os.unlink(chunk_info['tmp_upload_file'])
+                
+                with open(chunk_info['tmp_upload_file'], 'ab') as fd:
+                    fd.seek(chunk_info['byte_offset'])
+                    if isinstance(file, InMemoryUploadedFile):
+                        for chunk in file.chunks():
+                            fd.write(chunk)
+                    else:
+                        with open(file.temporary_file_path(), 'rb') as f:
+                            shutil.copyfileobj(f, fd)
+                
+                if chunk_info['chunk_index'] + 1 < chunk_info['total_chunk_count']:
+                    continue # will wait for next chunk
+
             dst_path = self.get_image_path(name)
 
-            with open(dst_path, 'wb+') as fd:
-                if isinstance(file, InMemoryUploadedFile):
-                    for chunk in file.chunks():
-                        fd.write(chunk)
-                else:
-                    with open(file.temporary_file_path(), 'rb') as f:
-                        shutil.copyfileobj(f, fd)
+            if chunk_info is not None:
+                if chunk_info['tmp_upload_file'] is not None and os.path.isfile(chunk_info['tmp_upload_file']):
+                    shutil.move(chunk_info['tmp_upload_file'], dst_path)
+            else:
+                with open(dst_path, 'wb+') as fd:
+                    if isinstance(file, InMemoryUploadedFile):
+                        for chunk in file.chunks():
+                            fd.write(chunk)
+                    else:
+                        with open(file.temporary_file_path(), 'rb') as f:
+                            shutil.copyfileobj(f, fd)
             
             uploaded[name] = os.path.getsize(dst_path)
         return uploaded
@@ -1272,3 +1499,98 @@ class Task(models.Model):
             self.project.owner.profile.clear_used_quota_cache()
         except Exception as e:
             logger.warn("Cannot update size for task {}: {}".format(self, str(e)))
+
+
+    def get_task_assets_cache(self):
+        if self.id is None:
+            return None
+        return os.path.join(settings.MEDIA_CACHE, "task_assets", str(self.id))
+    
+    def clear_task_assets_cache(self):
+        d = self.get_task_assets_cache()
+        if d is None:
+            return
+        
+        if os.path.isdir(d):
+            try:
+                shutil.rmtree(d)
+            except Exception as e:
+                logger.warning("Cannot clear task assets cache {}: {}".format(d, str(e)))
+
+    def get_safe_textured_model(self, max_size_mb=150):
+        input_glb = self.get_check_file_asset_path('textured_model.glb')
+        if input_glb is None or (not 'textured_model.glb' in self.available_assets):
+            raise FileNotFoundError("GLB asset does not exist")
+        
+        if settings.TESTING:
+            rescale = 2
+        else:
+            size = os.path.getsize(input_glb)
+            if size <= max_size_mb * 1024 * 1024:
+                return input_glb
+            
+            rescale = 1
+
+            while size > max_size_mb * 1024 * 1024:
+                rescale *= 2
+                size = size // 2.6  # Texture size reduction factor (not science)
+
+        p, ext = os.path.splitext(input_glb)
+        base = os.path.basename(p)
+        cache_dir = self.get_task_assets_cache()
+        output_glb = os.path.join(cache_dir, f"{base}-{rescale}{ext}")
+        if os.path.isfile(output_glb):
+            # Cached, return immediately
+            return output_glb
+
+        # Prevent multiple requests from generating the same rescale
+        # by putting an exclusive lock on the process
+        lock_id = 'glb_gen_lock_{}_{}'.format(rescale, str(self.id))
+
+        try:
+
+            lod_lock_last_update = redis_client.getset(lock_id, time.time())
+            while lod_lock_last_update is not None:
+                # Check if lock has expired
+                if time.time() - float(lod_lock_last_update) <= 60:
+                    # Locked, wait
+                    time.sleep(2)
+                    lod_lock_last_update = redis_client.get(lock_id)
+                else:
+                    # Expired
+                    logger.warning("GLB generation lock {} has expired! Generation might be taking too long.".format(str(self.id)))
+                    redis_client.set(lock_id, time.time())
+                    break
+            
+            if os.path.isfile(output_glb):
+                # Cached, return immediately
+                return output_glb
+
+            if not os.path.isdir(cache_dir):
+                os.makedirs(cache_dir, exist_ok=True)
+
+            glbopti_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../scripts/glbopti.js"))
+            output_glb_tmp = output_glb + ".tmp.glb"
+
+            params = ["node", glbopti_path,
+                            "--input", quote(input_glb), 
+                            "--output", quote(output_glb_tmp),
+                            "--texture-rescale", str(rescale)]
+            if settings.TESTING:
+                params += ["--test"]
+            subprocess.run(params, timeout=180)
+
+            if not os.path.isfile(output_glb_tmp):
+                raise FileNotFoundError("GLB generation failed")
+            
+            os.rename(output_glb_tmp, output_glb)            
+            return output_glb
+        except Exception as e:
+            logger.warning("Could not generate GLB for {}: {}".format(str(self.id), str(e)))
+            return input_glb
+        finally:
+            try:
+                redis_client.delete(lock_id)
+            except redis.exceptions.RedisError:
+                # Ignore errors, the lock will expire at some point
+                pass

@@ -44,6 +44,14 @@ app.conf.beat_schedule = {
             'retry': False
         }
     },
+    'cleanup-cache-directory': {
+        'task': 'worker.tasks.cleanup_cache_directory',
+        'schedule': 21600,
+        'options': {
+            'expires': 10799,
+            'retry': False
+        }
+    },
     'process-pending-tasks': {
         'task': 'worker.tasks.process_pending_tasks',
         'schedule': 5,
@@ -66,6 +74,8 @@ app.conf.beat_schedule = {
 class MockAsyncResult:
     def __init__(self, celery_task_id, result = None):
         self.celery_task_id = celery_task_id
+        self.state = "PENDING"
+
         if result is None:
             if celery_task_id == 'bogus':
                 self.result = None

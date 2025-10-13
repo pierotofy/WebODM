@@ -5,6 +5,7 @@ import L from 'leaflet';
 import './ContoursPanel.scss';
 import ErrorMessage from 'webodm/components/ErrorMessage';
 import Workers from 'webodm/classes/Workers';
+import Utils from 'webodm/classes/Utils';
 import { _ } from 'webodm/classes/gettext';
 import { systems, getUnitSystem, onUnitSystemChanged, offUnitSystemChanged, toMetric } from 'webodm/classes/Units';
 
@@ -241,7 +242,7 @@ export default class ContoursPanel extends React.Component {
                 this.setState({[loadingProp]: false});
               }
             }
-          }, `/api/plugins/contours/task/${taskId}/contours/check/`);
+          });
         }else if (result.error){
             this.setState({[loadingProp]: false, error: result.error});
         }else{
@@ -279,13 +280,26 @@ export default class ContoursPanel extends React.Component {
 
     const intervalStart = unitSystem === "metric" ? 1 : 4;
     const intervalValues = [intervalStart / 4, intervalStart / 2, intervalStart, intervalStart * 2, intervalStart * 4];
-    const simplifyValues = [{label: _('Do not simplify'), value: 0},
+    const simplifyValues = [{label: _('Minimal'), value: unitSystem === "metric" ? 0.01 : 0.04},
                             {label: _('Normal'), value: unitSystem === "metric" ? 0.2 : 0.5},
                             {label: _('Aggressive'), value: unitSystem === "metric" ? 1 : 4}];
 
-    const disabled = (interval === "custom" && !customInterval) ||
+    let disabled = (interval === "custom" && !Utils.isNumeric(customInterval)) ||
                       (epsg === "custom" && !customEpsg) ||
-                      (simplify === "custom" && !customSimplify);
+                      (simplify === "custom" && !Utils.isNumeric(customSimplify));
+    let highlightCustomInterval = false;
+    let highlightCustomSimplify = false;
+
+    if (interval === "custom" && Utils.isNumeric(customInterval)){
+      if (toMetric(customInterval, lengthUnit).value < 0.1){
+        disabled = highlightCustomInterval = true;
+      }
+    }
+    if (simplify === "custom" && Utils.isNumeric(customSimplify)){
+      if (toMetric(customSimplify, lengthUnit).value < 0.01){
+        disabled = highlightCustomSimplify = true;
+      }
+    }
 
     let content = "";
     if (loading) content = (<span><i className="fa fa-circle-notch fa-spin"></i> {_("Loading…")}</span>);
@@ -306,7 +320,7 @@ export default class ContoursPanel extends React.Component {
           <div className="row form-group form-inline">
             <label className="col-sm-3 control-label">{_("Value:")}</label>
             <div className="col-sm-9 ">
-              <input type="number" className="form-control custom-interval" value={customInterval} onChange={this.handleChangeCustomInterval} /><span> {lengthUnit.label}</span>
+              <input type="number" className={"form-control custom-interval " + (highlightCustomInterval ? "theme-background-failed" : "")} value={customInterval} onChange={this.handleChangeCustomInterval} /><span> {lengthUnit.label}</span>
             </div>
           </div>
         : ""}
@@ -333,8 +347,8 @@ export default class ContoursPanel extends React.Component {
           <div className="row form-group form-inline">
             <label className="col-sm-3 control-label">{_("Value:")}</label>
             <div className="col-sm-9 ">
-              <input type="number" className="form-control custom-interval" value={customSimplify} onChange={this.handleChangeCustomSimplify} /><span> {lengthUnit.label}</span>
-            </div>
+              <input type="number" className={"form-control custom-interval " + (highlightCustomSimplify ? "theme-background-failed" : "")} value={customSimplify} onChange={this.handleChangeCustomSimplify} /><span> {lengthUnit.label}</span>
+            </div>  
           </div>
         : ""}
 

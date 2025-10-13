@@ -15,6 +15,7 @@ A user-friendly, commercial grade software for drone image processing. Generate 
       + [Manage Processing Nodes](#manage-processing-nodes)
       + [Enable MicMac](#enable-micmac)
       + [Enable SSL](#enable-ssl)
+      + [Enable IPv6](#enable-ipv6)
       + [Where Are My Files Stored?](#where-are-my-files-stored)
       + [Common Troubleshooting](#common-troubleshooting)
          - [Images Missing from Lightning Assets](#images-missing-from-lightning-assets)
@@ -45,7 +46,9 @@ A user-friendly, commercial grade software for drone image processing. Generate 
 
 Windows and macOS users can purchase an automated [installer](https://www.opendronemap.org/webodm/download#installer), which makes the installation process easier.
 
-There's also a cloud-hosted version of WebODM available from [webodm.net](https://webodm.net).
+You can also skip the installation entirely and run WebODM from [webodm.net](https://webodm.net).
+
+To manually install WebODM on your machine, continue reading.
 
 ## Recommended Machine Specs
 
@@ -60,16 +63,12 @@ WebODM runs best on Linux, but works well on Windows and Mac too. If you are tec
 
 WebODM by itself is just a user interface (see [below](#odm-nodeodm-webodm-what)) and does not require many resources. WebODM can be loaded on a machine with just 1 or 2 GB of RAM and work fine without NodeODM. You can then use a processing service such as the [lightning network](https://webodm.net) or run NodeODM on a separate, more powerful machine.
 
-
 ## Manual installation (Docker)
 To install WebODM manually on your machine with docker:
 
 ### Requirements
   - [Git](https://git-scm.com/downloads)
   - [Docker](https://www.docker.com/)
-  - [Docker-compose](https://docs.docker.com/compose/install/)
-  - Python
-  - Pip
 
 * Windows users should install [Docker Desktop](https://hub.docker.com/editions/community/docker-ce-desktop-windows) and :
     1. make sure Linux containers are enabled (Switch to Linux Containers...)
@@ -131,6 +130,18 @@ If you don't need the default "node-odm-1" node, simply pass `--default-nodes 0`
 
 Then from the web interface simply manually remove the "node-odm-1" node.
 
+## Distributed Installation Using NAS (Qnap)
+If you use lightning or another processor node the requirements for WebODM are low enough for it to run on a fairly low power device such as a NAS. Testing has been done on a Qnap-TS264 with 32Gb of RAM (Celeron  N5095 processor)
+To install WebODM on a Qnap NAS:-
+1) Enable ssh access to the NAS in control panel
+2) Install git. This might be easily achieved using the [qgit qkpg](https://www.myqnap.org/product/qgit/)
+3) Now follow the “Installation with Docker” instructions above.
+4) A new "webodm" application should appear in container station along with four individual containers for the app.
+5) Webodm should be available at port 8000 of the NAS.
+6) Setup a lightning account online and configure it within "processing nodes". It's also possible to setup a more powerful computer to run processing tasks instead of lightning.
+   
+This method of working may be useful if using the WebODM Lightning PAYG model as it offers somewhere to host your models outwith the three day window offered as part of PAYG
+
 ### Enable MicMac
 
 WebODM can use [MicMac](https://github.com/OpenDroneMap/micmac) as a processing engine via [NodeMICMAC](https://github.com/OpenDroneMap/NodeMICMAC/). To add MicMac, simply run:
@@ -156,6 +167,26 @@ That's it! The certificate will automatically renew when needed.
 If you want to specify your own key/certificate pair, simply pass the `--ssl-key` and `--ssl-cert` option to `./webodm.sh`. See `./webodm.sh --help` for more information.
 
 Note! You cannot pass an IP address to the hostname parameter! You need a DNS record setup.
+
+### Enable IPv6
+
+Your installation must first have a public IPv6 address.
+To enable IPv6 on your installation, you need to activate IPv6 in Docker by adding the following to a file located at /etc/docker/daemon.json:
+```bash
+{
+  "ipv6": true,
+  "fixed-cidr-v6": "fdb4:4d19:7eb5::/64"
+}
+```
+Restart Docker:
+`systemctl restart docker`
+
+To add IPv6, simply run:
+
+`./webodm.sh restart --ipv6`
+
+Note: When using `--ssl` mode, you cannot pass an IP address to the hostname parameter; you must set up a DNS AAAA record. Without `--ssl` mode enabled, access the site at (e.g., http://[2001:0db8:3c4d:0015::1]:8000). The brackets around the IPv6 address are essential!
+You can add a new NodeODM node in WebODM by specifying an IPv6 address. Don’t forget to include brackets around the address! e.g., [2001:0db8:fd8a:ae80::1]
 
 ### Where Are My Files Stored?
 
@@ -264,46 +295,10 @@ webpack --mode production
 python manage.py collectstatic --noinput
 python manage.py migrate
 ```
-## Run the docker version as a Linux Service
-
-If you wish to run the docker version with auto start/monitoring/stop, etc, as a systemd style Linux Service, a systemd unit file is included in the service folder of the repo.
-
-This should work on any Linux OS capable of running WebODM, and using a SystemD based service daemon (such as Ubuntu 16.04 server for example).
-
-This has only been tested on Ubuntu 16.04 server and Red Hat Enterprise Linux 9.
-
-The following pre-requisites are required:
- * Requires odm user
- * Requires docker installed via system (ubuntu: `sudo apt-get install docker.io`)
- * Requires 'screen' package to be installed
- * Requires odm user member of docker group
- * Required WebODM directory checked out/cloned to /opt/WebODM
- * Requires that /opt/WebODM is recursively owned by odm:odm
- * Requires that a Python 3 environment is used at /opt/WebODM/python3-venv
-
-If all pre-requisites have been met, and repository is checked out/cloned to /opt/WebODM folder, then you can use the following steps to enable and manage the service:
-
-First, to install the service, and enable the services to run at startup from now on:
-```bash
-sudo systemctl enable /opt/WebODM/service/webodm-docker.service
-```
-
-To manually start/stop the service:
-```bash
-sudo systemctl stop webodm-docker
-sudo systemctl start webodm-docker
-```
-
-To manually check service status:
-```bash
-sudo systemctl status webodm-docker
-```
-
-For the adventurous, the repository can be put anyplace you like by editing the ./WebODM/service/webodm-docker.service file before enabling the service the reflect your repository location, and modifying the systemctl enable command to that directiory.
 
 ## Run it natively
 
-WebODM can run natively on Windows, MacOS and Linux. We don't recommend to run WebODM natively (using docker is easier), but it's possible.
+WebODM can run natively on Windows, MacOS and Linux. We don't recommend nor support running WebODM natively (using docker is easier), but it's possible.
 
 Ubuntu 16.04 LTS users can refer to [this community script](/contrib/ubuntu_1604_install.sh) to install WebODM natively on a new machine.
 

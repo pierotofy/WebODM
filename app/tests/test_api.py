@@ -162,6 +162,24 @@ class TestApi(BootTestCase):
         res = client.get('/api/projects/{}/tasks/{}/output/?line=-1'.format(project.id, task.id))
         self.assertEqual(res.data, task.console.output())
 
+        # Console output with limit
+        res = client.get('/api/projects/{}/tasks/{}/output/?line=0&limit=2'.format(project.id, task.id))
+        self.assertEqual(res.data, "line1\nline2")
+
+        # Console output with negative limit
+        res = client.get('/api/projects/{}/tasks/{}/output/?line=0&limit=-2'.format(project.id, task.id))
+        self.assertEqual(res.data, "line2\nline3")
+        
+        # Console output json/raw format
+        res = client.get('/api/projects/{}/tasks/{}/output/?line=0&limit=-2&f=json'.format(project.id, task.id))
+        j = res.json()
+        self.assertEqual(j['lines'][0], "line2")
+        self.assertEqual(j['lines'][1], "line3")
+        self.assertEqual(j['count'], 3)
+
+        res = client.get('/api/projects/{}/tasks/{}/output/?line=0&limit=-2&f=raw'.format(project.id, task.id))
+        self.assertEqual(res.content.decode("utf-8"), "line2\nline3")
+
         # Cannot list task details for a task belonging to a project we don't have access to
         res = client.get('/api/projects/{}/tasks/{}/'.format(other_project.id, other_task.id))
         self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
@@ -222,10 +240,17 @@ class TestApi(BootTestCase):
         # Task should have failed to be restarted
         self.assertTrue("has no processing node" in task.last_error)
 
-        # Cannot cancel, restart or delete a task for which we don't have permission
-        for action in ['cancel', 'remove', 'restart']:
+        # Cannot cancel, restart, delete, compact a task for which we don't have permission
+        for action in ['cancel', 'remove', 'restart', 'compact']:
             res = client.post('/api/projects/{}/tasks/{}/{}/'.format(other_project.id, other_task.id, action))
             self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+
+        # Can compact
+        self.assertFalse(task.compacted)
+        res = client.post('/api/projects/{}/tasks/{}/compact/'.format(project.id, task.id))
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        task.refresh_from_db()
+        self.assertTrue(task.compacted)
 
         # Can delete
         res = client.post('/api/projects/{}/tasks/{}/remove/'.format(project.id, task.id))

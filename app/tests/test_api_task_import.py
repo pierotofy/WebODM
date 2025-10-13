@@ -1,5 +1,7 @@
 import os
 import time
+import shutil
+import subprocess
 
 import io
 import requests
@@ -40,6 +42,7 @@ class TestApiTask(BootTransactionTestCase):
 
             # Create processing node
             pnode = ProcessingNode.objects.create(hostname="localhost", port=11223)
+            assign_perm('view_processingnode', user, pnode)
             client.login(username="testuser", password="test1234")
 
             # Create task
@@ -63,13 +66,30 @@ class TestApiTask(BootTransactionTestCase):
 
             self.assertEqual(task.status, status_codes.COMPLETED)
 
+            if not os.path.exists(settings.MEDIA_TMP):
+                os.mkdir(settings.MEDIA_TMP)
+
+            # EPT assets should be there
+            res = client.get("/api/projects/{}/tasks/{}/assets/entwine_pointcloud/ept.json".format(project.id, task.id))
+            self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+            # Try removing it
+            shutil.rmtree(task.assets_path("entwine_pointcloud"))
+
+            res = client.get("/api/projects/{}/tasks/{}/assets/entwine_pointcloud/ept.json".format(project.id, task.id))
+            self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+
+            # Rebuild it
+            self.assertTrue(task.check_ept())
+
+            # EPT available again
+            res = client.get("/api/projects/{}/tasks/{}/assets/entwine_pointcloud/ept.json".format(project.id, task.id))
+            self.assertEqual(res.status_code, status.HTTP_200_OK)
+
             # Download task assets
             task_uuid = task.uuid
             res = client.get("/api/projects/{}/tasks/{}/download/all.zip".format(project.id, task.id))
             self.assertEqual(res.status_code, status.HTTP_200_OK)
-
-            if not os.path.exists(settings.MEDIA_TMP):
-                os.mkdir(settings.MEDIA_TMP)
 
             assets_path = os.path.join(settings.MEDIA_TMP, "all.zip")
 
@@ -123,6 +143,12 @@ class TestApiTask(BootTransactionTestCase):
             # Set task public so we can download from it without auth
             file_import_task.public = True
             file_import_task.save()
+
+            # Cannot import an invalid URL
+            res = client.post("/api/projects/{}/tasks/import".format(project.id), {
+                'url': "javascript:void(0)"
+            })
+            self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
             # Import with URL method
             assets_import_url = "http://{}:{}/task/{}/download/all.zip".format(pnode.hostname, pnode.port, task_uuid)
@@ -233,6 +259,8 @@ class TestApiTask(BootTransactionTestCase):
 
             # Create processing node
             pnode = ProcessingNode.objects.create(hostname="localhost", port=11223)
+            assign_perm('view_processingnode', user, pnode)
+
             client.login(username="testuser", password="test1234")
 
             # Create task
@@ -294,7 +322,7 @@ class TestApiTask(BootTransactionTestCase):
                 c += 1
                 time.sleep(1)
 
-            self.assertEqual(file_import_task.import_url, "file://all.zip")
+            self.assertEqual(file_import_task.import_url, "")
             self.assertEqual(file_import_task.images_count, 1)
             self.assertEqual(file_import_task.processing_node, None)
             self.assertEqual(file_import_task.auto_processing_node, False)
@@ -309,3 +337,9 @@ class TestApiTask(BootTransactionTestCase):
             self.assertTrue(valid_cogeo(file_import_task.assets_path(task.ASSETS_MAP["orthophoto.tif"])))
             self.assertTrue(valid_cogeo(file_import_task.assets_path(task.ASSETS_MAP["dsm.tif"])))
             self.assertTrue(valid_cogeo(file_import_task.assets_path(task.ASSETS_MAP["dtm.tif"])))
+
+    def test_entwine_bin(self):
+        entwine = shutil.which("entwine")
+        self.assertTrue(entwine is not None)
+
+        self.assertEqual(subprocess.run([entwine, "--help"]).returncode, 0)

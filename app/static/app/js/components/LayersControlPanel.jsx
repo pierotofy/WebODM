@@ -44,10 +44,13 @@ export default class LayersControlPanel extends React.Component {
         layers: [],
         annotations: []
       };
+      const zIndexGroupMap = {};
 
       const scanGroup = destination => {
         return l => {
           const meta = l[Symbol.for("meta")];
+          if (meta.task && meta.task.id) zIndexGroupMap[meta.task.id] = meta.zIndexGroup || 1;
+
           const group = meta.group;
           if (group){
             groups[group.id] = groups[group.id] || {
@@ -65,7 +68,7 @@ export default class LayersControlPanel extends React.Component {
       this.props.overlays.forEach(scanGroup('overlays'));
       this.props.layers.forEach(scanGroup('layers'));
       this.props.annotations.forEach(scanGroup('annotations'));
-      
+
       const getGroupContent = group => {
         return (<div>
 
@@ -83,13 +86,23 @@ export default class LayersControlPanel extends React.Component {
           {group.layers.sort((a, b) => {
               const m_a = a[Symbol.for("meta")] || {};
               const m_b = b[Symbol.for("meta")] || {};
-              return m_a.name > m_b.name ? -1 : 1;
-          }).map((layer, i) => <LayersControlLayer map={this.props.map} expanded={this.props.layers.length === 1} overlay={false} layer={layer} key={i} />)}
+              return m_a.type > m_b.type ? -1 : 1;
+          }).map((layer, i) => <LayersControlLayer map={this.props.map} 
+                                                  expanded={(layer[Symbol.for("meta")] || {}).autoExpand || false} 
+                                                  overlay={false} 
+                                                  layer={layer} 
+                                                  key={`${i}-${(layer[Symbol.for("meta")] || {}).type}`} 
+                                                  separator={i < group.layers.length - 1} 
+                                                />)}
         </div>);
       };
 
       content = (<div>{getGroupContent(main)}
-        {Object.keys(groups).map(id => {
+        {Object.keys(groups).sort((a, b) => {
+          const za = zIndexGroupMap[a] || 1;
+          const zb = zIndexGroupMap[b] || 1;
+          return za > zb ? -1 : 1;
+        }).map(id => {
           return (<div key={id}>
             <div className="layer-group-title" title={groups[id].name}>{groups[id].name}</div>
             {getGroupContent(groups[id])}

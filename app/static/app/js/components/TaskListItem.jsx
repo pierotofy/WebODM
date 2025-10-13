@@ -48,6 +48,7 @@ class TaskListItem extends React.Component {
       view: "basic",
       showMoveDialog: false,
       actionLoading: false,
+      thumbLoadFailed: false
     }
 
     for (let k in props.data){
@@ -167,8 +168,24 @@ class TaskListItem extends React.Component {
     });
   }
 
-  consoleOutputUrl(line){
-    return `/api/projects/${this.state.task.project}/tasks/${this.state.task.id}/output/?line=${line}`;
+  consoleOutputUrl(line, download){
+    let url = `/api/projects/${this.state.task.project}/tasks/${this.state.task.id}/output/`;
+    
+    if (download !== undefined){
+      url += `?f=raw`;
+    }else{
+      url += `?f=json`;
+    }
+
+    if (line !== undefined){
+      url += `&line=${line}&limit=-502`;
+    }
+
+    return url;
+  }
+
+  thumbnailUrl = () => {
+    return `/api/projects/${this.state.task.project}/tasks/${this.state.task.id}/thumbnail?size=164`;  
   }
 
   hoursMinutesSecs(t){
@@ -425,6 +442,24 @@ class TaskListItem extends React.Component {
     }
   }
 
+  handleThumbError = e => {
+    this.setState({thumbLoadFailed: true});
+  }
+
+  spatialRefsToHuman = (refs) => {
+    if (refs.indexOf("alignment") !== -1) return _("Alignment");
+
+    let out = [];
+    if (refs.indexOf("gps") !== -1){
+      out.push(_("GPS"));
+    }
+    if (refs.indexOf("gcp") !== -1){
+      out.push(_("GCP"));
+    }
+
+    return out.join("/");
+  }
+
   render() {
     const task = this.state.task;
     const name = task.name !== null ? task.name : interpolate(_("Task #%(number)s"), { number: task.id });
@@ -433,16 +468,18 @@ class TaskListItem extends React.Component {
     let status = statusCodes.description(task.status);
     if (status === "") status = _("Sending images to processing node");
 
-    if (!task.processing_node && !imported) status = _("Waiting for a node...");
+    if (!task.processing_node && !imported && task.status !== statusCodes.COMPLETED) status = _("Waiting for a node...");
     if (task.pending_action !== null) status = pendingActions.description(task.pending_action);
 
     const disabled = this.state.actionButtonsDisabled || 
                     ([pendingActions.CANCEL,
-                      pendingActions.REMOVE, 
+                      pendingActions.REMOVE,
+                      pendingActions.COMPACT,
                       pendingActions.RESTART].indexOf(task.pending_action) !== -1);
     const editable = this.props.hasPermission("change") && [statusCodes.FAILED, statusCodes.COMPLETED, statusCodes.CANCELED].indexOf(task.status) !== -1;
     const actionLoading = this.state.actionLoading;
-
+    const showAssetButtons = task.status === statusCodes.COMPLETED;
+    
     let expanded = "";
     if (this.state.expanded){
       let showOrthophotoMissingWarning = false,
@@ -461,7 +498,7 @@ class TaskListItem extends React.Component {
         });
       };
 
-      if (task.status === statusCodes.COMPLETED){
+      if (showAssetButtons){
         if (task.available_assets.indexOf("orthophoto.tif") !== -1 || task.available_assets.indexOf("dsm.tif") !== -1){
           addActionButton(" " + _("View Map"), "btn-primary", "fa fa-globe", () => {
             location.href = `/map/project/${task.project}/task/${task.id}/`;
@@ -470,9 +507,13 @@ class TaskListItem extends React.Component {
           showOrthophotoMissingWarning = task.available_assets.indexOf("orthophoto.tif") === -1;
         }
 
-        addActionButton(" " + _("View 3D Model"), "btn-primary", "fa fa-cube", () => {
-          location.href = `/3d/project/${task.project}/task/${task.id}/`;
-        });
+        if (task.available_assets.indexOf("georeferenced_model.laz") !== -1 || 
+            task.available_assets.indexOf("textured_model.glb") !== -1 ||
+            task.available_assets.indexOf("textured_model.zip") !== -1){
+          addActionButton(" " + _("View 3D Model"), "btn-primary", "fa fa-cube", () => {
+            location.href = `/3d/project/${task.project}/task/${task.id}/`;
+          });
+        }
       }
 
       if (editable || (!task.processing_node)){
@@ -491,7 +532,8 @@ class TaskListItem extends React.Component {
       if ([statusCodes.FAILED, statusCodes.COMPLETED, statusCodes.CANCELED].indexOf(task.status) !== -1 &&
             task.processing_node &&
             this.props.hasPermission("change") &&
-            !imported){
+            !imported &&
+            !task.compacted){
           // By default restart reruns every pipeline
           // step from the beginning
           const rerunFrom = task.can_rerun_from.length > 1 ?
@@ -511,7 +553,7 @@ class TaskListItem extends React.Component {
       }
 
       actionButtons = (<div className="action-buttons">
-            {task.status === statusCodes.COMPLETED ?
+            {showAssetButtons ?
               <AssetDownloadButtons task={this.state.task} disabled={disabled} />
             : ""}
             {actionButtons.map(button => {
@@ -556,54 +598,67 @@ class TaskListItem extends React.Component {
         <div className="expanded-panel">
           <div className="row">
             <div className="col-md-12 no-padding">
-              <table className="table table-condensed info-table">
-                <tbody>
-                  <tr>
-                    <td><strong>{_("Created on:")}</strong></td>
-                    <td>{(new Date(task.created_at)).toLocaleString()}</td>
-                  </tr>
-                  <tr>
-                    <td><strong>{_("Processing Node:")}</strong></td>
-                    <td>{task.processing_node_name || "-"} ({task.auto_processing_node ? _("auto") : _("manual")})</td>
-                  </tr>
-                  {Array.isArray(task.options) &&
-                  <tr>
-                    <td><strong>{_("Options:")}</strong></td>
-                    <td>{this.optionsToList(task.options)}</td>
-                  </tr>}
-                  {stats && stats.gsd && 
-                  <tr>
-                    <td><strong>{_("Average GSD:")}</strong></td>
-                    <td>{parseFloat(stats.gsd.toFixed(2)).toLocaleString()} cm</td>
-                  </tr>}
-                  {stats && stats.area &&
-                  <tr>
-                    <td><strong>{_("Area:")}</strong></td>
-                    <td>{parseFloat(stats.area.toFixed(2)).toLocaleString()} m&sup2;</td>
-                  </tr>}
-                  {stats && stats.pointcloud && stats.pointcloud.points &&
-                  <tr>
-                    <td><strong>{_("Reconstructed Points:")}</strong></td>
-                    <td>{stats.pointcloud.points.toLocaleString()}</td>
-                  </tr>}
-                  {task.size > 0 && 
-                  <tr>
-                    <td><strong>{_("Disk Usage:")}</strong></td>
-                    <td>{Utils.bytesToSize(task.size * 1024 * 1024)}</td>
-                  </tr>}
-                  <tr>
-                    <td><strong>{_("Task ID:")}</strong></td>
-                    <td>{task.id}</td>
-                  </tr>
-                  <tr>
-                      <td><strong>{_("Task Output:")}</strong></td>
-                      <td><div className="btn-group btn-toggle"> 
-                        <button onClick={this.setView("console")} className={"btn btn-xs " + (this.state.view === "basic" ? "btn-default" : "btn-primary")}>{_("On")}</button>
-                        <button onClick={this.setView("basic")} className={"btn btn-xs " + (this.state.view === "console" ? "btn-default" : "btn-primary")}>{_("Off")}</button>
-                      </div></td>
-                  </tr>
-                </tbody>
-              </table>
+              <div className="col-md-9 col-sm-10 no-padding">
+                <table className="table table-condensed info-table">
+                  <tbody>
+                    <tr>
+                      <td><strong>{_("Created on:")}</strong></td>
+                      <td>{(new Date(task.created_at)).toLocaleString()}</td>
+                    </tr>
+                    <tr>
+                      <td><strong>{_("Processing Node:")}</strong></td>
+                      <td>{task.processing_node_name || "-"} ({task.auto_processing_node ? _("auto") : _("manual")})</td>
+                    </tr>
+                    {Array.isArray(task.options) &&
+                    <tr>
+                      <td><strong>{_("Options:")}</strong></td>
+                      <td>{this.optionsToList(task.options)}</td>
+                    </tr>}
+                    {stats && stats.gsd && 
+                    <tr>
+                      <td><strong>{_("Average GSD:")}</strong></td>
+                      <td>{parseFloat(stats.gsd.toFixed(2)).toLocaleString()} cm</td>
+                    </tr>}
+                    {stats && stats.area &&
+                    <tr>
+                      <td><strong>{_("Area:")}</strong></td>
+                      <td>{parseFloat(stats.area.toFixed(2)).toLocaleString()} m&sup2;</td>
+                    </tr>}
+                    {stats && stats.pointcloud && stats.pointcloud.points &&
+                    <tr>
+                      <td><strong>{_("Reconstructed Points:")}</strong></td>
+                      <td>{stats.pointcloud.points.toLocaleString()}</td>
+                    </tr>}
+                    {stats && stats.spatial_refs && stats.spatial_refs.length &&
+                    <tr>
+                      <td><strong>{_("Spatial Reference:")}</strong></td>
+                      <td>{this.spatialRefsToHuman(stats.spatial_refs)}</td>
+                    </tr>}
+                    {task.size > 0 && 
+                    <tr>
+                      <td><strong>{_("Disk Usage:")}</strong></td>
+                      <td>{Utils.bytesToSize(task.size * 1024 * 1024)}</td>
+                    </tr>}
+                    <tr>
+                      <td><strong>{_("Task ID:")}</strong></td>
+                      <td>{task.id}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>{_("Task Output:")}</strong></td>
+                        <td><div className="btn-group btn-toggle"> 
+                          <button onClick={this.setView("console")} className={"btn btn-xs " + (this.state.view === "basic" ? "btn-default" : "btn-primary")}>{_("On")}</button>
+                          <button onClick={this.setView("basic")} className={"btn btn-xs " + (this.state.view === "console" ? "btn-default" : "btn-primary")}>{_("Off")}</button>
+                        </div></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              {!this.state.thumbLoadFailed && task.status === statusCodes.COMPLETED ? 
+              <div className="col-md-3 col-sm-2 text-center">
+                <a href={`/map/project/${task.project}/task/${task.id}/`}>
+                  <img onError={this.handleThumbError} className="task-thumbnail" src={this.thumbnailUrl()} alt={_("Thumbnail")}/>
+                </a>
+              </div> : ""}
               
               {this.state.view === 'console' ?
                 <Console
@@ -636,7 +691,6 @@ class TaskListItem extends React.Component {
             </div>
           </div>
           <div className="row clearfix">
-            <ErrorMessage bind={[this, 'actionError']} />
             {actionButtons}
           </div>
           <TaskPluginActionButtons task={task} disabled={disabled} />
@@ -675,7 +729,7 @@ class TaskListItem extends React.Component {
 
     if (task.last_error){
       statusLabel = getStatusLabel(task.last_error, 'error');
-    }else if (!task.processing_node && !imported && this.props.hasPermission("change")){
+    }else if (!task.processing_node && !imported && this.props.hasPermission("change") && task.status !== statusCodes.COMPLETED){
       statusLabel = getStatusLabel(_("Set a processing node"));
       statusIcon = "fa fa-hourglass-3";
       showEditLink = true;
@@ -696,6 +750,10 @@ class TaskListItem extends React.Component {
           type = 'error';
       }else if (task.status !== statusCodes.COMPLETED){
           type = 'neutral';
+      }
+
+      if (task.pending_action === pendingActions.COMPACT){
+        statusIcon = 'fa fa-cog fa-spin fa-fw';
       }
 
       statusLabel = getStatusLabel(status, type, progress);
@@ -728,8 +786,15 @@ class TaskListItem extends React.Component {
 
     if (this.props.hasPermission("delete")){
         taskActions.push(
-            <li key="sep" role="separator" className="divider"></li>,
+            <li key="sep" role="separator" className="divider"></li>
         );
+
+        if (task.status === statusCodes.COMPLETED && !task.compacted){
+          addTaskAction(_("Compact"), "fa fa-database", this.genActionApiCall("compact", {
+              confirm: _("Compacting will free disk space by permanently deleting the original images used for processing. It will no longer be possible to restart the task. Maps and models will remain in place. Continue?"),
+              defaultError: _("Cannot compact task.")
+          }));
+        }
     
         addTaskAction(_("Delete"), "fa fa-trash", this.genActionApiCall("remove", {
             confirm: _("All information related to this task, including images, maps and models will be deleted. Continue?"),
@@ -780,6 +845,7 @@ class TaskListItem extends React.Component {
             : ""}
           </div>
         </div>
+        <ErrorMessage bind={[this, 'actionError']} />
         {expanded}
       </div>
     );

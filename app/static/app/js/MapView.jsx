@@ -11,8 +11,10 @@ class MapView extends React.Component {
     selectedMapType: 'auto',
     title: "",
     public: false,
+    publicEdit: false,
     shareButtons: true,
-    permissions: ["view"]
+    permissions: ["view"],
+    project: null
   };
 
   static propTypes = {
@@ -20,8 +22,10 @@ class MapView extends React.Component {
       selectedMapType: PropTypes.oneOf(['auto', 'orthophoto', 'plant', 'dsm', 'dtm']),
       title: PropTypes.string,
       public: PropTypes.bool,
+      publicEdit: PropTypes.bool,
       shareButtons: PropTypes.bool,
-      permissions: PropTypes.array
+      permissions: PropTypes.array,
+      project: PropTypes.object
   };
 
   constructor(props){
@@ -51,11 +55,12 @@ class MapView extends React.Component {
 
     this.state = {
       selectedMapType,
-      tiles: this.getTilesByMapType(selectedMapType)
+      tiles: this.tilesFromMapType(selectedMapType)
     };
 
-    this.getTilesByMapType = this.getTilesByMapType.bind(this);
+    this.tilesFromMapType = this.tilesFromMapType.bind(this);
     this.handleMapTypeButton = this.handleMapTypeButton.bind(this);
+    this.hasTilesOfType = this.hasTilesOfType.bind(this);
   }
 
   isThermalMap = () => {
@@ -73,17 +78,18 @@ class MapView extends React.Component {
     return thermalCount === this.props.mapItems.length;
   }
 
-  getTilesByMapType(type){
+  tilesFromMapType(type){
     // Go through the list of map items and return 
     // only those that match a particular type (in tile format)
     const tiles = [];
 
     this.props.mapItems.forEach(mapItem => {
       mapItem.tiles.forEach(tile => {
-        if (tile.type === type) tiles.push({
+        tiles.push({
           url: tile.url,
           meta: mapItem.meta,
-          type: tile.type
+          type: tile.type,
+          selected: tile.type === type
         });
       });
     });
@@ -91,11 +97,22 @@ class MapView extends React.Component {
     return tiles;
   }
 
+  hasTilesOfType(type){
+    for (let i = 0; i < this.props.mapItems.length; i++){
+      let mapItem = this.props.mapItems[i];
+      for (let j = 0; j < mapItem.tiles.length; j++){
+        let tile = mapItem.tiles[j];
+        if (tile.type === type) return true;
+      }
+    }
+    return false;
+  }
+
   handleMapTypeButton(type){
     return () => {
       this.setState({
         selectedMapType: type,
-        tiles: this.getTilesByMapType(type)
+        tiles: this.tilesFromMapType(type)
       });
     };
   }
@@ -124,7 +141,7 @@ class MapView extends React.Component {
         type: "dtm",
         icon: "fa fa-chart-area"
       }
-    ].filter(mapType => this.getTilesByMapType(mapType.type).length > 0 );
+    ].filter(mapType => this.hasTilesOfType(mapType.type));
 
     // If we have only one button, hide it...
     if (mapTypeButtons.length === 1) mapTypeButtons = [];
@@ -152,9 +169,11 @@ class MapView extends React.Component {
                 showBackground={true} 
                 mapType={this.state.selectedMapType} 
                 public={this.props.public}
+                publicEdit={this.props.publicEdit}
                 shareButtons={this.props.shareButtons}
                 permissions={this.props.permissions}
                 thermal={isThermal}
+                project={this.props.project}
             />
         </div>
       </div>);

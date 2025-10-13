@@ -148,6 +148,11 @@ case $key in
     shift # past argument
     shift # past value
     ;;
+    --ipv6)
+    ipv6=true
+    export WO_IPV6=YES
+    shift # past argument
+    ;;
     *)    # unknown option
     POSITIONAL+=("$1") # save it in an array for later
     shift # past argument
@@ -169,7 +174,7 @@ usage(){
   echo "	liveupdate		Update WebODM to the latest release without stopping it"
   echo "	rebuild			Rebuild all docker containers and perform cleanups"
   echo "	checkenv		Do an environment check and install missing components"
-  echo "	test			Run the unit test suite (developers only)"
+  echo "	test [frontend|backend] [args]	Run tests (all tests, or just frontend/backend with optional arguments)"
   echo "	resetadminpassword \"<new password>\"	Reset the administrator's password to a new one. WebODM must be running when executing this command and the password must be enclosed in double quotes."
   echo ""
   echo "Options:"
@@ -192,6 +197,7 @@ usage(){
   echo "	--settings	Path to a settings.py file to enable modifications of system settings (default: None)"
   echo "	--worker-memory	Maximum amount of memory allocated for the worker process (default: unlimited)"
   echo "	--worker-cpus	Maximum number of CPUs allocated for the worker process (default: all)"
+  echo "	--ipv6	Enable IPV6"
   
   exit
 }
@@ -368,6 +374,7 @@ start(){
 	echo "================================"
 	echo "Host: $WO_HOST"
 	echo "Port: $WO_PORT"
+ 	echo "IPv6: $WO_IPV6"
 	echo "Media directory: $WO_MEDIA_DIR"
 	echo "Postgres DB directory: $WO_DB_DIR"
 	echo "SSL: $WO_SSL"
@@ -457,6 +464,10 @@ start(){
 		command+=" -f docker-compose.worker-cpu.yml"
 	fi
 
+ 	if [[ $ipv6 = true ]]; then
+        command+=" -f docker-compose.ipv6.yml"
+    	fi
+
 	command="$command up"
 
 	if [[ $detached = true ]]; then
@@ -499,17 +510,28 @@ run_tests(){
     # If in a container, we run the actual test commands
     # otherwise we launch this command from the container
     if [[ -f /.dockerenv ]]; then
-        echo -e "\033[1mRunning frontend tests\033[0m"
-        run "npm run test"
+        test_type=${1:-"all"}
+        shift || true
+        
+        if [[ $test_type = "frontend" || $test_type = "all" ]]; then
+            echo -e "\033[1mRunning frontend tests\033[0m"
+            run "npm run test $*"
+        fi
 
-        echo "\033[1mRunning backend tests\033[0m"
-        run "python manage.py test"
+        if [[ $test_type = "backend" || $test_type = "all" ]]; then
+            echo -e "\033[1mRunning backend tests\033[0m"
+            run "python manage.py test $*"
+        fi
 
-        echo ""
-        echo -e "\033[1mDone!\033[0m Everything looks in order."
+        if [[ $test_type = "all" ]]; then
+            echo ""
+            echo -e "\033[1mDone!\033[0m Everything looks in order."
+        fi
     else
+		environment_check
         echo "Running tests in webapp container"
-        run "$docker_compose exec webapp /bin/bash -c \"/webodm/webodm.sh test\""
+        test_command="/webodm/webodm.sh test $*"
+        run "$docker_compose exec webapp /bin/bash -c \"$test_command\""
     fi
 }
 
@@ -583,7 +605,7 @@ elif [[ $1 = "stop" ]]; then
 	else
 		command+=" -f docker-compose.nodeodm.yml"
 	fi
-
+ 
 	command+=" -f docker-compose.nodemicmac.yml stop"
 	run "${command}"
 elif [[ $1 = "restart" ]]; then
@@ -611,7 +633,8 @@ elif [[ $1 = "liveupdate" ]]; then
 elif [[ $1 = "checkenv" ]]; then
 	environment_check
 elif [[ $1 = "test" ]]; then
-	run_tests
+	shift || true
+	run_tests "$@"
 elif [[ $1 = "resetadminpassword" ]]; then
 	resetpassword "$2"
 else

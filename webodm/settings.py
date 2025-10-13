@@ -21,7 +21,7 @@ from django.contrib.messages import constants as messages
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-# Quick-start development settings - unsuitable for production
+# For best practices
 # See https://docs.djangoproject.com/en/1.10/howto/deployment/checklist/
 
 try:
@@ -276,6 +276,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'app', 'media')
 if TESTING:
     MEDIA_ROOT = os.path.join(BASE_DIR, 'app', 'media_test')
 MEDIA_TMP = os.path.join(MEDIA_ROOT, 'tmp')
+MEDIA_CACHE = os.path.join(MEDIA_ROOT, 'CACHE')
 
 FILE_UPLOAD_TEMP_DIR = MEDIA_TMP
 
@@ -370,6 +371,13 @@ NODE_OPTIMISTIC_MODE = False
 # URL to external auth endpoint
 EXTERNAL_AUTH_ENDPOINT = ''
 
+# Enable cluster mode for this instance by setting an integer ID >= 1
+CLUSTER_ID = None
+
+# Set the Cluster URL pattern common to all servers in the cluster
+# e.g. https://mycluster%s.mydomain
+CLUSTER_URL = ''
+
 # URL to a page where a user can reset the password
 RESET_PASSWORD_LINK = ''
 
@@ -384,6 +392,20 @@ UI_MAX_PROCESSING_NODES = None
 # are removed (or None to disable)
 CLEANUP_PARTIAL_TASKS = 72
 
+# Number of hours before empty projects
+# are removed for users that have zero quotas
+CLEANUP_EMPTY_PROJECTS = None
+
+# Maximum number of threads that a worker should use for processing
+WORKERS_MAX_THREADS = 1
+
+# Maximum number of seconds a worker task should take before being terminated
+WORKERS_MAX_TIME_LIMIT = None
+
+# Username to log-in automatically if the user is anonymous
+# (e.g. for a demo or read-only site)
+AUTO_LOGIN_USER = None
+
 # Link to GCP docs
 GCP_DOCS_LINK = "https://docs.opendronemap.org/gcp/#gcp-file-format"
 
@@ -392,6 +414,10 @@ DOCS_LINK = "https://docs.opendronemap.org"
 
 # Link to task options docs
 TASK_OPTIONS_DOCS_LINK = "https://docs.opendronemap.org/arguments/"
+
+# Whether to display onboarding instructions and 
+# automatically create a first project on first login
+DASHBOARD_ONBOARDING = True
 
 if TESTING or FLUSHING:
     CELERY_TASK_ALWAYS_EAGER = True

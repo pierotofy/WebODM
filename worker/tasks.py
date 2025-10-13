@@ -62,11 +62,24 @@ def update_nodes_info():
 def cleanup_projects():
     # Delete all projects that are marked for deletion
     # and that have no tasks left
-    total, count_dict = Project.objects.filter(deleting=True).annotate(
+    deletion_projects = Project.objects.filter(deleting=True).annotate(
         tasks_count=Count('task')
-    ).filter(tasks_count=0).delete()
-    if total > 0 and 'app.Project' in count_dict:
-        logger.info("Deleted {} projects".format(count_dict['app.Project']))
+    ).filter(tasks_count=0)
+    for p in deletion_projects:
+        p.delete()     
+
+    # Delete projects that have no tasks and are owned by users with
+    # no disk quota
+    if settings.CLEANUP_EMPTY_PROJECTS is not None:
+        empty_projects = Project.objects.filter(
+            owner__profile__quota=0,
+            created_at__lte=timezone.now() - timedelta(hours=settings.CLEANUP_EMPTY_PROJECTS)
+        ).annotate(
+            tasks_count=Count('task')
+        ).filter(tasks_count=0)
+        for p in empty_projects:
+            p.delete()
+
 
 @app.task(ignore_result=True)
 def cleanup_tasks():
@@ -96,8 +109,27 @@ def cleanup_tmp_directory():
             else:
                 shutil.rmtree(filepath, ignore_errors=True)
 
-            logger.info('Cleaned up: %s (%s)' % (f, modified))
+            logger.info('Cleaned up: %s (%s)' % (filepath, modified))
 
+
+@app.task(ignore_result=True)
+def cleanup_cache_directory():
+    # Delete files and folder in the task_assets folder after 30 days
+    task_assets_cache = os.path.join(settings.MEDIA_CACHE, "task_assets")
+    time_limit = 60 * 60 * 24 * 30
+
+    if os.path.isdir(task_assets_cache):
+        for f in os.listdir(task_assets_cache):
+            now = time.time()
+            filepath = os.path.join(task_assets_cache, f)
+            modified = os.stat(filepath).st_mtime
+            if modified < now - time_limit:
+                if os.path.isfile(filepath):
+                    os.remove(filepath)
+                else:
+                    shutil.rmtree(filepath, ignore_errors=True)
+
+                logger.info('Cleaned up: %s (%s)' % (filepath, modified))
 
 # Based on https://stackoverflow.com/questions/22498038/improve-current-implementation-of-a-setinterval-python/22498708#22498708
 def setInterval(interval, func, *args):
@@ -110,7 +142,7 @@ def setInterval(interval, func, *args):
     t.start()
     return stopped.set
 
-@app.task(ignore_result=True)
+@app.task(ignore_result=True, time_limit=settings.WORKERS_MAX_TIME_LIMIT)
 def process_task(taskId):
     lock_id = 'task_lock_{}'.format(taskId)
     cancel_monitor = None
@@ -177,12 +209,15 @@ def process_pending_tasks():
         process_task.delay(task.id)
 
 
-@app.task(bind=True)
+@app.task(bind=True, time_limit=settings.WORKERS_MAX_TIME_LIMIT)
 def export_raster(self, input, **opts):
     try:
         logger.info("Exporting raster {} with options: {}".format(input, json.dumps(opts)))
         tmpfile = tempfile.mktemp('_raster.{}'.format(extension_for_export_format(opts.get('format', 'gtiff'))), dir=settings.MEDIA_TMP)
-        export_raster_sync(input, tmpfile, **opts)
+        def progress_callback(status, perc):
+            self.update_state(state="PROGRESS", meta={"status": status, "progress": perc})
+        
+        export_raster_sync(input, tmpfile, progress_callback=progress_callback, **opts)
         result = {'file': tmpfile}
 
         if settings.TESTING:
@@ -190,10 +225,11 @@ def export_raster(self, input, **opts):
 
         return result
     except Exception as e:
+        # logger.error(traceback.format_exc())
         logger.error(str(e))
         return {'error': str(e)}
 
-@app.task(bind=True)
+@app.task(bind=True, time_limit=settings.WORKERS_MAX_TIME_LIMIT)
 def export_pointcloud(self, input, **opts):
     try:
         logger.info("Exporting point cloud {} with options: {}".format(input, json.dumps(opts)))
