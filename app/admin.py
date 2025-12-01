@@ -17,6 +17,7 @@ from app.models import PluginDatum
 from app.models import Preset
 from app.models import Plugin
 from app.models import Profile
+from app.models import Redirect
 from app.plugins import get_plugin_by_name, enable_plugin, disable_plugin, delete_plugin, valid_plugin, \
     get_plugins_persistent_path, clear_plugins_cache, init_plugins
 from .models import Project, Task, Setting, Theme
@@ -43,7 +44,28 @@ class TaskAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'project', 'processing_node', 'created_at', 'status', 'last_error')
     list_filter = ('status', 'project',)
     search_fields = ('id', 'name', 'project__name')
+    exclude = ('orthophoto_extent', 'dsm_extent', 'dtm_extent', 'crop', )
+    readonly_fields = ('orthophoto_extent_wkt', 'dsm_extent_wkt', 'dtm_extent_wkt', 'crop_wkt', )
 
+    def orthophoto_extent_wkt(self, obj):
+        if obj.orthophoto_extent:
+            return obj.orthophoto_extent.wkt
+        return None
+    
+    def dsm_extent_wkt(self, obj):
+        if obj.dsm_extent:
+            return obj.dsm_extent.wkt
+        return None
+    
+    def dtm_extent_wkt(self, obj):
+        if obj.dtm_extent:
+            return obj.dtm_extent.wkt
+        return None
+    
+    def crop_wkt(self, obj):
+        if obj.crop:
+            return obj.crop.wkt
+        return None
 
 admin.site.register(Task, TaskAdmin)
 
@@ -54,8 +76,7 @@ class SettingAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         # if there's already an entry, do not allow adding
-        count = Setting.objects.all().count()
-        return count == 0
+        return not Setting.objects.exists()
 
 
 admin.site.register(Setting, SettingAdmin)
@@ -95,6 +116,9 @@ class ThemeAdmin(admin.ModelAdmin):
 
 admin.site.register(Theme, ThemeAdmin)
 admin.site.register(PluginDatum, admin.ModelAdmin)
+
+if settings.CLUSTER_ID is not None:
+    admin.site.register(Redirect, admin.ModelAdmin)
 
 
 class PluginAdmin(admin.ModelAdmin):

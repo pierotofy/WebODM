@@ -1,8 +1,8 @@
 <img alt="WebODM" src="https://user-images.githubusercontent.com/1951843/34074943-8f057c3c-e287-11e7-924d-3ccafa60c43a.png" width="180">
 
-![Build Status](https://img.shields.io/github/actions/workflow/status/OpenDroneMap/WebODM/build-and-publish.yml?branch=master) ![Version](https://img.shields.io/github/v/release/OpenDroneMap/WebODM) [![Translated](https://hosted.weblate.org/widgets/webodm/-/svg-badge.svg)](https://hosted.weblate.org/engage/webodm/) [![Download](https://img.shields.io/badge/Download-%E2%86%93-pink)](#getting-started) [![Purchase](https://img.shields.io/badge/Purchase-%F0%9F%9B%92-white)](https://opendronemap.org/webodm/download/)
+![Build Status](https://img.shields.io/github/actions/workflow/status/OpenDroneMap/WebODM/build-and-publish.yml?branch=master) ![Version](https://img.shields.io/github/v/release/OpenDroneMap/WebODM) [![Translated](https://hosted.weblate.org/widgets/webodm/-/svg-badge.svg)](https://hosted.weblate.org/engage/webodm/) [![Download](https://img.shields.io/badge/Download-%E2%86%93-pink)](#getting-started) [![Installer](https://img.shields.io/badge/Installer-%F0%9F%9B%92-white)](https://opendronemap.org/webodm/download/) [![Lightning](https://img.shields.io/badge/Lightning-%E2%98%81-white)](https://webodm.net/)
 
-A user-friendly, commercial grade software for drone image processing. Generate georeferenced maps, point clouds, elevation models and textured 3D models from aerial images. It supports multiple engines for processing, currently [ODM](https://github.com/OpenDroneMap/ODM) and [MicMac](https://github.com/OpenDroneMap/NodeMICMAC/).
+A user-friendly, commercial grade software for drone image processing. Generate georeferenced maps, point clouds, elevation models and textured 3D models from aerial images. It supports multiple engines for processing, currently [ODM](https://github.com/OpenDroneMap/ODM), [MicMac](https://github.com/OpenDroneMap/NodeMICMAC/) and [LGT](https://webodm.net/lgt).
 
 ![image](https://user-images.githubusercontent.com/1951843/174504753-6869e56e-7b65-4775-bb23-6c1dc256575c.png)
 
@@ -61,7 +61,7 @@ Don't expect to process more than a few hundred images with these specifications
 
 WebODM runs best on Linux, but works well on Windows and Mac too. If you are technically inclined, you can get WebODM to run natively on all three platforms.
 
-WebODM by itself is just a user interface (see [below](#odm-nodeodm-webodm-what)) and does not require many resources. WebODM can be loaded on a machine with just 1 or 2 GB of RAM and work fine without NodeODM. You can then use a processing service such as the [lightning network](https://webodm.net) or run NodeODM on a separate, more powerful machine.
+WebODM by itself is just a user interface (see [below](#odm-nodeodm-webodm-what)) and does not require many resources. WebODM can be loaded on a machine with just 1 or 2 GB of RAM and work fine without NodeODM. You can then use a processing service such as [Lightning](https://webodm.net) or run NodeODM on a separate, more powerful machine.
 
 ## Manual installation (Docker)
 To install WebODM manually on your machine with docker:
@@ -439,11 +439,11 @@ To setup the firewall on Google Cloud, open the instance, on the middle of the i
 
 Small customizations such as changing the application colors, name, logo, or adding custom CSS/HTML/Javascript can be performed directly from the Customize -- Brand/Theme panels within WebODM. No need to fork or change the code.
 
-More advanced customizations can be achieved by writing [plugins](https://github.com/OpenDroneMap/WebODM/tree/master/coreplugins). This is the preferred way to add new functionality to WebODM since it requires less effort than maintaining a separate fork. The plugin system features server-side [signals](https://github.com/OpenDroneMap/WebODM/blob/master/app/plugins/signals.py) that can be used to be notified of various events, a ES6/React build system, a dynamic [client-side API](https://github.com/OpenDroneMap/WebODM/tree/master/app/static/app/js/classes/plugins) for adding elements to the UI, a built-in data store, an async task runner, a GRASS engine, hooks to add menu items and functions to rapidly inject CSS, Javascript and Django views.
+More advanced customizations can be achieved by [writing plugins](https://docs.webodm.org/plugin-development-guide/). This is the preferred way to add new functionality to WebODM since it requires less effort than maintaining a separate fork. The plugin system features server-side signals that can be used to be notified of various events, a ES6/React build system, a dynamic client-side API for adding elements to the UI, a built-in data store, an async task runner, hooks to add menu items and functions to rapidly inject CSS, Javascript and Django views.
 
-For plugins, the best source of documentation currently is to look at existing [code](https://github.com/OpenDroneMap/WebODM/tree/master/coreplugins). If a particular hook / entrypoint for your plugin does not yet exist, [request it](https://github.com/OpenDroneMap/WebODM/issues). We are adding hooks and entrypoints as we go.
+To learn more, start from the [plugin development guide](https://docs.webodm.org/plugin-development-guide/). It's also helpful to study the source code of [existing plugins](https://github.com/OpenDroneMap/WebODM/tree/master/coreplugins).
 
-To create a plugin simply copy the `plugins/test` plugin into a new directory (for example, `plugins/myplugin`), then modify `manifest.json`, `plugin.py` and issue a `./webodm.sh restart`.
+If a particular hook / signal for your plugin does not yet exist, [request it](https://github.com/OpenDroneMap/WebODM/issues). We are adding hooks and signals as we go.
 
 # API Docs
 
@@ -477,7 +477,7 @@ There are many ways to contribute back to the project:
  - Help us [translate](#translations) WebODM in your language.
  - Help us classify [point cloud datasets](https://github.com/OpenDroneMap/ODMSemantic3D).
  - Spread the word about WebODM and OpenDroneMap on social media.
- - While we don't accept donations, you can purchase an [installer](https://webodm.org/download#installer), a [book](https://odmbook.com/) or a [sponsor package](https://github.com/users/pierotofy/sponsorship).
+ - While we don't accept donations, you can purchase an [installer](https://webodm.org/download#installer), [cloud processing](https://webodm.net) or a [book](https://odmbook.com/).
  - You can [pledge funds](https://fund.webodm.org) for getting new features built and bug fixed.
  - Become a contributor 🤘
 
@@ -538,4 +538,4 @@ WebODM is licensed under the terms of the [GNU Affero General Public License v3.
 
 # Trademark
 
-See [Trademark Guidelines](https://github.com/OpenDroneMap/documents/blob/master/TRADEMARK.md)
+See [Trademark Guidelines](https://github.com/OpenDroneMap/WebODM/blob/master/TRADEMARK.md)

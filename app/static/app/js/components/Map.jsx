@@ -14,7 +14,6 @@ import ImagePopup from './ImagePopup';
 import GCPPopup from './GCPPopup';
 import SwitchModeButton from './SwitchModeButton';
 import ShareButton from './ShareButton';
-import AssetDownloads from '../classes/AssetDownloads';
 import {addTempLayer} from '../classes/TempLayer';
 import PropTypes from 'prop-types';
 import PluginsAPI from '../classes/plugins/API';
@@ -338,6 +337,22 @@ class Map extends React.Component {
                 if (meta.task.crop) params.crop = 1;
                 tileUrl = Utils.buildUrlWithQuery(tileUrl, params);
             }
+            
+            // Decode colormaps
+            if (Array.isArray(mres.color_maps)){
+              mres.color_maps.forEach(cm => {
+                if (Array.isArray(cm.color_map)){
+                  cm.decoded_color_map = cm.color_map.map(v => {
+                    return [
+                        (v >> 24) & 0xFF,  // R
+                        (v >> 16) & 0xFF,  // G
+                        (v >> 8) & 0xFF,   // B
+                        v & 0xFF           // A
+                    ];
+                  });
+                }
+              });
+            }
 
             const layer = Leaflet.tileLayer(tileUrl, {
                   bounds,
@@ -461,38 +476,44 @@ class Map extends React.Component {
                 });
                 
                 const shotsLayer = new L.MarkersCanvas();
-                $.getJSON(meta.task.camera_shots)
-                  .done((shots) => {
-                    if (shots.type === 'FeatureCollection'){
-                      let markers = [];
-
-                      shots.features.forEach(s => {
-                        let marker = L.marker(
-                          [s.geometry.coordinates[1], s.geometry.coordinates[0]],
-                          { icon: camIcon }
-                        );
-                        markers.push(marker);
-
-                        if (s.properties && s.properties.filename){
-                          let root = null;
-                          const lazyrender = () => {
-                              if (!root) root = document.createElement("div");
-                              ReactDOM.render(<ImagePopup task={meta.task} feature={s}/>, root);
-                              return root;
+                
+                shotsLayer.lazyLoad = (cb) => {
+                  $.getJSON(meta.task.camera_shots)
+                    .done((shots) => {
+                      if (shots.type === 'FeatureCollection'){
+                        let markers = [];
+  
+                        shots.features.forEach(s => {
+                          let marker = L.marker(
+                            [s.geometry.coordinates[1], s.geometry.coordinates[0]],
+                            { icon: camIcon }
+                          );
+                          markers.push(marker);
+  
+                          if (s.properties && s.properties.filename){
+                            let root = null;
+                            const lazyrender = () => {
+                                if (!root) root = document.createElement("div");
+                                ReactDOM.render(<ImagePopup task={meta.task} feature={s}/>, root);
+                                return root;
+                            }
+  
+                            marker.bindPopup(L.popup(
+                                {
+                                    lazyrender,
+                                    maxHeight: 450,
+                                    minWidth: 320
+                                }));
                           }
-
-                          marker.bindPopup(L.popup(
-                              {
-                                  lazyrender,
-                                  maxHeight: 450,
-                                  minWidth: 320
-                              }));
-                        }
-                      });
-
-                      shotsLayer.addMarkers(markers, this.map);
-                    }
-                  });
+                        });
+  
+                        shotsLayer.addMarkers(markers, this.map);
+                      }
+                      cb();
+                    }).fail(() => {
+                      cb(new Error("Cannot load camera shots"))
+                    });
+                };
                 shotsLayer[Symbol.for("meta")] = {
                   name: _("Cameras"), 
                   icon: "fa fa-camera fa-fw",
@@ -517,40 +538,54 @@ class Map extends React.Component {
                   iconSize: [41, 46],
                   iconAnchor: [17, 46],
                 });
+                const cpIcon = L.icon({
+                  iconUrl: "/static/app/js/icons/marker-cp.png",
+                  iconSize: [41, 46],
+                  iconAnchor: [17, 46],
+                });
                 
                 const gcpLayer = new L.MarkersCanvas();
-                $.getJSON(meta.task.ground_control_points)
-                  .done((gcps) => {
-                    if (gcps.type === 'FeatureCollection'){
-                      let markers = [];
-
-                      gcps.features.forEach(gcp => {
-                        let marker = L.marker(
-                          [gcp.geometry.coordinates[1], gcp.geometry.coordinates[0]],
-                          { icon: gcpIcon }
-                        );
-                        markers.push(marker);
-
-                        if (gcp.properties && gcp.properties.observations){
-                          let root = null;
-                          const lazyrender = () => {
-                                if (!root) root = document.createElement("div");
-                                ReactDOM.render(<GCPPopup task={meta.task} feature={gcp}/>, root);
-                                return root;
+                gcpLayer.lazyLoad = (cb) => {
+                  $.getJSON(meta.task.ground_control_points)
+                    .done((gcps) => {
+                      if (gcps.type === 'FeatureCollection'){
+                        let markers = [];
+  
+                        gcps.features.forEach(gcp => {
+                          let icon = gcpIcon;
+                          if (gcp.properties && typeof gcp.properties.id === "string" && gcp.properties.id.startsWith("CHK-")) icon = cpIcon;
+  
+                          let marker = L.marker(
+                            [gcp.geometry.coordinates[1], gcp.geometry.coordinates[0]],
+                            { icon }
+                          );
+                          markers.push(marker);
+  
+                          if (gcp.properties && gcp.properties.observations){
+                            let root = null;
+                            const lazyrender = () => {
+                                  if (!root) root = document.createElement("div");
+                                  ReactDOM.render(<GCPPopup task={meta.task} feature={gcp}/>, root);
+                                  return root;
+                            }
+  
+                            marker.bindPopup(L.popup(
+                                {
+                                    lazyrender,
+                                    maxHeight: 450,
+                                    minWidth: 320
+                                }));
                           }
+                        });
+  
+                        gcpLayer.addMarkers(markers, this.map);
+                      }
 
-                          marker.bindPopup(L.popup(
-                              {
-                                  lazyrender,
-                                  maxHeight: 450,
-                                  minWidth: 320
-                              }));
-                        }
-                      });
-
-                      gcpLayer.addMarkers(markers, this.map);
-                    }
-                  });
+                      cb();
+                    }).fail(() => {
+                      cb(new Error("Cannot load GCPs"))
+                    });
+                };
                 gcpLayer[Symbol.for("meta")] = {
                   name: _("Ground Control Points"), 
                   icon: "far fa-dot-circle fa-fw",

@@ -1,0 +1,14 @@
+/var/log/nginx/*.log {
+    daily
+    missingok
+    rotate 1
+    delaycompress
+    compress
+    notifempty
+    create 0640 www-data adm
+    sharedscripts
+    postrotate
+        [ -f /tmp/nginx.pid ] && kill -USR1 `cat /tmp/nginx.pid`
+    endscript
+    maxage 14
+}
