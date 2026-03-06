@@ -2,6 +2,10 @@ import os
 import re
 import mimetypes
 
+from django.core.exceptions import ObjectDoesNotExist, SuspiciousFileOperation, ValidationError
+from django.db import transaction
+from django.http import FileResponse
+from django.utils.translation import gettext_lazy as _
 from rest_framework import status, exceptions, parsers
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -10,9 +14,6 @@ from rest_framework.views import APIView
 from app import models
 from .common import get_and_check_project, check_project_perms
 from app.security import path_traversal_check
-from django.core.exceptions import ObjectDoesNotExist, SuspiciousFileOperation, ValidationError
-from django.http import FileResponse
-from django.utils.translation import gettext_lazy as _
 from webodm import settings
 
 MAX_MEDIA_FILE_SIZE = 128 * 1024 * 1024 * 1024  # 128 GB
@@ -34,6 +35,10 @@ class TaskMediaBase(APIView):
             check_project_perms(request, task.project, perms)
 
         return task
+
+    @staticmethod
+    def _lock_task(task_pk):
+        return models.Task.objects.select_for_update().get(pk=task_pk)
 
 
 class TaskMediaUpload(TaskMediaBase):
@@ -107,7 +112,22 @@ class TaskMediaUpload(TaskMediaBase):
                         fd.write(chunk)
                 uploaded[safe_name] = os.path.getsize(dst)
 
-        task.update_media_field(commit=True)
+        with transaction.atomic():
+            task = self._lock_task(task.pk)
+            existing = {e['filename']: e for e in task.media}
+            for name in uploaded:
+                fp = os.path.join(media_dir, name)
+                entry = task.build_media_entry(fp)
+                if entry is not None:
+                    existing[name] = entry
+            entries = list(existing.values())
+            entries.sort(key=lambda e: (
+                task.MEDIA_TYPE_ORDER.get(e['type'], 99),
+                e['filename'].lower(),
+            ))
+            task.media = entries
+            task.save()
+
         task.update_size(commit=True)
 
         return Response({
@@ -125,33 +145,33 @@ class TaskMediaManage(TaskMediaBase):
         if not task.media:
             raise exceptions.NotFound()
 
-        entry = None
         for e in task.media:
             if e['filename'] == filename:
-                entry = e
-                break
-        if entry is None:
-            raise exceptions.NotFound()
+                return Response(e, status=status.HTTP_200_OK)
 
-        return Response(entry, status=status.HTTP_200_OK)
+        raise exceptions.NotFound()
 
     def patch(self, request, pk=None, project_pk=None, filename=None):
         task = self.get_task(request, pk, project_pk, ('change_project',))
-        if not task.media:
-            raise exceptions.NotFound()
 
-        found = False
-        for entry in task.media:
-            if entry['filename'] == filename:
-                if 'description' in request.data:
-                    entry['description'] = str(request.data['description'])[:1024]
-                found = True
-                break
+        with transaction.atomic():
+            task = self._lock_task(task.pk)
+            if not task.media:
+                raise exceptions.NotFound()
 
-        if not found:
-            raise exceptions.NotFound()
+            found = False
+            for entry in task.media:
+                if entry['filename'] == filename:
+                    if 'description' in request.data:
+                        entry['description'] = str(request.data['description'])[:1024]
+                    found = True
+                    break
 
-        task.save()
+            if not found:
+                raise exceptions.NotFound()
+
+            task.save()
+
         return Response({'success': True, 'media': task.media}, status=status.HTTP_200_OK)
 
     def delete(self, request, pk=None, project_pk=None, filename=None):
@@ -169,7 +189,12 @@ class TaskMediaManage(TaskMediaBase):
             raise exceptions.NotFound()
 
         os.remove(filepath)
-        task.update_media_field(commit=True)
+
+        with transaction.atomic():
+            task = self._lock_task(task.pk)
+            task.media = [e for e in task.media if e['filename'] != filename]
+            task.save()
+
         task.update_size(commit=True)
 
         return Response({
