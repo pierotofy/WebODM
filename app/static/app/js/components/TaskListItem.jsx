@@ -525,7 +525,7 @@ class TaskListItem extends React.Component {
       };
 
       if (showAssetButtons){
-        if (task.available_assets.indexOf("orthophoto.tif") !== -1 || task.available_assets.indexOf("dsm.tif") !== -1){
+        if (task.available_assets.indexOf("orthophoto.tif") !== -1 || task.available_assets.indexOf("dsm.tif") !== -1 || task.available_assets.indexOf("dtm.tif") !== -1){
           addActionButton(" " + _("Map"), "btn-primary", "fa fa-globe fa-fw", () => {
             location.href = `/map/project/${task.project}/task/${task.id}/`;
           });
@@ -534,6 +534,7 @@ class TaskListItem extends React.Component {
         }
 
         if (task.available_assets.indexOf("georeferenced_model.laz") !== -1 || 
+            task.available_assets.indexOf("georeferenced_model.las") !== -1 ||
             task.available_assets.indexOf("textured_model.glb") !== -1 ||
             task.available_assets.indexOf("textured_model.zip") !== -1){
           addActionButton(" " + _("3D Model"), "btn-primary", "fa fa-cube fa-fw", () => {
@@ -593,7 +594,7 @@ class TaskListItem extends React.Component {
         });
       }
 
-      if (!task.last_error && task.status === null && (task.processing_node || imported) && task.partial && !task.pending_action && this.props.hasPermission("change")){
+      if (!task.last_error && task.status === null && (task.processing_node || imported) && task.partial && (!task.pending_action || (task.pending_action === pendingActions.RESIZE && !task.resize_progress)) && this.props.hasPermission("change")){
         addActionButton(_("Start Processing"), "btn-primary", "glyphicon glyphicon-saved", this.genActionApiCall("commit", {
             confirm: _("Have all images been uploaded?"),
             defaultError: _("Cannot start processing task.")
@@ -793,7 +794,7 @@ class TaskListItem extends React.Component {
       statusLabel = getStatusLabel(_("Set a processing node"));
       statusIcon = "far fa-hourglass";
       showEditLink = true;
-    }else if (task.partial && !task.pending_action){
+    }else if (task.partial && (!task.pending_action || (task.pending_action === pendingActions.RESIZE && !task.resize_progress))){
       statusIcon = "far fa-hourglass";
       statusLabel = getStatusLabel(_("Waiting to start processing..."));
     }else{

@@ -49,31 +49,42 @@ class TestFormulas(TestCase):
             for f in i['filters']:
                 bands = list(set(re.findall(pattern, f)))
                 self.assertTrue(len(bands) <= 5)
-    
+
     def test_auto_bands(self):
         obands = [{'name': 'red', 'description': 'red'},
                  {'name': 'green', 'description': 'green'},
                  {'name': 'blue', 'description': 'blue'},
                  {'name': 'gray', 'description': 'nir'},
                  {'name': 'alpha', 'description': None}]
-        
+
         self.assertEqual(get_auto_bands(obands, "NDVI")[0], "RGBN")
         self.assertTrue(get_auto_bands(obands, "NDVI")[1])
-        
+
         self.assertEqual(get_auto_bands(obands, "Celsius")[0], "L")
         self.assertFalse(get_auto_bands(obands, "Celsius")[1])
 
         self.assertEqual(get_auto_bands(obands, "VARI")[0], "RGBN")
         self.assertTrue(get_auto_bands(obands, "VARI")[0])
-        
+
         obands = [{'name': 'red', 'description': None},
                  {'name': 'green', 'description': None},
                  {'name': 'blue', 'description': None},
                  {'name': 'gray', 'description': None},
                  {'name': 'alpha', 'description': None}]
-        
+
         self.assertEqual(get_auto_bands(obands, "NDVI")[0], "RGN")
         self.assertFalse(get_auto_bands(obands, "NDVI")[1])
-        
+
         self.assertEqual(get_auto_bands(obands, "VARI")[0], "RGB")
         self.assertFalse(get_auto_bands(obands, "VARI")[1])
+
+        obands = [{'name': 'red', 'description': 'red'},
+            {'name': 'green', 'description': 'green'},
+            {'name': 'blue', 'description': 'blue'},
+            {'name': 'gray', 'description': 'nir'},
+            {'name': 'rededge', 'description': 're'},
+            {'name': 'panchro', 'description': 'panchro'},
+            {'name': 'alpha', 'description': None}]
+
+        self.assertEqual(get_auto_bands(obands, "NDVI")[0], "RGBNReP")
+        self.assertTrue(get_auto_bands(obands, "NDVI")[1])

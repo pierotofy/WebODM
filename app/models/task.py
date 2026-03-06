@@ -12,9 +12,10 @@ from zipstream.ng import ZipStream
 import json
 import redis
 from shlex import quote
+from concurrent.futures import ThreadPoolExecutor
+import threading
 
 import errno
-import piexif
 import re
 
 import zipfile
@@ -99,72 +100,62 @@ def resize_image(image_path, resize_to, done=None):
     :param done: optional callback
     :return: path and resize ratio
     """
+    is_jpeg = re.match(r'.*\.jpe?g$', image_path, re.IGNORECASE)
+    path, ext = os.path.splitext(image_path)
+    resized_image_path = os.path.join(path + '.resized' + ext)
+    exiftool = None
+
     try:
-        can_resize = False
+        with Image.open(image_path) as im:
+            width, height = im.size
+            max_side = max(width, height)
+            if max_side < resize_to:
+                logger.warning('You asked to make {} bigger ({} --> {}), but we are not going to do that.'.format(image_path, max_side, resize_to))
+                retval = {'path': image_path, 'resize_ratio': 1}
+                if done is not None:
+                    done(retval)
+                return retval
 
-        # Check if this image can be resized
-        # There's no easy way to resize multispectral 16bit images
-        # (Support should be added to PIL)
-        is_jpeg = re.match(r'.*\.jpe?g$', image_path, re.IGNORECASE)
+            ratio = float(resize_to) / float(max_side)
+            resized_width = int(width * ratio)
+            resized_height = int(height * ratio)
+            xmp = im.info.get("xmp")
+            exif = im.info.get("exif")
 
-        if is_jpeg:
-            # We can always resize these
-            can_resize = True
-        else:
-            try:
-                bps = piexif.load(image_path)['0th'][piexif.ImageIFD.BitsPerSample]
-                if isinstance(bps, int):
-                    # Always resize single band images
-                    can_resize = True
-                elif isinstance(bps, tuple) and len(bps) > 1:
-                    # Only resize multiband images if depth is 8bit
-                    can_resize = bps == (8, ) * len(bps)
-                else:
-                    logger.warning("Cannot determine if image %s can be resized, hoping for the best!" % image_path)
-                    can_resize = True
-            except KeyError:
-                logger.warning("Cannot find BitsPerSample tag for %s" % image_path)
+            resized = im.resize((resized_width, resized_height), Image.LANCZOS)
+            params = {}
+            if is_jpeg:
+                params['quality'] = 100
+            
+            if is_jpeg:
+                if exif is not None:
+                    params['exif'] = exif
+                if xmp is not None:
+                    params['xmp'] = xmp
+            else:
+                # For TIFFs, we need to use exiftool
+                exiftool = shutil.which('exiftool')
+                if not exiftool:
+                    raise Exception("Exiftool missing, but needed")
 
-        if not can_resize:
-            logger.warning("Cannot resize %s" % image_path)
-            return {'path': image_path, 'resize_ratio': 1}
+            resized.save(resized_image_path, **params)
 
-        im = Image.open(image_path)
-        path, ext = os.path.splitext(image_path)
-        resized_image_path = os.path.join(path + '.resized' + ext)
-
-        width, height = im.size
-        max_side = max(width, height)
-        if max_side < resize_to:
-            logger.warning('You asked to make {} bigger ({} --> {}), but we are not going to do that.'.format(image_path, max_side, resize_to))
-            im.close()
-            return {'path': image_path, 'resize_ratio': 1}
-
-        ratio = float(resize_to) / float(max_side)
-        resized_width = int(width * ratio)
-        resized_height = int(height * ratio)
-
-        im = im.resize((resized_width, resized_height), Image.LANCZOS)
-        params = {}
-        if is_jpeg:
-            params['quality'] = 100
-
-        if 'exif' in im.info:
-            exif_dict = piexif.load(im.info['exif'])
-            #exif_dict['Exif'][piexif.ExifIFD.PixelXDimension] = resized_width
-            #exif_dict['Exif'][piexif.ExifIFD.PixelYDimension] = resized_height
-            im.save(resized_image_path, exif=piexif.dump(exif_dict), **params)
-        else:
-            im.save(resized_image_path, **params)
-
-        im.close()
+            if exiftool:
+                subprocess.run([exiftool, '-tagsfromfile', image_path, '-all', '-unsafe', resized_image_path, '-overwrite_original_in_place'], 
+                               check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                subprocess.run([exiftool, '-tagsfromfile', image_path, '-xmp', resized_image_path, '-overwrite_original_in_place'], 
+                               check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         # Delete original image, rename resized image to original
         os.remove(image_path)
         os.rename(resized_image_path, image_path)
-
-    except (IOError, ValueError, struct.error, Image.DecompressionBombError) as e:
+    except Exception as e:
         logger.warning("Cannot resize {}: {}.".format(image_path, str(e)))
+        
+        # Cleanup
+        if os.path.isfile(resized_image_path):
+            os.remove(resized_image_path)
+        
         if done is not None:
             done()
         return None
@@ -385,7 +376,7 @@ class Task(models.Model):
         elif self.dsm_extent is not None:
             return self.dsm_extent.extent
         elif self.dtm_extent is not None:
-            return self.dsm_extent.extent
+            return self.dtm_extent.extent
         else:
             return None
 
@@ -612,7 +603,10 @@ class Task(models.Model):
         # Import assets file from mounted system volume (media-dir)/imports by relative path.
         # Import file from relative path.
         if self.import_url and not os.path.exists(zip_path):
-            if self.import_url.startswith("file://"):
+            if self.import_url == "file://external":
+                # External asset import, files should already be in place
+                pass 
+            elif self.import_url.startswith("file://"):
                 imports_folder_path = os.path.join(settings.MEDIA_ROOT, "imports")
                 unsafe_path_to_import_file = os.path.join(settings.MEDIA_ROOT, "imports", self.import_url.replace("file://", ""))
                 # check is file placed in shared media folder in /imports directory without traversing
@@ -958,50 +952,56 @@ class Task(models.Model):
 
     def extract_assets_and_complete(self):
         """
-        Extracts assets/all.zip, populates task fields where required and assure COGs
+        Extracts assets/all.zip (if available), populates task fields where required and assure COGs
         It will raise a zipfile.BadZipFile exception if the archive is corrupted.
         :return:
         """
         assets_dir = self.assets_path("")
         zip_path = self.assets_path("all.zip")
+        is_backup = False
 
-        # Extract from zip
-        try:
-            with zipfile.ZipFile(zip_path, "r") as zip_h:
-                zip_h.extractall(assets_dir)
-        except zlib.error as e:
-            raise zipfile.BadZipFile(str(e))
-
-        logger.info("Extracted all.zip for {}".format(self))
-        
-        os.remove(zip_path)
-
-        # Check if this looks like a backup file, in which case we need to move the files
-        # a directory level higher
-        is_backup = os.path.isfile(self.assets_path("data", "backup.json")) and os.path.isdir(self.assets_path("assets"))
-        if is_backup:
-            logger.info("Restoring from backup")
+        if os.path.isfile(zip_path):
+            # Extract from zip
             try:
-                tmp_dir = os.path.join(settings.FILE_UPLOAD_TEMP_DIR, f"{self.id}.backup")
-                
-                shutil.move(assets_dir, tmp_dir)
-                shutil.rmtree(self.task_path(""))
-                shutil.move(tmp_dir, self.task_path(""))
-            except shutil.Error as e:
-                logger.warning("Cannot restore from backup: %s" % str(e))
-                raise NodeServerError("Cannot restore from backup")
-        else:
-            # Check if the zip file contained a top level directory
-            # which shouldn't be there and try to fix the structure
-            top_level = [os.path.join(assets_dir, d) for d in os.listdir(assets_dir)]
-            if len(top_level) == 1 and os.path.isdir(top_level[0]) and (not top_level[0].endswith("odm_orthophoto")):
-                second_level = [os.path.join(top_level[0], f) for f in os.listdir(top_level[0])]
-                if len(second_level) > 0:
-                    logger.info("Top level directory found in imported archive, attempting to fix")
-                    for f in second_level:
-                        shutil.move(f, assets_dir)
-                    shutil.rmtree(top_level[0])
+                with zipfile.ZipFile(zip_path, "r") as zip_h:
+                    zip_h.extractall(assets_dir)
+            except zlib.error as e:
+                raise zipfile.BadZipFile(str(e))
 
+            logger.info("Extracted all.zip for {}".format(self))
+            
+            os.remove(zip_path)
+
+            # Check if this looks like a backup file, in which case we need to move the files
+            # a directory level higher
+            is_backup = os.path.isfile(self.assets_path("data", "backup.json")) and os.path.isdir(self.assets_path("assets"))
+            if is_backup:
+                logger.info("Restoring from backup")
+                try:
+                    tmp_dir = os.path.join(settings.FILE_UPLOAD_TEMP_DIR, f"{self.id}.backup")
+                    
+                    shutil.move(assets_dir, tmp_dir)
+                    shutil.rmtree(self.task_path(""))
+                    shutil.move(tmp_dir, self.task_path(""))
+                except shutil.Error as e:
+                    logger.warning("Cannot restore from backup: %s" % str(e))
+                    raise NodeServerError("Cannot restore from backup")
+            else:
+                # Check if the zip file contained a top level directory
+                # which shouldn't be there and try to fix the structure
+                top_level = [os.path.join(assets_dir, d) for d in os.listdir(assets_dir)]
+                if len(top_level) == 1 and os.path.isdir(top_level[0]) and (not top_level[0].endswith("odm_orthophoto")):
+                    second_level = [os.path.join(top_level[0], f) for f in os.listdir(top_level[0])]
+                    if len(second_level) > 0:
+                        logger.info("Top level directory found in imported archive, attempting to fix")
+                        for f in second_level:
+                            shutil.move(f, assets_dir)
+                        shutil.rmtree(top_level[0])
+
+        elif self.import_url != "file://external":
+            # all.zip should be missing only when doing external data import
+            logger.warning("Cannot find assets archive for {} ({})".format(self, zip_path))
+            raise NodeServerError("Cannot import task")
 
         # Populate *_extent fields
         extent_fields = self.get_extent_fields()
@@ -1105,9 +1105,10 @@ class Task(models.Model):
                 return file 
     
     def get_point_cloud(self):
-        f = os.path.realpath(self.assets_path(self.ASSETS_MAP["georeferenced_model.laz"]))
-        if os.path.isfile(f):
-            return f
+        for asset in ["georeferenced_model.laz", "georeferenced_model.las"]:
+            f = os.path.realpath(self.assets_path(self.ASSETS_MAP[asset]))
+            if os.path.isfile(f):
+                return f
 
     def get_tile_path(self, tile_type, z, x, y):
         return self.assets_path("{}_tiles".format(tile_type), z, x, "{}.png".format(y))
@@ -1345,12 +1346,14 @@ class Task(models.Model):
             return []
         # Add a signal to notify that we are resizing images
         from app.plugins import signals as plugin_signals
+
         plugin_signals.task_resizing_images.send_robust(sender=self.__class__, task_id=self.id)
 
-        images_path = self.find_all_files_matching(r'.*\.(jpe?g|tiff?)$')
+        images_path = self.find_all_files_matching(r'.*\.(jpe?g|tiff?|png)$')
         total_images = len(images_path)
         resized_images_count = 0
         last_update = 0
+        lock = threading.Lock()
 
         def callback(retval=None):
             nonlocal last_update
@@ -1359,13 +1362,32 @@ class Task(models.Model):
 
             resized_images_count += 1
             if time.time() - last_update >= 2:
-                # Update progress
-                Task.objects.filter(pk=self.id).update(resize_progress=(float(resized_images_count) / float(total_images)))
-                self.check_if_canceled()
-                last_update = time.time()
+                with lock:
+                    if settings.TESTING:
+                        # In testing, django is unable to find the Task object, so we skip this
+                        return
+                    
+                    # Update progress
+                    Task.objects.filter(pk=self.id).update(resize_progress=(float(resized_images_count) / float(total_images)))
+                    self.check_if_canceled()
+                    last_update = time.time()
 
-        resized_images = [im for im in list(map(partial(resize_image, resize_to=self.resize_to, done=callback), images_path)) 
-                          if im is not None]
+        max_workers = min(settings.WORKERS_MAX_THREADS, len(images_path))
+        
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = []
+            for image_path in images_path:
+                f = executor.submit(resize_image, image_path, self.resize_to, callback)
+                futures.append(f)
+            
+            resized_images = []
+            for f in futures:
+                try:
+                    resized_images.append(f.result())
+                except Exception as e:
+                    logger.warning(f"Error resizing image: {str(e)}")
+        
+        resized_images = [im for im in resized_images if im is not None]
         
         Task.objects.filter(pk=self.id).update(resize_progress=1.0)
 

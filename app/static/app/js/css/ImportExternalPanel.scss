@@ -1,0 +1,108 @@
+.import-external-panel {
+  padding: 10px;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  text-align: center;
+
+  .close:hover, .close:focus{
+    color: inherit;
+  }
+  
+  .asset-dropzones {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .asset-dropzone-wrapper {
+    min-width: 0;
+  }
+
+  .asset-dropzone {
+    .asset-icon, .asset-label, .asset-accept{
+      pointer-events: none;
+    }
+    border-width: 2px;
+    border-style: dashed;
+    border-radius: 8px;
+    padding: 15px 10px;
+    text-align: center;
+    cursor: pointer;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+
+    &.has-file {
+      border-style: solid;
+    }
+
+    &.disabled {
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+
+    &.dz-drag-hover {
+      border-style: solid;
+      filter: brightness(0.98);
+    }
+
+    .asset-icon {
+      font-size: 28px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .asset-label {
+      font-weight: 600;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .asset-accept {
+      font-size: 12px;
+      color: #999;
+    }
+
+    .asset-filename {
+      font-size: 12px;
+      margin-top: 8px;
+      word-break: break-all;
+      max-width: 100%;
+      
+      .fa-check-circle {
+        margin-right: 4px;
+      }
+
+      .btn-remove-file {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 2px 6px;
+        margin-left: 4px;
+        font-size: 12px;
+      }
+    }
+  }
+
+  .upload-progress-section {
+    margin-top: 15px;
+
+    .btn-danger {
+      margin-top: 10px;
+    }
+  }
+
+  .btn-primary {
+    .fa {
+      margin-right: 6px;
+    }
+  }
+
+  .btn-danger .fa {
+    margin-right: 6px;
+  }
+}

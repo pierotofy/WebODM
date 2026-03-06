@@ -3,7 +3,8 @@ from django.conf.urls import url, include
 from app.api.presets import PresetViewSet
 from app.plugins.views import api_view_handler
 from .projects import ProjectViewSet
-from .tasks import TaskViewSet, TaskDownloads, TaskThumbnail, TaskAssets, TaskBackup, TaskAssetsImport, TaskSafeTexturedModel
+from .tasks import TaskViewSet, TaskDownloads, TaskThumbnail, TaskAssets, TaskBackup, \
+  TaskAssetsImport, TaskExternalImportInit, TaskExternalImportUpload, TaskExternalImportCommit, TaskSafeTexturedModel
 from .imageuploads import Thumbnail, ImageDownload
 from .processingnodes import ProcessingNodeViewSet, ProcessingNodeOptionsView
 from .admin import AdminUserViewSet, AdminGroupViewSet, AdminProfileViewSet
@@ -47,6 +48,9 @@ urlpatterns = [
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/textured_model/$', TaskSafeTexturedModel.as_view()),
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/assets/(?P<unsafe_asset_path>.+)$', TaskAssets.as_view()),
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/import$', TaskAssetsImport.as_view()),
+    url(r'projects/(?P<project_pk>[^/.]+)/tasks/import/external/init$', TaskExternalImportInit.as_view()),
+    url(r'projects/(?P<project_pk>[^/.]+)/tasks/import/external/upload$', TaskExternalImportUpload.as_view()),
+    url(r'projects/(?P<project_pk>[^/.]+)/tasks/import/external/commit$', TaskExternalImportCommit.as_view()),
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/thumbnail$', TaskThumbnail.as_view()),
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/backup$', TaskBackup.as_view()),
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/images/thumbnail/(?P<image_filename>.+)$', Thumbnail.as_view()),

@@ -152,6 +152,8 @@ camera_filters = [
     'BGRNReL',
     'BGRReNL',
 
+    'BGRNReP',
+    'RGBNReP',
     'RGBNRePL',
 
     'L', # FLIR camera has a single LWIR band
