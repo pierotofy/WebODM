@@ -41,6 +41,10 @@ ul#side-menu.nav a,
 .theme-stroke-primary{
     stroke: {{ theme_primary }};
 }
+.text-muted{
+	color: {{ theme_primary }};
+	opacity: 0.5;
+}
 
 /* Secondary */
 body,

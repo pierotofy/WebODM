@@ -1,0 +1,64 @@
+.manage-media-dialog {
+  .media-upload-area {
+    margin-bottom: 15px;
+    padding: 10px 0;
+    text-align: center;
+
+    .upload-hint {
+      display: block;
+      margin-top: 10px;
+    }
+
+    .upload-progress-area {
+      margin-top: 10px;
+    }
+  }
+
+  .media-empty {
+    padding: 30px 0;
+
+    p {
+      margin-top: 10px;
+    }
+  }
+
+  .media-table {
+    font-size: 13px;
+    
+    .type-icon{
+        font-size: 16px;
+    }
+    .fa-trash{
+        margin: 0;
+    }
+
+    .btn-cancel-descr{
+        padding-left: 7px;
+        padding-right: 7px;
+    }
+
+    td, th {
+      vertical-align: middle !important;
+    }
+
+    .description-edit {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+
+      input {
+        flex: 1;
+        min-width: 100px;
+      }
+    }
+
+    .edit-desc-link {
+      margin-left: 6px;
+      opacity: 0.5;
+
+      &:hover {
+        opacity: 1;
+      }
+    }
+  }
+}

@@ -10,6 +10,7 @@ import HistoryNav from '../classes/HistoryNav';
 import PropTypes from 'prop-types';
 import TaskPluginActionButtons from './TaskPluginActionButtons';
 import MoveTaskDialog from './MoveTaskDialog';
+import ManageMediaDialog from './ManageMediaDialog';
 import PipelineSteps from '../classes/PipelineSteps';
 import Css from '../classes/Css';
 import Tags from '../classes/Tags';
@@ -52,6 +53,7 @@ class TaskListItem extends React.Component {
       thumbLoadFailed: false,
       displayPdf: false,
       copiedToClipboard: false,
+      showMediaDialog: false,
     }
 
     for (let k in props.data){
@@ -544,12 +546,15 @@ class TaskListItem extends React.Component {
 
         if (task.available_assets.indexOf("report.pdf") !== -1){ 
           addActionButton(" " + _("Report"), "btn-primary", "far fa-file-pdf fa-fw", () => {
-            console.log(task.name);
             this.displayPdf(`/api/projects/${task.project}/tasks/${task.id}/download/report.pdf?inline=1`, { 
               title: task.name || _("Report")
             });
           }, { className: "btn-margin-right" });
         }
+
+        addActionButton(" " + _("Media"), "btn-primary", "fa fa-photo-video fa-fw", () => {
+          this.setState({showMediaDialog: true});
+        });
       }
 
       if (this.props.hasPermission("delete")){
@@ -875,6 +880,18 @@ class TaskListItem extends React.Component {
                 ref={(domNode) => { this.moveTaskDialog = domNode; }}
                 onHide={() => this.setState({showMoveDialog: false})}
                 saveAction={this.moveTaskAction}
+            />
+        : ""}
+        {this.state.showMediaDialog ?
+            <ManageMediaDialog
+                task={task}
+                projectId={task.project}
+                canEdit={this.props.hasPermission("change")}
+                onClose={() => this.setState({showMediaDialog: false})}
+                onMediaUpdated={(media) => {
+                  const t = Object.assign({}, this.state.task, {media});
+                  this.setState({task: t});
+                }}
             />
         : ""}
         <div className="row">

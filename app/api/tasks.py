@@ -99,7 +99,7 @@ class TaskSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Task
         exclude = ('orthophoto_extent', 'dsm_extent', 'dtm_extent', )
-        read_only_fields = ('processing_time', 'status', 'last_error', 'created_at', 'pending_action', 'available_assets', 'size', )
+        read_only_fields = ('processing_time', 'status', 'last_error', 'created_at', 'pending_action', 'available_assets', 'size', 'media', )
 
 class TaskViewSet(viewsets.ViewSet):
     """

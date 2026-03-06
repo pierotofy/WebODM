@@ -52,6 +52,7 @@ from django.utils.translation import gettext_lazy as _, gettext
 
 from functools import partial
 import subprocess
+import glob
 from app.classes.console import Console
 
 logger = logging.getLogger('app.logger')
@@ -284,6 +285,7 @@ class Task(models.Model):
     size = models.FloatField(default=0.0, blank=True, help_text=_("Size of the task on disk in megabytes"), verbose_name=_("Size"))
     compacted = models.BooleanField(default=False, help_text=_("A flag indicating whether this task was compacted"), verbose_name=_("Compact"))
     crop = GeometryField(null=True, blank=True, srid=4326, help_text=_("Polygon defining the crop area of this task"), verbose_name=_("Crop Polygon"))
+    media = fields.JSONField(default=list, blank=True, help_text=_("List of media files associated with this task"), verbose_name=_("Media"))
 
     
     class Meta:
@@ -385,6 +387,12 @@ class Task(models.Model):
         Get a path relative to the place where assets are stored
         """
         return self.task_path("assets", *args)
+
+    def media_directory_path(self, *args):
+        """
+        Get a path relative to the media directory for this task
+        """
+        return self.assets_path("media", *args)
 
     def data_path(self, *args):
         """
@@ -1028,6 +1036,7 @@ class Task(models.Model):
         self.update_available_assets_field()
         self.update_georef_fields()
         self.update_orthophoto_bands_field()
+        self.update_media_field()
         self.update_size()
         self.clear_task_assets_cache()
         self.potree_scene = {}
@@ -1270,6 +1279,179 @@ class Task(models.Model):
 
         self.orthophoto_bands = bands
         if commit: self.save()
+
+    @staticmethod
+    def sanitize_filename(filename):
+        filename = filename.replace('/', '').replace('\\', '')
+        name, ext = os.path.splitext(filename)
+        name = re.sub(r'[^\w\s.\-]', '', name).strip().strip('.')
+        ext = re.sub(r'[^\w.]', '', ext)
+        if not ext and not name:
+            name = 'file'
+        elif not ext and name:
+            # Could be a dotfile like ".jpg" → splitext treats entire thing as name
+            # Check if name looks like an extension
+            if re.match(r'^[a-zA-Z0-9]+$', name) and len(name) <= 5:
+                ext = '.' + name
+                name = 'file'
+        if not name:
+            name = 'file'
+        return name + ext
+
+    PHOTO_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.tif', '.tiff'}
+    VIDEO_EXTENSIONS = {'.mp4', '.mov', '.avi', '.mkv', '.webm'}
+    MEDIA_EXTENSIONS = PHOTO_EXTENSIONS | VIDEO_EXTENSIONS
+    MEDIA_TYPE_ORDER = {'photo': 0, 'pano': 1, 'video': 2}
+
+    @staticmethod
+    def get_media_type(filepath):
+        ext = os.path.splitext(filepath)[1].lower()
+        if ext in Task.VIDEO_EXTENSIONS:
+            return 'video'
+        if ext in Task.PHOTO_EXTENSIONS:
+            if Task._is_panorama(filepath):
+                return 'pano'
+            return 'photo'
+        return None
+
+    @staticmethod
+    def _is_panorama(filepath):
+        try:
+            exiftool = shutil.which('exiftool')
+            if exiftool:
+                result = subprocess.run(
+                    [exiftool, '-ProjectionType', '-s3', filepath],
+                    capture_output=True, text=True, timeout=10
+                )
+                proj = result.stdout.strip().lower()
+                if proj in ('equirectangular', 'cylindrical'):
+                    return True
+        except Exception:
+            pass
+        try:
+            with Image.open(filepath) as im:
+                w, h = im.size
+                if h > 0 and w / h >= 2.0:
+                    return True
+        except Exception:
+            pass
+        return False
+
+    @staticmethod
+    def extract_gps_from_image(filepath):
+        try:
+            with Image.open(filepath) as im:
+                exif = im._getexif()
+                if exif is None:
+                    return None
+                gps_info = exif.get(34853)
+                if gps_info is None:
+                    return None
+
+                def to_decimal(values, ref):
+                    d = float(values[0])
+                    m = float(values[1])
+                    s = float(values[2])
+                    dec = d + m / 60.0 + s / 3600.0
+                    if ref in ('S', 'W'):
+                        dec = -dec
+                    return dec
+
+                lat = to_decimal(gps_info.get(2, (0, 0, 0)), gps_info.get(1, 'N'))
+                lon = to_decimal(gps_info.get(4, (0, 0, 0)), gps_info.get(3, 'E'))
+                alt = None
+                if 6 in gps_info:
+                    alt = float(gps_info[6])
+                    if gps_info.get(5, 0) == 1:
+                        alt = -alt
+
+                if lat == 0.0 and lon == 0.0:
+                    return None
+
+                result = [lon, lat]
+                if alt is not None:
+                    result.append(alt)
+                return result
+        except Exception:
+            return None
+
+    @staticmethod
+    def extract_gps_from_video(filepath):
+        try:
+            exiftool = shutil.which('exiftool')
+            if not exiftool:
+                return None
+            result = subprocess.run(
+                [exiftool, '-GPSLatitude', '-GPSLongitude', '-GPSAltitude', '-n', '-s3', filepath],
+                capture_output=True, text=True, timeout=30
+            )
+            lines = result.stdout.strip().split('\n')
+            if len(lines) < 2:
+                return None
+            lat = float(lines[0].strip())
+            lon = float(lines[1].strip())
+            if lat == 0.0 and lon == 0.0:
+                return None
+            coords = [lon, lat]
+            if len(lines) >= 3:
+                try:
+                    alt = float(lines[2].strip())
+                    coords.append(alt)
+                except (ValueError, IndexError):
+                    pass
+            return coords
+        except Exception:
+            return None
+
+    def build_media_entry(self, filepath):
+        filename = os.path.basename(filepath)
+        media_type = self.get_media_type(filepath)
+        if media_type is None:
+            return None
+
+        size = float(os.path.getsize(filepath))
+        if media_type == 'video':
+            geolocation = self.extract_gps_from_video(filepath)
+        else:
+            geolocation = self.extract_gps_from_image(filepath)
+
+        existing = None
+        if self.media:
+            for entry in self.media:
+                if entry.get('filename') == filename:
+                    existing = entry
+                    break
+
+        return {
+            'type': media_type,
+            'filename': filename,
+            'description': existing.get('description', '') if existing else '',
+            'geolocation': geolocation,
+            'size': size,
+        }
+
+    def update_media_field(self, commit=False):
+        media_dir = self.media_directory_path()
+        if not os.path.isdir(media_dir):
+            if self.media:
+                self.media = []
+                if commit:
+                    self.save()
+            return
+
+        entries = []
+        for f in os.listdir(media_dir):
+            fp = os.path.join(media_dir, f)
+            if not os.path.isfile(fp):
+                continue
+            entry = self.build_media_entry(fp)
+            if entry is not None:
+                entries.append(entry)
+
+        entries.sort(key=lambda e: (self.MEDIA_TYPE_ORDER.get(e['type'], 99), e['filename'].lower()))
+        self.media = entries
+        if commit:
+            self.save()
 
     def delete(self, using=None, keep_parents=False):
         task_id = self.id
