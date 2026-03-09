@@ -35,13 +35,30 @@ class ManageMediaDialog extends React.Component {
       media: props.task.media,
       uploading: false,
       progress: 0,
+      files: [],
+      totalCount: 0,
+      uploadedCount: 0,
       totalBytes: 0,
       totalBytesSent: 0,
-      totalCount: 0,
+      lastUpdated: 0,
       editingDescription: null,
       descriptionValue: '',
       viewMode: 'grid'
     };
+  }
+
+  resetUploadState(){
+    this.setState({
+      error: "",
+      uploading: false,
+      progress: 0,
+      files: [],
+      totalCount: 0,
+      uploadedCount: 0,
+      totalBytes: 0,
+      totalBytesSent: 0,
+      lastUpdated: 0
+    });
   }
 
   componentDidMount() {
@@ -51,9 +68,9 @@ class ManageMediaDialog extends React.Component {
       if (this._mounted) this.props.onClose();
     });
 
-    if (this.props.canEdit && this.dropzoneEl) {
+    if (this.props.canEdit && this.dropzone) {
       Dropzone.autoDiscover = false;
-      this.dz = new Dropzone(this.dropzoneEl, {
+      this.dz = new Dropzone(this.dropzone, {
         paramName: 'file',
         url: this.uploadUrl(),
         parallelUploads: 1,
@@ -74,35 +91,145 @@ class ManageMediaDialog extends React.Component {
         },
       });
 
-      this.dz.on('error', () => {
-        if (this.state.uploading)
-          this.setState({ error: _('Upload failed. Check your connection and try again.') });
-      });
-      this.dz.on('sending', () => {
-        this.setState({ uploading: true, error: '' });
-      });
-      this.dz.on('addedfile', (file) => {
-        this.setState({ totalCount: this.dz.files.length });
-      });
-      this.dz.on('uploadprogress', (file, progress, bytesSent) => {
-        if (progress === 100) return;
-        this.setState({ progress, totalBytes: file.size, totalBytesSent: bytesSent });
-      });
-      this.dz.on('complete', (file) => {
-        if (file.status === 'success') {
-          try {
-            const resp = JSON.parse(file.xhr.response);
-            if (resp.media) {
-              this.setState({ media: resp.media, uploading: false, progress: 0, totalCount: 0 });
-              this.notifyParent(resp.media);
-            }
-          } catch (e) {
-            this.setState({ error: _('Invalid server response.'), uploading: false });
+      this.dz.on("addedfiles", files => {
+          let totalBytes = 0;
+
+          for (let i = 0; i < files.length; i++){
+              totalBytes += files[i].size;
+              files[i].deltaBytesSent = 0;
+              files[i].trackedBytesSent = 0;
+              files[i].retries = 0;
           }
-        } else {
-          this.setState({ uploading: false, error: _('Upload failed.') });
-        }
-      });
+
+          this.setState({
+            totalCount: this.state.totalCount + files.length,
+            files,
+            totalBytes: this.state.totalBytes + totalBytes
+          });
+        })
+        .on("sending", () => {
+          this.setState({uploading: true});
+        })
+        .on("uploadprogress", (file, progress, bytesSent) => {
+            const now = new Date().getTime();
+
+            if (bytesSent > file.size) bytesSent = file.size;
+            
+            if (progress === 100 || now - this.state.lastUpdated > 500){
+                const deltaBytesSent = bytesSent - file.deltaBytesSent;
+                file.trackedBytesSent += deltaBytesSent;
+
+                const totalBytesSent = this.state.totalBytesSent + deltaBytesSent;
+                const progress = totalBytesSent / this.state.totalBytes * 100;
+
+                this.setState({
+                    progress,
+                    totalBytesSent,
+                    lastUpdated: now
+                });
+
+                file.deltaBytesSent = bytesSent;
+            }
+        })
+        .on("complete", (file) => {
+            // Retry
+            const retry = () => {
+                const MAX_RETRIES = 20;
+
+                if (!file.accepted){
+                  throw new Error(interpolate(_('%(filename)s is not a valid file'), {filename: file.name }));
+                }
+
+                if (file.retries < MAX_RETRIES){
+                    // Update progress
+                    const totalBytesSent = this.state.totalBytesSent - file.trackedBytesSent;
+                    const progress = totalBytesSent / this.state.totalBytes * 100;
+        
+                    this.setUploadState({
+                        progress,
+                        totalBytesSent,
+                    });
+        
+                    file.status = Dropzone.QUEUED;
+                    file.deltaBytesSent = 0;
+                    file.trackedBytesSent = 0;
+                    file.retries++;
+                    setTimeout(() => {
+                      this.dz.processQueue();
+                    }, 5000 * file.retries);
+                }else{
+                    throw new Error(interpolate(_('Cannot upload %(filename)s, exceeded max retries (%(max_retries)s)'), {filename: file.name, max_retries: MAX_RETRIES}));
+                }
+            };
+
+            try{
+                if (file.status === "error"){
+                    if ((file.size / 1024 / 1024) > this.dz.options.maxFilesize) {
+                        // Delete from upload queue
+                        this.setState({
+                            totalCount: this.state.totalCount - 1,
+                            totalBytes: this.state.totalBytes - file.size
+                        });
+                        throw new Error(interpolate(_('Cannot upload %(filename)s, file is too large! Default MaxFileSize is %(maxFileSize)s MB!'), { filename: file.name, maxFileSize: this.dz.options.maxFilesize }));
+                    }
+                    retry();
+                }else{
+
+                    // Check response
+                    let response = JSON.parse(file.xhr.response);
+                    if (response.success && response.media) {
+                      this.setState({ media: response.media });
+                      this.notifyParent(response.media);
+                    }
+
+                    if (response.success){
+                      if (response.uploaded && response.uploaded[file.upload.filename] === file.size){
+                        // Update progress by removing the tracked progress and 
+                        // use the file size as the true number of bytes
+                        let totalBytesSent = this.state.totalBytesSent + file.size;
+                        if (file.trackedBytesSent) totalBytesSent -= file.trackedBytesSent;
+        
+                        const progress = totalBytesSent / this.state.totalBytes * 100;
+        
+                        this.setState({
+                            progress,
+                            totalBytesSent,
+                            uploadedCount: this.state.uploadedCount + 1
+                        });
+                      }else{
+                        // Chunk success, wait for end
+                      }
+
+                      this.dz.processQueue();
+                    }else{
+                        retry();
+                    }
+                }
+            }catch(e){
+                if (this.manuallyCanceled){
+                  // Manually canceled, ignore error
+                  this.setState({uploading: false});
+                }else{
+                  this.setState({error: `${e.message}`, uploading: false});
+                }
+
+                if (this.dz.files.length) this.dz.cancelUpload();
+            }
+        })
+        .on("queuecomplete", () => {
+          const remainingFilesCount = this.state.totalCount - this.state.uploadedCount;
+          if (remainingFilesCount === 0 && this.state.uploadedCount > 0){
+            this.setState({uploading: false});
+          }
+        })
+        .on("reset", () => {
+          this.resetUploadState();
+        })
+        .on('error', () => {
+          if (this.state.uploading && !this.manuallyCanceled){
+            this.setState({ error: _('Upload failed. Check your connection and try again.') });
+          }
+        });
     }
   }
 
@@ -194,13 +321,25 @@ class ManageMediaDialog extends React.Component {
     return PHOTO_EXTS.has(ext);
   }
 
+  cancelUpload = () => {
+    this.dz.removeAllFiles(true);
+  }
+
+  handleCancel = () => {
+    this.manuallyCanceled = true;
+    this.cancelUpload();
+    setTimeout(() => {
+      this.manuallyCanceled = false;
+    }, 500);
+  }
+
   renderUploadArea() {
     const { canEdit } = this.props;
     const { uploading } = this.state;
     if (!canEdit) return null;
 
     return (
-      <div ref={(el) => (this.dropzoneEl = el)} className="media-upload-area">
+      <div ref={(el) => (this.dropzone = el)} className="media-upload-area">
         <button
           ref={(el) => (this.uploadBtn = el)}
           disabled={uploading}
@@ -221,10 +360,7 @@ class ManageMediaDialog extends React.Component {
             <button
               type="button"
               className="btn btn-danger btn-sm"
-              onClick={() => {
-                if (this.dz) this.dz.removeAllFiles(true);
-                this.setState({ uploading: false, progress: 0, totalCount: 0 });
-              }}
+              onClick={this.handleCancel}
             >
               <i className="glyphicon glyphicon-remove-circle"></i> {_('Cancel')}
             </button>
