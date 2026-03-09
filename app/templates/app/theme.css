@@ -59,6 +59,11 @@ body,
 	background-color: {{ theme_secondary }};
 }
 
+.theme-secondary-complementary{
+	background-color: {% complementary theme_secondary %};
+	color: {{ theme_secondary }};
+}
+
 .tooltip > .tooltip-inner{
 	color: {{ theme_secondary }};
 }
