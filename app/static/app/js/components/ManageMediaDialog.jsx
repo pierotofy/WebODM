@@ -374,7 +374,7 @@ class ManageMediaDialog extends React.Component {
               </td>
               <td>{Utils.bytesToSize(entry.size)}</td>
               {canEdit && (
-                <td>
+                <td style={{textAlign: "right"}}>
                   <button
                     className="btn btn-xs btn-danger"
                     onClick={() => this.handleDelete(entry.filename)}

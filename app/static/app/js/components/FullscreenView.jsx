@@ -55,6 +55,8 @@ class FullscreenView extends React.Component {
             scale: 1,
             dragging: false
         }
+
+        this.registeredEvents = false;
     }
 
     getImageUrl(){
@@ -69,24 +71,27 @@ class FullscreenView extends React.Component {
         this.observer = new IntersectionObserver(
             ([entry]) => {
                 if (entry.isIntersecting) {
-                this.setState({ visible: true });
-                this.observer.disconnect();
+                    setTimeout(() => {
+                        if (this.image && !this.registeredEvents){
+                            this.image.addEventListener("fullscreenchange", this.onFullscreenChange);
+                            this.image.addEventListener("wheel", this.onMouseWheel);
+                            this.image.addEventListener("mousedown", this.onMouseDown);
+                            this.image.addEventListener("mousemove", this.onMouseMove);
+                            this.image.addEventListener("mouseup", this.onMouseUp);
+                            this.image.addEventListener("touchstart", this.onTouchStart);
+                            this.image.addEventListener("touchmove", this.onTouchMove);
+                            this.image.addEventListener("touchend", this.onTouchEnd);
+                            this.registeredEvents = true;
+                        }
+                    }, 0);
+
+                    this.setState({ visible: true });
+                    this.observer.disconnect();
                 }
             },
             { rootMargin: '100px' }
         );
         if (this.ref.current) this.observer.observe(this.ref.current);
-        if (this.image){
-            this.image.addEventListener("fullscreenchange", this.onFullscreenChange);
-            this.image.addEventListener("wheel", this.onMouseWheel);
-            this.image.addEventListener("mousedown", this.onMouseDown);
-            this.image.addEventListener("mousemove", this.onMouseMove);
-            this.image.addEventListener("mouseup", this.onMouseUp);
-            this.image.addEventListener("touchstart", this.onTouchStart);
-            this.image.addEventListener("touchmove", this.onTouchMove);
-            this.image.addEventListener("touchend", this.onTouchEnd);
-            
-        }
     }
 
     componentWillUnmount(){
@@ -101,6 +106,7 @@ class FullscreenView extends React.Component {
             this.image.removeEventListener("touchstart", this.onTouchStart);
             this.image.removeEventListener("touchmove", this.onTouchMove);
             this.image.removeEventListener("touchend", this.onTouchEnd);
+            this.registeredEvents = false;
         }
     }
 
@@ -250,7 +256,6 @@ class FullscreenView extends React.Component {
         const { error, visible, loading, expandThumb, dragging, translateX, translateY, scale } = this.state;
 
         const imageUrl = expandThumb ? this.getImageUrl() : this.getThumbUrl();
-        console.log(loading, visible);
 
         return (<div className="fullscreen-view" ref={this.ref}>
             {(loading || !visible) ? <div><i className="fa fa-circle-notch fa-spin fa-fw"></i></div>
