@@ -284,7 +284,7 @@ class ManageMediaDialog extends React.Component {
           <button className="btn btn-xs btn-primary" onClick={() => this.saveDescription(entry.filename)}>
             <i className="fa fa-check"></i>
           </button>
-          <button className="btn btn-xs btn-default" onClick={this.cancelEditDescription} style={{paddingRight: "7px", paddingLeft: "7px"}}>
+          <button className="btn btn-xs btn-default" onClick={this.cancelEditDescription} style={{ paddingRight: "7px", paddingLeft: "7px" }}>
             <i className="fa fa-times"></i>
           </button>
         </div>
@@ -310,20 +310,18 @@ class ManageMediaDialog extends React.Component {
       <div className="media-grid">
         {media.map((entry) => (
           <div key={entry.filename} className="media-card">
-              {this.hasThumb(entry) ? (
-                <FullscreenView imageUrl={this.downloadUrl(entry.filename)} thumbSize={256} alt={entry.filename} />
-              ) : (
-                <div className="card-icon-placeholder">
-                  <i className={this.typeIcon(entry.type)}></i>
-                </div>
-              )}
-              <div className="card-details theme-secondary-complementary">
-                <div className="card-filename" title={entry.filename}>
-                  <a href={this.downloadUrl(entry.filename)}>
-                    {entry.filename}
-                  </a>
-                </div>
+            {this.hasThumb(entry) ? (
+              <FullscreenView imageUrl={this.downloadUrl(entry.filename)} thumbSize={256} alt={entry.filename} />
+            ) : (
+              <div className="card-icon-placeholder">
+                <i className={this.typeIcon(entry.type)}></i>
               </div>
+            )}
+            <div className="card-details theme-secondary-complementary">
+              <div className="card-filename" title={entry.filename}>
+                {entry.filename}
+              </div>
+            </div>
             {canEdit && (
               <button
                 className="card-delete-btn btn btn-xs btn-danger"
@@ -348,10 +346,9 @@ class ManageMediaDialog extends React.Component {
         <thead>
           <tr>
             <th className="col-type"></th>
-            <th>{_('Filename')}</th>
-            <th>{_('Description')}</th>
-            <th>{_('Location')}</th>
-            <th>{_('Size')}</th>
+            <th style={{ width: '25%' }}>{_('Filename')}</th>
+            <th style={{ width: '57%' }}>{_('Description')}</th>
+            <th style={{ width: '17%' }}>{_('Size')}</th>
             {canEdit && <th></th>}
           </tr>
         </thead>
@@ -362,19 +359,14 @@ class ManageMediaDialog extends React.Component {
                 <i className={this.typeIcon(entry.type)}></i>
               </td>
               <td>
-                <a href={this.downloadUrl(entry.filename)} target="_blank" rel="noopener noreferrer">
+                <a href={this.downloadUrl(entry.filename)} download={entry.filename}>
                   {entry.filename}
                 </a>
               </td>
               <td>{this.renderDescriptionCell(entry)}</td>
-              <td>
-                {entry.geolocation
-                  ? `${entry.geolocation[1].toFixed(5)}, ${entry.geolocation[0].toFixed(5)}`
-                  : <span className="text-muted">—</span>}
-              </td>
               <td>{Utils.bytesToSize(entry.size)}</td>
               {canEdit && (
-                <td style={{textAlign: "right"}}>
+                <td style={{ textAlign: "right" }}>
                   <button
                     className="btn btn-xs btn-danger"
                     onClick={() => this.handleDelete(entry.filename)}
