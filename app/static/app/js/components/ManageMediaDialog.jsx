@@ -284,7 +284,7 @@ class ManageMediaDialog extends React.Component {
           <button className="btn btn-xs btn-primary" onClick={() => this.saveDescription(entry.filename)}>
             <i className="fa fa-check"></i>
           </button>
-          <button className="btn btn-xs btn-default" onClick={this.cancelEditDescription}>
+          <button className="btn btn-xs btn-default" onClick={this.cancelEditDescription} style={{paddingRight: "7px", paddingLeft: "7px"}}>
             <i className="fa fa-times"></i>
           </button>
         </div>
@@ -292,10 +292,10 @@ class ManageMediaDialog extends React.Component {
     }
     return (
       <span className="description-display">
-        {entry.description || <em className="text-muted">{_('No description')}</em>}
+        {entry.description || ""}
         {canEdit && (
           <a href="javascript:void(0)" className="edit-desc-link" onClick={() => this.startEditDescription(entry)} title={_('Edit')}>
-            <i className="fa fa-pencil-alt"></i>
+            <i className={"fa " + (entry.description ? "fa-pencil-alt" : "fa-plus-circle")}></i>
           </a>
         )}
       </span>

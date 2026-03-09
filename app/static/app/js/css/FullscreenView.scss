@@ -6,6 +6,8 @@
 
     div.image{
         overflow: hidden;
+        min-height: 144px;
+        
         a{
             cursor: zoom-in;
         }

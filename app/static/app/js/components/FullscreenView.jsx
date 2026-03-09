@@ -84,12 +84,10 @@ class FullscreenView extends React.Component {
                             this.registeredEvents = true;
                         }
                     }, 0);
-
                     this.setState({ visible: true });
                     this.observer.disconnect();
                 }
-            },
-            { rootMargin: '100px' }
+            }
         );
         if (this.ref.current) this.observer.observe(this.ref.current);
     }
@@ -125,6 +123,8 @@ class FullscreenView extends React.Component {
     }
 
     onMouseDown = (e) => {
+        if (!this.state.expandThumb) return;
+
         const { translateX, translateY } = this.state;
         this.dragging = true;
         this.dragged = false;
