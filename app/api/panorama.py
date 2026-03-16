@@ -1,7 +1,6 @@
 import os
 import io
 import math
-import hashlib
 import logging
 
 import numpy as np
@@ -16,23 +15,16 @@ from app.security import path_traversal_check
 logger = logging.getLogger('app.logger')
 
 Image.MAX_IMAGE_PIXELS = None
-ANTIALIAS = Image.Resampling.LANCZOS if hasattr(Image, "Resampling") else Image.ANTIALIAS
+ANTIALIAS = Image.Resampling.NEAREST
 
-TILE_SIZE = 512
+TILE_SIZE = 2048
 QUALITY = 75
 
 FACE_LETTERS = ['f', 'b', 'u', 'd', 'l', 'r']
 FACE_INDEX = {c: i for i, c in enumerate(FACE_LETTERS)}
 
-_cache = {}
 
-
-def _cache_key(filepath):
-    mtime = os.path.getmtime(filepath)
-    return hashlib.md5(f"{filepath}:{mtime}".encode()).hexdigest()
-
-
-def _equirect_to_cube_face(img_array, face_index, cube_size):
+def equirect_to_cube_face(img_array, face_index, cube_size):
     """Convert equirectangular image to a cube face.
 
     Face vertex layout matches pannellum's libpannellum ta() function.
@@ -66,7 +58,10 @@ def _equirect_to_cube_face(img_array, face_index, cube_size):
     return img_array[py, px]
 
 
-def _compute_params(cube_size):
+def compute_params(filepath):
+    with Image.open(filepath) as im:
+        orig_w = im.size[0]
+    cube_size = 8 * int(orig_w / math.pi / 8)
     tile_size = min(TILE_SIZE, cube_size)
     levels = int(math.ceil(math.log(float(cube_size) / tile_size, 2))) + 1
     if levels >= 2 and int(cube_size / 2 ** (levels - 2)) == tile_size:
@@ -74,49 +69,23 @@ def _compute_params(cube_size):
     return cube_size, tile_size, levels
 
 
-def _get_cache_entry(filepath):
-    key = _cache_key(filepath)
-    if key in _cache:
-        return _cache[key]
-
-    img = Image.open(filepath).convert('RGB')
-    orig_w = img.size[0]
+def render_face(filepath, face_index, size):
+    print("1")
+    img = Image.open(filepath)
     img_array = np.array(img)
     del img
 
-    cube_size = 8 * int(orig_w / math.pi / 8)
-    cube_size, tile_size, levels = _compute_params(cube_size)
-
-    faces = []
-    for i in range(6):
-        face_data = _equirect_to_cube_face(img_array, i, cube_size)
-        faces.append(Image.fromarray(face_data))
+    print("2")
+    cube_size = 8 * int(img_array.shape[1] / math.pi / 8)
+    face_data = equirect_to_cube_face(img_array, face_index, cube_size)
     del img_array
-
-    entry = {
-        'cube_size': cube_size,
-        'tile_size': tile_size,
-        'levels': levels,
-        'faces': faces,
-        'resized': {},
-    }
-
-    _cache.clear()
-    _cache[key] = entry
-    return entry
-
-
-def _get_face_at_level(entry, face_idx, level):
-    if level == entry['levels']:
-        return entry['faces'][face_idx]
-
-    if level not in entry['resized']:
-        size = int(entry['cube_size'] / 2 ** (entry['levels'] - level))
-        entry['resized'][level] = [
-            f.resize((size, size), ANTIALIAS) for f in entry['faces']
-        ]
-
-    return entry['resized'][level][face_idx]
+    print('3')
+    
+    face = Image.fromarray(face_data)
+    if size != cube_size:
+        face = face.resize((size, size), ANTIALIAS)
+    print("4")
+    return face
 
 
 class TaskPanoramaTiles(TaskMediaBase):
@@ -135,12 +104,12 @@ class TaskPanoramaTiles(TaskMediaBase):
             raise exceptions.NotFound()
 
         if path == 'config.json':
-            return self._serve_config(filepath, request, pk, project_pk, filename)
+            return self.serve_config(filepath, request, pk, project_pk, filename)
 
-        return self._serve_tile(filepath, path)
+        return self.serve_tile(filepath, path)
 
-    def _serve_config(self, filepath, request, pk, project_pk, filename):
-        entry = _get_cache_entry(filepath)
+    def serve_config(self, filepath, request, pk, project_pk, filename):
+        cube_size, tile_size, levels = compute_params(filepath)
 
         base_url = f"/api/projects/{project_pk}/tasks/{pk}/media/panorama/{filename}"
         tile_path = base_url + "/%l/%s%y_%x"
@@ -151,15 +120,16 @@ class TaskPanoramaTiles(TaskMediaBase):
             "multiRes": {
                 "path": tile_path,
                 "extension": "jpg",
-                "tileResolution": entry['tile_size'],
-                "maxLevel": entry['levels'],
-                "cubeResolution": entry['cube_size'],
-            }
+                "tileResolution": tile_size,
+                "maxLevel": levels,
+                "cubeResolution": cube_size,
+            },
+            "showControls": False,
         }
 
         return JsonResponse(config)
 
-    def _serve_tile(self, filepath, path):
+    def serve_tile(self, filepath, path):
         parts = path.strip('/').split('/')
         if len(parts) != 2:
             raise exceptions.NotFound()
@@ -193,10 +163,7 @@ class TaskPanoramaTiles(TaskMediaBase):
 
         face_idx = FACE_INDEX[face_letter]
 
-        entry = _get_cache_entry(filepath)
-        cube_size = entry['cube_size']
-        tile_size = entry['tile_size']
-        levels = entry['levels']
+        cube_size, tile_size, levels = compute_params(filepath)
 
         if level < 1 or level > levels:
             raise exceptions.NotFound()
@@ -207,7 +174,7 @@ class TaskPanoramaTiles(TaskMediaBase):
         if row < 0 or row >= tiles_at_level or col < 0 or col >= tiles_at_level:
             raise exceptions.NotFound()
 
-        face = _get_face_at_level(entry, face_idx, level)
+        face = render_face(filepath, face_idx, size_at_level)
 
         left = col * tile_size
         upper = row * tile_size
