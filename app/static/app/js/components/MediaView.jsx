@@ -240,16 +240,30 @@ class MediaView extends React.Component {
             const overlay = document.createElement('div');
             overlay.className = 'pano-overlay';
 
-            const closeBtn = document.createElement('button');
-            closeBtn.className = 'pano-close-btn';
-            closeBtn.innerHTML = '&times;';
-            closeBtn.onclick = () => {
+            const closePano = () => {
                 if (this.panoViewer) {
                     this.panoViewer.destroy();
                     this.panoViewer = null;
                 }
+                document.removeEventListener('keydown', escHandler, true);
                 overlay.remove();
             };
+
+            // Prevent bootstrap models in the background
+            // from being closed
+            const escHandler = (e) => {
+                if (e.key === 'Escape') {
+                    e.stopImmediatePropagation();
+                    e.preventDefault();
+                    closePano();
+                }
+            };
+            document.addEventListener('keydown', escHandler, true);
+
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'pano-close-btn';
+            closeBtn.innerHTML = '&times;';
+            closeBtn.onclick = closePano;
             overlay.appendChild(closeBtn);
 
             const container = document.createElement('div');
@@ -258,9 +272,7 @@ class MediaView extends React.Component {
 
             document.body.appendChild(overlay);
 
-            const configUrl = `${this.props.basePath}/panorama/${encodeURIComponent(this.props.media.filename)}/config.json`;
-
-            $.getJSON(configUrl)
+            $.getJSON(`${this.props.basePath}/panorama/${encodeURIComponent(this.props.media.filename)}/config.json`)
                 .done(config => {
                     this.panoViewer = window.pannellum.viewer(container, config);
                 });
