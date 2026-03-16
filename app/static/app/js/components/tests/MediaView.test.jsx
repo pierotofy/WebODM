@@ -4,12 +4,12 @@ import MediaView from '../MediaView';
 
 describe('<MediaView />', () => {
     it('renders without exploding', () => {
-      const wrapper = mount(<MediaView imageUrl="http://example.com/test.jpg" thumbSize={256} onClose={() => {}} />);
+      const wrapper = mount(<MediaView basePath="/api/projects/1/tasks/1/media" media={{ filename: 'test.jpg', type: 'photo', description: '', size: 1024 }} />);
       expect(wrapper.exists()).toBe(true);
     });
 
-    it('renders with isPano without exploding', () => {
-      const wrapper = mount(<MediaView imageUrl="http://example.com/test.jpg" thumbSize={256} isPano={true} />);
+    it('renders with pano without exploding', () => {
+      const wrapper = mount(<MediaView basePath="/api/projects/1/tasks/1/media" media={{ filename: 'pano.jpg', type: 'pano', description: '', size: 2048 }} />);
       expect(wrapper.exists()).toBe(true);
     });
   });

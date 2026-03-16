@@ -5,15 +5,9 @@ import { _ } from '../classes/gettext';
 import $ from 'jquery';
 
 class MediaView extends React.Component {
-    static defaultProps = {
-        alt: "",
-        isPano: false
-    }
     static propTypes = {
-        imageUrl: PropTypes.string.isRequired,
-        thumbSize: PropTypes.number.isRequired,
-        alt: PropTypes.string,
-        isPano: PropTypes.bool
+        basePath: PropTypes.string.isRequired,
+        media: PropTypes.object.isRequired
     };
 
     constructor(props) {
@@ -37,11 +31,11 @@ class MediaView extends React.Component {
     }
 
     getImageUrl() {
-        return this.props.imageUrl;
+        return `${this.props.basePath}/download/${encodeURIComponent(this.props.media.filename)}`;
     }
 
     getThumbUrl() {
-        return `${this.props.imageUrl}?thumbnail=${this.props.thumbSize}`;
+        return `${this.getImageUrl()}?thumbnail=256`;
     }
 
     componentDidMount() {
@@ -264,7 +258,7 @@ class MediaView extends React.Component {
 
             document.body.appendChild(overlay);
 
-            const configUrl = this.getImageUrl().replace('/media/download/', '/media/panorama/') + '/config.json';
+            const configUrl = `${this.props.basePath}/panorama/${encodeURIComponent(this.props.media.filename)}/config.json`;
 
             $.getJSON(configUrl)
                 .done(config => {
@@ -274,7 +268,7 @@ class MediaView extends React.Component {
     }
 
     onImgClick = () => {
-        if (this.props.isPano) {
+        if (this.props.media.type === 'pano') {
             this.openPanoViewer();
             return;
         }
@@ -304,7 +298,7 @@ class MediaView extends React.Component {
                         style={{ marginTop: "8px" }}
                         ref={(domNode) => { this.image = domNode; }}>
                         {loading && expandThumb ? <div><i className="fa fa-circle-notch fa-spin fa-fw"></i></div> : ""}
-                        <div className="media-thumb" draggable="false" onClick={this.onImgClick}><img draggable="false" style={{ borderRadius: "4px", transform: `translate(${translateX}px, ${translateY}px) scale(${scale})` }} src={imageUrl} onLoad={this.imageOnLoad} onError={this.imageOnError} alt={this.props.alt} title={this.props.alt} /></div>
+                        <div className="media-thumb" draggable="false" onClick={this.onImgClick}><img draggable="false" style={{ borderRadius: "4px", transform: `translate(${translateX}px, ${translateY}px) scale(${scale})` }} src={imageUrl} onLoad={this.imageOnLoad} onError={this.imageOnError} alt={this.props.media.filename} title={this.props.media.filename} /></div>
                         {expandThumb ?
                             <div className="media-description">test desription</div>
                             : ""}

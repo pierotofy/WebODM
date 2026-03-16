@@ -448,7 +448,7 @@ class ManageMediaDialog extends React.Component {
         {media.map((entry) => (
           <div key={entry.filename} className="media-card">
             {this.hasThumb(entry) ? (
-              <MediaView imageUrl={this.downloadUrl(entry.filename)} thumbSize={256} alt={entry.filename} isPano={entry.type === 'pano'} />
+              <MediaView basePath={`/api/projects/${this.props.projectId}/tasks/${this.props.task.id}/media`} media={entry} />
             ) : (
               <div className="card-icon-placeholder">
                 <i className={this.typeIcon(entry.type)}></i>
