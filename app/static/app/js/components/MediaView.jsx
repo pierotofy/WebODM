@@ -1,6 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import '../css/FullscreenView.scss';
+import '../css/MediaView.scss';
 import { _ } from '../classes/gettext';
 
 
@@ -29,7 +29,7 @@ import { _ } from '../classes/gettext';
     // );
 
 
-class FullscreenView extends React.Component {
+class MediaView extends React.Component {
     static defaultProps = {
         alt: ""
     }
@@ -257,7 +257,7 @@ class FullscreenView extends React.Component {
 
         const imageUrl = expandThumb ? this.getImageUrl() : this.getThumbUrl();
 
-        return (<div className="fullscreen-view" ref={this.ref}>
+        return (<div className="media-view" ref={this.ref}>
             {(loading || !visible) ? <div><i className="fa fa-circle-notch fa-spin fa-fw"></i></div>
             : ""}
             {error !== "" ? <div style={{marginTop: "8px"}}>{error}</div>
@@ -273,4 +273,4 @@ class FullscreenView extends React.Component {
     }
 }
 
-export default FullscreenView;
+export default MediaView;

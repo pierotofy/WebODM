@@ -1,6 +1,7 @@
 import os
 import re
 import mimetypes
+import shutil
 
 from django.core.exceptions import ObjectDoesNotExist, SuspiciousFileOperation, ValidationError
 from django.db import transaction
@@ -10,10 +11,12 @@ from rest_framework import status, exceptions, parsers
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.core.files.uploadedfile import InMemoryUploadedFile
 
 from app import models
+from app.api.tasks import flatten_files
 from .common import get_and_check_project, check_project_perms
-from app.security import path_traversal_check
+from app.security import path_traversal_check, sanitize_filename
 from webodm import settings
 
 MAX_MEDIA_FILE_SIZE = 128 * 1024 * 1024 * 1024  # 128 GB
@@ -47,94 +50,108 @@ class TaskMediaUpload(TaskMediaBase):
     def post(self, request, pk=None, project_pk=None):
         task = self.get_task(request, pk, project_pk, ('change_project',))
 
-        files = [f for flist in request.FILES.lists() for f in flist[1]]
-        if not files:
+        files = flatten_files(request.FILES)
+        if len(files) == 0:
             raise exceptions.ValidationError(detail=_("No files uploaded"))
 
+        chunk_info = None
         chunk_index = request.data.get('dzchunkindex')
-        dz_uuid = request.data.get('dzuuid')
-        total_chunk_count = request.data.get('dztotalchunkcount')
+        uuid = request.data.get('dzuuid') 
+        total_chunk_count = request.data.get('dztotalchunkcount', None)
+        if len(files) == 1 and chunk_index is not None and uuid is not None and total_chunk_count is not None:
+            byte_offset = request.data.get('dzchunkbyteoffset', 0)
+            try:
+                chunk_index = int(chunk_index)
+                byte_offset = int(byte_offset)
+                total_chunk_count = int(total_chunk_count)
+            except ValueError:
+                raise exceptions.ValidationError(detail="chunkIndex is not an int")
+            
+            chunk_info = {
+                'uuid': re.sub('[^0-9a-zA-Z-]+', "", uuid),
+                'chunk_index': chunk_index,
+                'byte_offset': byte_offset,
+                'total_chunk_count': total_chunk_count,
+                'tmp_upload_file': os.path.join(settings.FILE_UPLOAD_TEMP_DIR, f"{uuid}.upload")
+            }
 
-        chunked = (len(files) == 1
-                   and chunk_index is not None
-                   and dz_uuid is not None
-                   and total_chunk_count is not None)
-
-        media_dir = task.media_directory_path()
-        os.makedirs(media_dir, exist_ok=True)
+        # 50% of the time, raise an exception
+        # import random
+        # if random.random() < 0.5:
+        #     import time
+        #     time.sleep(10)
+        #     return Response('', status=524)
+        #     raise exceptions.ValidationError(detail=_("Random upload failure for testing"))
 
         uploaded = {}
-
-        for f in files:
-            safe_name = models.Task.sanitize_filename(f.name)
+        for file in files:
+            name = file.name
+            if name is None:
+                continue
+            safe_name = sanitize_filename(name)
             ext = os.path.splitext(safe_name)[1].lower()
             if ext not in models.Task.MEDIA_EXTENSIONS:
                 continue
 
-            if chunked:
-                try:
-                    ci = int(chunk_index)
-                    tc = int(total_chunk_count)
-                except ValueError:
-                    raise exceptions.ValidationError(detail=_("Invalid chunk parameters"))
+            media_dir = task.media_directory_path()
+            if not os.path.exists(media_dir):
+                os.makedirs(media_dir, exist_ok=True)
 
-                clean_uuid = re.sub(r'[^0-9a-zA-Z-]', '', dz_uuid)
-                tmp_path = os.path.join(settings.FILE_UPLOAD_TEMP_DIR, f"{clean_uuid}.media_upload")
+            if chunk_info is not None:
+                if os.path.isfile(chunk_info['tmp_upload_file']) and chunk_info['chunk_index'] == 0:
+                    os.unlink(chunk_info['tmp_upload_file'])
+                
+                with open(chunk_info['tmp_upload_file'], 'ab') as fd:
+                    fd.seek(chunk_info['byte_offset'])
+                    if isinstance(file, InMemoryUploadedFile):
+                        for chunk in file.chunks():
+                            fd.write(chunk)
+                    else:
+                        with open(file.temporary_file_path(), 'rb') as f:
+                            shutil.copyfileobj(f, fd)
+                
+                if chunk_info['chunk_index'] + 1 < chunk_info['total_chunk_count']:
+                    continue # will wait for next chunk
 
-                if ci == 0 and os.path.isfile(tmp_path):
-                    os.remove(tmp_path)
+            dst_path = task.media_directory_path(safe_name)
 
-                with open(tmp_path, 'ab') as fd:
-                    for chunk in f.chunks():
-                        fd.write(chunk)
-
-                if ci + 1 < tc:
-                    return Response({'uploading': True}, status=status.HTTP_200_OK)
-
-                if os.path.getsize(tmp_path) > MAX_MEDIA_FILE_SIZE:
-                    os.remove(tmp_path)
-                    raise exceptions.ValidationError(
-                        detail=_("File exceeds maximum allowed size of 128 GB"))
-
-                dst = os.path.join(media_dir, safe_name)
-                if os.path.isfile(dst):
-                    os.remove(dst)
-                os.rename(tmp_path, dst)
-                uploaded[safe_name] = os.path.getsize(dst)
+            if chunk_info is not None:
+                if chunk_info['tmp_upload_file'] is not None and os.path.isfile(chunk_info['tmp_upload_file']):
+                    shutil.move(chunk_info['tmp_upload_file'], dst_path)
             else:
-                if f.size > MAX_MEDIA_FILE_SIZE:
-                    raise exceptions.ValidationError(
-                        detail=_("File exceeds maximum allowed size of 128 GB"))
+                with open(dst_path, 'wb+') as fd:
+                    if isinstance(file, InMemoryUploadedFile):
+                        for chunk in file.chunks():
+                            fd.write(chunk)
+                    else:
+                        with open(file.temporary_file_path(), 'rb') as f:
+                            shutil.copyfileobj(f, fd)
+            
+            fsize = os.path.getsize(dst_path)
+            if fsize > MAX_MEDIA_FILE_SIZE:
+                os.unlink(tmp_path)
+                raise exceptions.ValidationError(detail=_("File exceeds maximum allowed size"))
+            uploaded[name] = fsize
 
-                dst = os.path.join(media_dir, safe_name)
-                with open(dst, 'wb+') as fd:
-                    for chunk in f.chunks():
-                        fd.write(chunk)
-                uploaded[safe_name] = os.path.getsize(dst)
+        if len(uploaded) > 0:
+            with transaction.atomic():
+                task = self._lock_task(task.pk)
+                existing = {e['filename']: e for e in task.media}
+                for name in uploaded:
+                    fp = os.path.join(media_dir, name)
+                    entry = task.build_media_entry(fp)
+                    if entry is not None:
+                        existing[name] = entry
+                entries = list(existing.values())
+                entries.sort(key=lambda e: (
+                    task.MEDIA_TYPE_ORDER.get(e['type'], 99),
+                    e['filename'].lower(),
+                ))
+                task.media = entries
+                task.update_size()
+                task.save()
 
-        with transaction.atomic():
-            task = self._lock_task(task.pk)
-            existing = {e['filename']: e for e in task.media}
-            for name in uploaded:
-                fp = os.path.join(media_dir, name)
-                entry = task.build_media_entry(fp)
-                if entry is not None:
-                    existing[name] = entry
-            entries = list(existing.values())
-            entries.sort(key=lambda e: (
-                task.MEDIA_TYPE_ORDER.get(e['type'], 99),
-                e['filename'].lower(),
-            ))
-            task.media = entries
-            task.save()
-
-        task.update_size(commit=True)
-
-        return Response({
-            'success': True,
-            'uploaded': uploaded,
-            'media': task.media,
-        }, status=status.HTTP_200_OK)
+        return Response({'success': True, 'uploaded': uploaded, 'media': task.media}, status=status.HTTP_200_OK)
 
 
 class TaskMediaManage(TaskMediaBase):

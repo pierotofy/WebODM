@@ -6,7 +6,7 @@ import Dropzone from '../vendor/dropzone';
 import csrf from '../django/csrf';
 import UploadProgressBar from './UploadProgressBar';
 import Utils from '../classes/Utils';
-import FullscreenView from './FullscreenView';
+import MediaView from './MediaView';
 import { _, interpolate } from '../classes/gettext';
 
 const MAX_FILE_SIZE = 128 * 1024 * 1024 * 1024;
@@ -47,7 +47,7 @@ class ManageMediaDialog extends React.Component {
     };
   }
 
-  resetUploadState(){
+  resetUploadState = () => {
     this.setState({
       error: "",
       uploading: false,
@@ -220,6 +220,7 @@ class ManageMediaDialog extends React.Component {
           const remainingFilesCount = this.state.totalCount - this.state.uploadedCount;
           if (remainingFilesCount === 0 && this.state.uploadedCount > 0){
             this.setState({uploading: false});
+            this.resetUploadState();
           }
         })
         .on("reset", () => {
@@ -447,7 +448,7 @@ class ManageMediaDialog extends React.Component {
         {media.map((entry) => (
           <div key={entry.filename} className="media-card">
             {this.hasThumb(entry) ? (
-              <FullscreenView imageUrl={this.downloadUrl(entry.filename)} thumbSize={256} alt={entry.filename} />
+              <MediaView imageUrl={this.downloadUrl(entry.filename)} thumbSize={256} alt={entry.filename} />
             ) : (
               <div className="card-icon-placeholder">
                 <i className={this.typeIcon(entry.type)}></i>

@@ -1280,24 +1280,6 @@ class Task(models.Model):
         self.orthophoto_bands = bands
         if commit: self.save()
 
-    @staticmethod
-    def sanitize_filename(filename):
-        filename = filename.replace('/', '').replace('\\', '')
-        name, ext = os.path.splitext(filename)
-        name = re.sub(r'[^\w\s.\-]', '', name).strip().strip('.')
-        ext = re.sub(r'[^\w.]', '', ext)
-        if not ext and not name:
-            name = 'file'
-        elif not ext and name:
-            # Could be a dotfile like ".jpg" → splitext treats entire thing as name
-            # Check if name looks like an extension
-            if re.match(r'^[a-zA-Z0-9]+$', name) and len(name) <= 5:
-                ext = '.' + name
-                name = 'file'
-        if not name:
-            name = 'file'
-        return name + ext
-
     PHOTO_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.tif', '.tiff'}
     VIDEO_EXTENSIONS = {'.mp4', '.mov', '.avi', '.mkv', '.webm'}
     MEDIA_EXTENSIONS = PHOTO_EXTENSIONS | VIDEO_EXTENSIONS
