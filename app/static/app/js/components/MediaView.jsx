@@ -322,7 +322,7 @@ class MediaView extends React.Component {
         const imageUrl = expandThumb ? this.getImageUrl() : this.getThumbUrl();
 
         return (<div className="media-view" ref={this.ref}>
-            {(loading || !visible) ? <div><i className="fa fa-circle-notch fa-spin fa-fw"></i></div>
+            {(loading || !visible) ? <div><i className="fa fa-circle-notch fa-spin fa-fw media-loading"></i></div>
             : ""}
             {error !== "" ? <div style={{marginTop: "8px"}}>{error}</div>
             : visible ? <div>
@@ -330,7 +330,10 @@ class MediaView extends React.Component {
                                 style={{marginTop: "8px"}}  
                                 ref={(domNode) => { this.image = domNode;}}>
                     {loading && expandThumb ? <div><i className="fa fa-circle-notch fa-spin fa-fw"></i></div> : ""}
-                    <a draggable="false" onClick={this.onImgClick} href="javascript:void(0);"><img draggable="false" style={{borderRadius: "4px", transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`}} src={imageUrl} onLoad={this.imageOnLoad} onError={this.imageOnError} alt={this.props.alt} title={this.props.alt}/></a>
+                    <div className="media-thumb" draggable="false" onClick={this.onImgClick}><img draggable="false" style={{borderRadius: "4px", transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`}} src={imageUrl} onLoad={this.imageOnLoad} onError={this.imageOnError} alt={this.props.alt} title={this.props.alt}/></div>
+                    {expandThumb ? 
+                        <div className="media-description">test desription</div>
+                    : ""}
                 </div>
             </div> : ""}
         </div>);

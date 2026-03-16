@@ -1,14 +1,20 @@
 .media-view{
-    
+    text-align: center;
+
     div{
         margin-top: 8px;
+    }
+
+    .media-loading{
+        position: relative;
+        top: 40px;
     }
 
     div.image{
         overflow: hidden;
         min-height: 144px;
 
-        a{
+        .media-thumb{
             cursor: zoom-in;
         }
         &.fullscreen{
@@ -22,7 +28,7 @@
                 left: 50%;
                 top: 45%;
             }
-            a{
+            .media-thumb{
                 cursor: default;
             }
             img{
@@ -34,11 +40,25 @@
         }
 
         &.dragging{
-            a{
+            .media-thumb{
                 cursor: move;
             }
         }
     }   
+
+    .media-description{
+        position: absolute;
+        bottom: 4px;
+        left: 0;
+        background-color: rgba(0, 0, 0, 0.7);
+        border-radius: 0 3px 3px 0;
+        padding-right: 10px;
+        color: #fff;
+        text-align: left;
+        font-size: 20px;
+        padding-left: 5px;
+        margin-bottom: 3px;
+    }
 }
 
 .pano-overlay{
