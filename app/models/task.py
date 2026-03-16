@@ -1391,7 +1391,7 @@ class Task(models.Model):
         if media_type is None:
             return None
 
-        size = float(os.path.getsize(filepath))
+        size = os.path.getsize(filepath)
         if media_type == 'video':
             geolocation = self.extract_gps_from_video(filepath)
         else:
@@ -1434,6 +1434,11 @@ class Task(models.Model):
         self.media = entries
         if commit:
             self.save()
+    
+    def get_media_entry(self, filename):
+        for entry in self.media:
+            if entry.get('filename') == filename:
+                return entry
 
     def delete(self, using=None, keep_parents=False):
         task_id = self.id

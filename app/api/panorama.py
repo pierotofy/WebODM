@@ -15,7 +15,6 @@ from app.security import path_traversal_check
 logger = logging.getLogger('app.logger')
 
 Image.MAX_IMAGE_PIXELS = None
-ANTIALIAS = Image.Resampling.NEAREST
 
 TILE_SIZE = 2048
 QUALITY = 75
@@ -23,39 +22,10 @@ QUALITY = 75
 FACE_LETTERS = ['f', 'b', 'u', 'd', 'l', 'r']
 FACE_INDEX = {c: i for i, c in enumerate(FACE_LETTERS)}
 
-
-def equirect_to_cube_face(img_array, face_index, cube_size):
-    """Convert equirectangular image to a cube face.
-
-    Face vertex layout matches pannellum's libpannellum ta() function.
-    Coordinate system: -Z is forward, +Y is up, +X is right.
-    """
-    h, w = img_array.shape[:2]
-
-    col = np.linspace(-1, 1, cube_size)
-    row = np.linspace(-1, 1, cube_size)
-    u, v = np.meshgrid(col, row)
-
-    if face_index == 0:    # front (z=-1)
-        x, y, z = u, -v, -np.ones_like(u)
-    elif face_index == 1:  # back (z=+1)
-        x, y, z = -u, -v, np.ones_like(u)
-    elif face_index == 2:  # up (y=+1)
-        x, y, z = u, np.ones_like(u), -v
-    elif face_index == 3:  # down (y=-1)
-        x, y, z = u, -np.ones_like(u), v
-    elif face_index == 4:  # left (x=-1)
-        x, y, z = -np.ones_like(u), -v, -u
-    elif face_index == 5:  # right (x=+1)
-        x, y, z = np.ones_like(u), -v, u
-
-    lon = np.arctan2(x, -z)
-    lat = np.arctan2(y, np.sqrt(x * x + z * z))
-
-    px = np.clip((lon / (2 * np.pi) + 0.5) * w, 0, w - 1).astype(np.int32)
-    py = np.clip((0.5 - lat / np.pi) * h, 0, h - 1).astype(np.int32)
-
-    return img_array[py, px]
+F1 = np.float32(1.0)
+TWO_PI = np.float32(2.0 * np.pi)
+PI = np.float32(np.pi)
+HALF = np.float32(0.5)
 
 
 def compute_params(filepath):
@@ -69,50 +39,74 @@ def compute_params(filepath):
     return cube_size, tile_size, levels
 
 
-def render_face(filepath, face_index, size):
-    print("1")
+def render_tile(filepath, face_index, tile_left, tile_top, tile_w, tile_h, size_at_level):
+    step = np.float32(2.0 / max(size_at_level - 1, 1))
+    u_vals = np.arange(tile_left, tile_left + tile_w, dtype=np.float32) * step - F1
+    v_vals = np.arange(tile_top, tile_top + tile_h, dtype=np.float32) * step - F1
+    u, v = np.meshgrid(u_vals, v_vals)
+
+    if face_index == 0:    # front (z=-1)
+        x, y, z = u, -v, -F1
+    elif face_index == 1:  # back (z=+1)
+        x, y, z = -u, -v, F1
+    elif face_index == 2:  # up (y=+1)
+        x, y, z = u, F1, -v
+    elif face_index == 3:  # down (y=-1)
+        x, y, z = u, -F1, v
+    elif face_index == 4:  # left (x=-1)
+        x, y, z = -F1, -v, -u
+    elif face_index == 5:  # right (x=+1)
+        x, y, z = F1, -v, u
+
+    norm_px = np.arctan2(x, -z) / TWO_PI + HALF
+    norm_py = HALF - np.arctan2(y, np.sqrt(x * x + z * z)) / PI
+
+    py_lo, py_hi = float(norm_py.min()), float(norm_py.max())
+    px_lo, px_hi = float(norm_px.min()), float(norm_px.max())
+
     img = Image.open(filepath)
-    img_array = np.array(img)
-    del img
+    orig_w, orig_h = img.size
 
-    print("2")
-    cube_size = 8 * int(img_array.shape[1] / math.pi / 8)
-    face_data = equirect_to_cube_face(img_array, face_index, cube_size)
-    del img_array
-    print('3')
-    
-    face = Image.fromarray(face_data)
-    if size != cube_size:
-        face = face.resize((size, size), ANTIALIAS)
-    print("4")
-    return face
+    needed = max(tile_w, tile_h) * 4
+    if needed < min(orig_w, orig_h):
+        img.draft('RGB', (needed, needed * orig_h // orig_w))
 
+    aw, ah = img.size
 
-class TaskPanoramaTiles(TaskMediaBase):
-    def get(self, request, pk=None, project_pk=None, filename=None, path=None):
+    src_top = max(0, int(py_lo * ah) - 2)
+    src_bot = min(ah, int(py_hi * ah) + 2)
+
+    if px_hi - px_lo < 0.5:
+        src_left = max(0, int(px_lo * aw) - 2)
+        src_right = min(aw, int(px_hi * aw) + 2)
+    else:
+        src_left, src_right = 0, aw
+
+    region = img.crop((src_left, src_top, src_right, src_bot))
+    if region.mode != 'RGB':
+        region = region.convert('RGB')
+    arr = np.asarray(region)
+
+    px = np.clip(norm_px * aw - src_left, 0, arr.shape[1] - 1).astype(np.int32)
+    py = np.clip(norm_py * ah - src_top, 0, arr.shape[0] - 1).astype(np.int32)
+
+    return Image.fromarray(arr[py, px])
+
+class TaskPanoramaConfig(TaskMediaBase):
+    def get(self, request, pk=None, project_pk=None, filename=None):
         task = self.get_task(request, pk, project_pk, ('view_project',))
 
-        media_dir = task.media_directory_path()
-        filepath = os.path.join(media_dir, filename)
-
-        try:
-            filepath = path_traversal_check(filepath, media_dir)
-        except SuspiciousFileOperation:
+        entry = task.get_media_entry(filename)
+        if entry is None:
             raise exceptions.NotFound()
-
+        
+        filepath = task.media_directory_path(entry.get('filename', 'invalid'))
         if not os.path.isfile(filepath):
             raise exceptions.NotFound()
 
-        if path == 'config.json':
-            return self.serve_config(filepath, request, pk, project_pk, filename)
-
-        return self.serve_tile(filepath, path)
-
-    def serve_config(self, filepath, request, pk, project_pk, filename):
         cube_size, tile_size, levels = compute_params(filepath)
 
-        base_url = f"/api/projects/{project_pk}/tasks/{pk}/media/panorama/{filename}"
-        tile_path = base_url + "/%l/%s%y_%x"
+        tile_path = f"/api/projects/{project_pk}/tasks/{pk}/media/panorama/{filename}/tiles/%l/%s/%y/%x"
 
         config = {
             "autoLoad": True,
@@ -125,43 +119,30 @@ class TaskPanoramaTiles(TaskMediaBase):
                 "cubeResolution": cube_size,
             },
             "showControls": False,
+            "title": entry.get('description', '')
         }
 
         return JsonResponse(config)
 
-    def serve_tile(self, filepath, path):
-        parts = path.strip('/').split('/')
-        if len(parts) != 2:
+class TaskPanoramaTiles(TaskMediaBase):
+    def get(self, request, pk=None, project_pk=None, filename=None, level=None, face=None, row=None, col=None):
+        task = self.get_task(request, pk, project_pk, ('view_project',))
+
+        entry = task.get_media_entry(filename)
+        if entry is None:
+            raise exceptions.NotFound()
+        
+        filepath = task.media_directory_path(entry.get('filename', 'invalid'))
+        if not os.path.isfile(filepath):
             raise exceptions.NotFound()
 
-        try:
-            level = int(parts[0])
-        except ValueError:
+        if face not in FACE_INDEX:
             raise exceptions.NotFound()
 
-        tile_name = parts[1]
-        if tile_name.endswith('.jpg'):
-            tile_name = tile_name[:-4]
-
-        if len(tile_name) < 2:
-            raise exceptions.NotFound()
-
-        face_letter = tile_name[0]
-        if face_letter not in FACE_INDEX:
-            raise exceptions.NotFound()
-
-        rest = tile_name[1:]
-        coords = rest.split('_')
-        if len(coords) != 2:
-            raise exceptions.NotFound()
-
-        try:
-            row = int(coords[0])
-            col = int(coords[1])
-        except ValueError:
-            raise exceptions.NotFound()
-
-        face_idx = FACE_INDEX[face_letter]
+        row = int(row)
+        col = int(col)
+        level = int(level)
+        face_idx = FACE_INDEX[face]
 
         cube_size, tile_size, levels = compute_params(filepath)
 
@@ -174,19 +155,15 @@ class TaskPanoramaTiles(TaskMediaBase):
         if row < 0 or row >= tiles_at_level or col < 0 or col >= tiles_at_level:
             raise exceptions.NotFound()
 
-        face = render_face(filepath, face_idx, size_at_level)
-
         left = col * tile_size
         upper = row * tile_size
-        right = min(left + tile_size, size_at_level)
-        lower = min(upper + tile_size, size_at_level)
+        tile_w = min(tile_size, size_at_level - left)
+        tile_h = min(tile_size, size_at_level - upper)
 
-        tile = face.crop((left, upper, right, lower))
-
+        tile = render_tile(filepath, face_idx, left, upper, tile_w, tile_h, size_at_level)
         buf = io.BytesIO()
         tile.save(buf, format='JPEG', quality=QUALITY)
         buf.seek(0)
 
         response = FileResponse(buf, content_type='image/jpeg')
-        response['Cache-Control'] = 'public, max-age=86400'
         return response
