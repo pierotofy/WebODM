@@ -2,32 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import '../css/MediaView.scss';
 import { _ } from '../classes/gettext';
-
-
-    // return (
-    //   <div ref={this.ref} className="lazy-thumb-wrap">
-    //     {(!visible || !loaded) && !errored && (
-    //       <div className="thumb-placeholder">
-    //         <i className="fa fa-image"></i>
-    //       </div>
-    //     )}
-    //     {errored && (
-    //       <div className="thumb-placeholder errored">
-    //         <i className="fa fa-image"></i>
-    //       </div>
-    //     )}
-    //     {visible && !errored && (
-    //       <img
-    //         src={src}
-    //         alt={alt}
-    //         className={'thumb-img' + (loaded ? ' loaded' : '')}
-    //         onLoad={() => this.setState({ loaded: true })}
-    //         onError={() => this.setState({ errored: true })}
-    //       />
-    //     )}
-    //   </div>
-    // );
-
+import $ from 'jquery';
 
 class MediaView extends React.Component {
     static defaultProps = {
@@ -41,7 +16,7 @@ class MediaView extends React.Component {
         isPano: PropTypes.bool
     };
 
-    constructor(props){
+    constructor(props) {
         super(props);
 
         this.ref = React.createRef();
@@ -61,20 +36,20 @@ class MediaView extends React.Component {
         this.registeredEvents = false;
     }
 
-    getImageUrl(){
+    getImageUrl() {
         return this.props.imageUrl;
     }
 
-    getThumbUrl(){
+    getThumbUrl() {
         return `${this.props.imageUrl}?thumbnail=${this.props.thumbSize}`;
     }
 
-    componentDidMount(){
+    componentDidMount() {
         this.observer = new IntersectionObserver(
             ([entry]) => {
                 if (entry.isIntersecting) {
                     setTimeout(() => {
-                        if (this.image && !this.registeredEvents){
+                        if (this.image && !this.registeredEvents) {
                             this.image.addEventListener("fullscreenchange", this.onFullscreenChange);
                             this.image.addEventListener("wheel", this.onMouseWheel);
                             this.image.addEventListener("mousedown", this.onMouseDown);
@@ -94,10 +69,10 @@ class MediaView extends React.Component {
         if (this.ref.current) this.observer.observe(this.ref.current);
     }
 
-    componentWillUnmount(){
+    componentWillUnmount() {
         if (this.observer) this.observer.disconnect();
 
-        if (this.image){
+        if (this.image) {
             this.image.removeEventListener("fullscreenchange", this.onFullscreenChange);
             this.image.removeEventListener("wheel", this.onMouseWheel);
             this.image.removeEventListener("mousedown", this.onMouseDown);
@@ -116,17 +91,17 @@ class MediaView extends React.Component {
     }
 
     onFullscreenChange = (e) => {
-        if (!document.fullscreenElement){
-            this.setState({expandThumb: false});
+        if (!document.fullscreenElement) {
+            this.setState({ expandThumb: false });
         }
     }
 
     imageOnError = () => {
-        this.setState({error: _("Image missing"), loading: false});
+        this.setState({ error: _("Image missing"), loading: false });
     }
 
     imageOnLoad = () => {
-        this.setState({loading: false});
+        this.setState({ loading: false });
     }
 
     onMouseDown = (e) => {
@@ -142,19 +117,19 @@ class MediaView extends React.Component {
     }
 
     onMouseUp = () => {
-        if (this.dragging){
+        if (this.dragging) {
             this.startMouseX = this.startMouseY = 0;
-            this.setState({dragging: false});
+            this.setState({ dragging: false });
         }
         this.dragging = false;
     }
 
     onMouseMove = (e) => {
-        if (this.dragging){
+        if (this.dragging) {
             const dx = e.clientX - this.startMouseX;
             const dy = e.clientY - this.startMouseY;
 
-            if (Math.abs(dx) > 5 || Math.abs(dy) > 5){
+            if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
                 this.dragged = true;
                 this.setState({
                     dragging: true,
@@ -166,20 +141,20 @@ class MediaView extends React.Component {
     }
 
     touchDistance = e => {
-        if (e.touches && e.touches.length === 2){
+        if (e.touches && e.touches.length === 2) {
             const [t1, t2] = e.touches;
             const dx = t1.clientX - t2.clientX;
             const dy = t1.clientY - t2.clientY;
-            return Math.sqrt(dx * dx + dy * dy); 
+            return Math.sqrt(dx * dx + dy * dy);
         }
 
         return 0;
     }
 
     onTouchStart = e => {
-        if (e.touches.length === 2){
+        if (e.touches.length === 2) {
             this.lastTouchDist = this.touchDistance(e);
-        }else if (e.touches.length === 1){
+        } else if (e.touches.length === 1) {
             this.lastTouchDist = 0;
             this.onMouseDown({
                 clientX: e.touches[0].clientX,
@@ -189,11 +164,11 @@ class MediaView extends React.Component {
     }
 
     onTouchMove = e => {
-        if (e.touches.length === 2 && this.lastTouchDist > 0){
+        if (e.touches.length === 2 && this.lastTouchDist > 0) {
             const [t1, t2] = e.touches;
             const curDist = this.touchDistance(e);
             const delta = 1.5 * (curDist - this.lastTouchDist);
-            if (Math.abs(delta) > 0.05){
+            if (Math.abs(delta) > 0.05) {
                 this.lastTouchDist = curDist;
                 this.onMouseWheel({
                     clientX: (t1.clientX + t2.clientX) / 2,
@@ -201,7 +176,7 @@ class MediaView extends React.Component {
                     deltaY: -delta
                 });
             }
-        }else if (e.touches.length === 1){
+        } else if (e.touches.length === 1) {
             this.onMouseMove({
                 clientX: e.touches[0].clientX,
                 clientY: e.touches[0].clientY
@@ -224,11 +199,11 @@ class MediaView extends React.Component {
         const rect = this.image.querySelector("img").getBoundingClientRect();
         const mouseX = e.clientX;
         const mouseY = e.clientY;
-        
+
         const delta = -e.deltaY || e.wheelDelta || -e.detail;
         const zoomFactor = 1.0 + (2.0 * delta / Math.max(window.innerHeight, window.innerWidth));
         const newScale = Math.max(1, scale * zoomFactor);
-        
+
         if (newScale > maxScale) return;
 
         const imgX = (mouseX - rect.left) / scale;
@@ -238,14 +213,14 @@ class MediaView extends React.Component {
         translateY -= imgY * (newScale - scale);
         scale = newScale;
 
-        if (scale == 1){
+        if (scale == 1) {
             translateX = 0;
             translateY = 0;
         }
 
         this.setState({ translateX, translateY, scale });
     }
-    
+
 
     loadPannellum = () => {
         if (window.pannellum) return Promise.resolve();
@@ -291,9 +266,8 @@ class MediaView extends React.Component {
 
             const configUrl = this.getImageUrl().replace('/media/download/', '/media/panorama/') + '/config.json';
 
-            fetch(configUrl)
-                .then(r => r.json())
-                .then(config => {
+            $.getJSON(configUrl)
+                .done(config => {
                     this.panoViewer = window.pannellum.viewer(container, config);
                 });
         });
@@ -307,35 +281,35 @@ class MediaView extends React.Component {
 
         const { expandThumb } = this.state;
 
-        if (!expandThumb){
+        if (!expandThumb) {
             this.image.requestFullscreen();
-            this.setState({ loading: true, expandThumb: true, translateX: 0, translateY: 0, scale: 1});
-        }else if (!this.dragged){
+            this.setState({ loading: true, expandThumb: true, translateX: 0, translateY: 0, scale: 1 });
+        } else if (!this.dragged) {
             document.exitFullscreen();
             this.setState({ expandThumb: false, translateX: 0, translateY: 0, scale: 1 });
         }
     }
 
-    render(){
+    render() {
         const { error, visible, loading, expandThumb, dragging, translateX, translateY, scale } = this.state;
 
         const imageUrl = expandThumb ? this.getImageUrl() : this.getThumbUrl();
 
         return (<div className="media-view" ref={this.ref}>
             {(loading || !visible) ? <div><i className="fa fa-circle-notch fa-spin fa-fw media-loading"></i></div>
-            : ""}
-            {error !== "" ? <div style={{marginTop: "8px"}}>{error}</div>
-            : visible ? <div>
-                <div className={`image ${expandThumb ? "fullscreen" : ""} ${dragging ? "dragging" : ""}`} 
-                                style={{marginTop: "8px"}}  
-                                ref={(domNode) => { this.image = domNode;}}>
-                    {loading && expandThumb ? <div><i className="fa fa-circle-notch fa-spin fa-fw"></i></div> : ""}
-                    <div className="media-thumb" draggable="false" onClick={this.onImgClick}><img draggable="false" style={{borderRadius: "4px", transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`}} src={imageUrl} onLoad={this.imageOnLoad} onError={this.imageOnError} alt={this.props.alt} title={this.props.alt}/></div>
-                    {expandThumb ? 
-                        <div className="media-description">test desription</div>
-                    : ""}
-                </div>
-            </div> : ""}
+                : ""}
+            {error !== "" ? <div style={{ marginTop: "8px" }}>{error}</div>
+                : visible ? <div>
+                    <div className={`image ${expandThumb ? "fullscreen" : ""} ${dragging ? "dragging" : ""}`}
+                        style={{ marginTop: "8px" }}
+                        ref={(domNode) => { this.image = domNode; }}>
+                        {loading && expandThumb ? <div><i className="fa fa-circle-notch fa-spin fa-fw"></i></div> : ""}
+                        <div className="media-thumb" draggable="false" onClick={this.onImgClick}><img draggable="false" style={{ borderRadius: "4px", transform: `translate(${translateX}px, ${translateY}px) scale(${scale})` }} src={imageUrl} onLoad={this.imageOnLoad} onError={this.imageOnError} alt={this.props.alt} title={this.props.alt} /></div>
+                        {expandThumb ?
+                            <div className="media-description">test desription</div>
+                            : ""}
+                    </div>
+                </div> : ""}
         </div>);
     }
 }
