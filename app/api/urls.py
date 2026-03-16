@@ -59,8 +59,8 @@ urlpatterns = [
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/media/upload$', TaskMediaUpload.as_view()),
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/media/download/(?P<filename>.+)$', TaskMediaDownload.as_view()),
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/media/manage/(?P<filename>.+)$', TaskMediaManage.as_view()),
-    url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/media/panorama/(?P<filename>[^/]+)/config\.json$', TaskPanoramaConfig.as_view()),
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/media/panorama/(?P<filename>[^/]+)/tiles/(?P<level>\d+)/(?P<face>\w)/(?P<row>\d+)/(?P<col>\d+)\.jpg$', TaskPanoramaTiles.as_view()),
+    url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/media/panorama/(?P<filename>[^/]+)/config\.json$', TaskPanoramaConfig.as_view()),
 
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/images/thumbnail/(?P<image_filename>.+)$', Thumbnail.as_view()),
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/images/download/(?P<image_filename>.+)$', ImageDownload.as_view()),
