@@ -289,12 +289,13 @@ class MediaView extends React.Component {
 
             document.body.appendChild(overlay);
 
-            this._panoViewer = window.pannellum.viewer(container, {
-                type: 'equirectangular',
-                panorama: this.getImageUrl(),
-                autoLoad: true,
-                showControls: false
-            });
+            const configUrl = this.getImageUrl().replace('/media/download/', '/media/panorama/') + '/config.json';
+
+            fetch(configUrl)
+                .then(r => r.json())
+                .then(config => {
+                    this._panoViewer = window.pannellum.viewer(container, config);
+                });
         });
     }
 
