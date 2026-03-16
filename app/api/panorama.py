@@ -2,11 +2,12 @@ import os
 import io
 import math
 import logging
+import html
 
 import numpy as np
 from PIL import Image
 from django.core.exceptions import SuspiciousFileOperation
-from django.http import FileResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse
 from rest_framework import exceptions
 
 from app.api.media import TaskMediaBase
@@ -17,7 +18,6 @@ logger = logging.getLogger('app.logger')
 Image.MAX_IMAGE_PIXELS = None
 
 TILE_SIZE = 2048
-QUALITY = 75
 
 FACE_LETTERS = ['f', 'b', 'u', 'd', 'l', 'r']
 FACE_INDEX = {c: i for i, c in enumerate(FACE_LETTERS)}
@@ -41,25 +41,35 @@ def compute_params(filepath):
 
 def render_tile(filepath, face_index, tile_left, tile_top, tile_w, tile_h, size_at_level):
     step = np.float32(2.0 / max(size_at_level - 1, 1))
-    u_vals = np.arange(tile_left, tile_left + tile_w, dtype=np.float32) * step - F1
-    v_vals = np.arange(tile_top, tile_top + tile_h, dtype=np.float32) * step - F1
-    u, v = np.meshgrid(u_vals, v_vals)
+    u = (np.arange(tile_left, tile_left + tile_w, dtype=np.float32) * step - F1)[np.newaxis, :]
+    v = (np.arange(tile_top, tile_top + tile_h, dtype=np.float32) * step - F1)[:, np.newaxis]
+    u_sq = u * u
 
-    if face_index == 0:    # front (z=-1)
-        x, y, z = u, -v, -F1
-    elif face_index == 1:  # back (z=+1)
-        x, y, z = -u, -v, F1
-    elif face_index == 2:  # up (y=+1)
-        x, y, z = u, F1, -v
-    elif face_index == 3:  # down (y=-1)
-        x, y, z = u, -F1, v
-    elif face_index == 4:  # left (x=-1)
-        x, y, z = -F1, -v, -u
-    elif face_index == 5:  # right (x=+1)
-        x, y, z = F1, -v, u
-
-    norm_px = np.arctan2(x, -z) / TWO_PI + HALF
-    norm_py = HALF - np.arctan2(y, np.sqrt(x * x + z * z)) / PI
+    if face_index in (0, 1, 4, 5):
+        r = np.sqrt(u_sq + F1)
+        norm_py = np.arctan2(v, r)
+        norm_py /= PI
+        norm_py += HALF
+        if face_index == 0:      # front
+            norm_px = np.arctan(u) / TWO_PI + HALF
+        elif face_index == 1:    # back
+            norm_px = np.arctan2(-u, -F1) / TWO_PI + HALF
+        elif face_index == 4:    # left
+            norm_px = np.arctan2(-F1, u) / TWO_PI + HALF
+        else:                    # right
+            norm_px = np.arctan2(F1, -u) / TWO_PI + HALF
+    elif face_index == 2:        # up
+        norm_px = np.arctan2(u, v) / TWO_PI + HALF
+        norm_py = np.sqrt(u_sq + v * v)
+        np.arctan2(F1, norm_py, out=norm_py)
+        norm_py /= -PI
+        norm_py += HALF
+    else:                        # down
+        norm_px = np.arctan2(u, -v) / TWO_PI + HALF
+        norm_py = np.sqrt(u_sq + v * v)
+        np.arctan2(F1, norm_py, out=norm_py)
+        norm_py /= PI
+        norm_py += HALF
 
     py_lo, py_hi = float(norm_py.min()), float(norm_py.max())
     px_lo, px_hi = float(norm_px.min()), float(norm_px.max())
@@ -119,7 +129,8 @@ class TaskPanoramaConfig(TaskMediaBase):
                 "cubeResolution": cube_size,
             },
             "showControls": False,
-            "title": entry.get('description', '')
+            "autoRotate": -1,
+            "title": html.escape(entry.get('description', ''))
         }
 
         return JsonResponse(config)
@@ -162,8 +173,11 @@ class TaskPanoramaTiles(TaskMediaBase):
 
         tile = render_tile(filepath, face_idx, left, upper, tile_w, tile_h, size_at_level)
         buf = io.BytesIO()
-        tile.save(buf, format='JPEG', quality=QUALITY)
-        buf.seek(0)
+        tile.save(buf, format='JPEG', quality=75)
 
-        response = FileResponse(buf, content_type='image/jpeg')
-        return response
+        res = HttpResponse(content_type="image/jpeg")
+        res.write(buf.getvalue())
+        buf.close()
+        res['Content-Disposition'] = 'inline'
+
+        return res

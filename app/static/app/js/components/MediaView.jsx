@@ -109,9 +109,9 @@ class MediaView extends React.Component {
             this.registeredEvents = false;
         }
 
-        if (this._panoViewer) {
-            this._panoViewer.destroy();
-            this._panoViewer = null;
+        if (this.panoViewer) {
+            this.panoViewer.destroy();
+            this.panoViewer = null;
         }
     }
 
@@ -275,9 +275,9 @@ class MediaView extends React.Component {
             closeBtn.className = 'pano-close-btn';
             closeBtn.innerHTML = '&times;';
             closeBtn.onclick = () => {
-                if (this._panoViewer) {
-                    this._panoViewer.destroy();
-                    this._panoViewer = null;
+                if (this.panoViewer) {
+                    this.panoViewer.destroy();
+                    this.panoViewer = null;
                 }
                 overlay.remove();
             };
@@ -294,7 +294,7 @@ class MediaView extends React.Component {
             fetch(configUrl)
                 .then(r => r.json())
                 .then(config => {
-                    this._panoViewer = window.pannellum.viewer(container, config);
+                    this.panoViewer = window.pannellum.viewer(container, config);
                 });
         });
     }
