@@ -31,12 +31,14 @@ import { _ } from '../classes/gettext';
 
 class MediaView extends React.Component {
     static defaultProps = {
-        alt: ""
+        alt: "",
+        isPano: false
     }
     static propTypes = {
         imageUrl: PropTypes.string.isRequired,
         thumbSize: PropTypes.number.isRequired,
-        alt: PropTypes.string
+        alt: PropTypes.string,
+        isPano: PropTypes.bool
     };
 
     constructor(props){
@@ -105,6 +107,11 @@ class MediaView extends React.Component {
             this.image.removeEventListener("touchmove", this.onTouchMove);
             this.image.removeEventListener("touchend", this.onTouchEnd);
             this.registeredEvents = false;
+        }
+
+        if (this._panoViewer) {
+            this._panoViewer.destroy();
+            this._panoViewer = null;
         }
     }
 
@@ -240,7 +247,63 @@ class MediaView extends React.Component {
     }
     
 
+    loadPannellum = () => {
+        if (window.pannellum) return Promise.resolve();
+        if (this._pannellumLoading) return this._pannellumLoading;
+
+        this._pannellumLoading = new Promise((resolve, reject) => {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = '/static/app/js/vendor/pannellum/pannellum.css';
+            document.head.appendChild(link);
+
+            const script = document.createElement('script');
+            script.src = '/static/app/js/vendor/pannellum/pannellum.js';
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+        return this._pannellumLoading;
+    }
+
+    openPanoViewer = () => {
+        this.loadPannellum().then(() => {
+            const overlay = document.createElement('div');
+            overlay.className = 'pano-overlay';
+
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'pano-close-btn';
+            closeBtn.innerHTML = '&times;';
+            closeBtn.onclick = () => {
+                if (this._panoViewer) {
+                    this._panoViewer.destroy();
+                    this._panoViewer = null;
+                }
+                overlay.remove();
+            };
+            overlay.appendChild(closeBtn);
+
+            const container = document.createElement('div');
+            container.className = 'pano-container';
+            overlay.appendChild(container);
+
+            document.body.appendChild(overlay);
+
+            this._panoViewer = window.pannellum.viewer(container, {
+                type: 'equirectangular',
+                panorama: this.getImageUrl(),
+                autoLoad: true,
+                showControls: false
+            });
+        });
+    }
+
     onImgClick = () => {
+        if (this.props.isPano) {
+            this.openPanoViewer();
+            return;
+        }
+
         const { expandThumb } = this.state;
 
         if (!expandThumb){
