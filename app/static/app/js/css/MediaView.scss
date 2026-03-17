@@ -9,43 +9,49 @@
         position: relative;
         top: 40px;
     }
+}
 
-    div.image{
-        overflow: hidden;
-        min-height: 144px;
+div.media-view-image{
+    overflow: hidden;
+    min-height: 144px;
 
+    .media-thumb{
+        cursor: zoom-in;
+    }
+    &.fullscreen{
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        top: 0;
+        background: #000;
+        z-index: 999999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        i{
+            font-size: 200%;
+            position: absolute;
+            left: 50%;
+            top: 45%;
+        }
         .media-thumb{
-            cursor: zoom-in;
+            cursor: default;
         }
-        &.fullscreen{
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            i{
-                font-size: 200%;
-                position: absolute;
-                left: 50%;
-                top: 45%;
-            }
-            .media-thumb{
-                cursor: default;
-            }
-            img{
-                image-rendering: pixelated;
-                max-width: 100%;
-                max-height: 100%;
-                transform-origin: 0 0;
-            }
+        img{
+            image-rendering: pixelated;
+            max-width: 100%;
+            max-height: 100%;
+            transform-origin: 0 0;
         }
+    }
 
-        &.dragging{
-            .media-thumb{
-                cursor: move;
-            }
+    &.dragging{
+        .media-thumb{
+            cursor: move;
         }
-    }   
-
+    }
     .media-description{
         position: absolute;
         bottom: 4px;
@@ -59,7 +65,7 @@
         padding-left: 5px;
         margin-bottom: 3px;
     }
-}
+}   
 
 .pano-overlay{
     position: fixed;

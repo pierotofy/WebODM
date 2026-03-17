@@ -286,12 +286,20 @@ class MediaView extends React.Component {
         }
 
         const { expandThumb } = this.state;
+        
+        const image = this.image;
+        if (!image) return;
 
         if (!expandThumb) {
-            this.image.requestFullscreen();
+            if (image.parentElement && image.parentElement.classList.contains('media-thumb-container')) {
+                this.originalParent = image.parentElement;
+                document.body.appendChild(image);
+            }
             this.setState({ loading: true, expandThumb: true, translateX: 0, translateY: 0, scale: 1 });
         } else if (!this.dragged) {
-            document.exitFullscreen();
+            if (image.parentElement === document.body && this.originalParent) {
+                this.originalParent.appendChild(image);
+            }
             this.setState({ expandThumb: false, translateX: 0, translateY: 0, scale: 1 });
         }
     }
@@ -305,14 +313,12 @@ class MediaView extends React.Component {
             {(loading || !visible) ? <div><i className="fa fa-circle-notch fa-spin fa-fw media-loading"></i></div>
                 : ""}
             {error !== "" ? <div style={{ marginTop: "8px" }}>{error}</div>
-                : visible ? <div>
-                    <div className={`image ${expandThumb ? "fullscreen" : ""} ${dragging ? "dragging" : ""}`}
-                        style={{ marginTop: "8px" }}
-                        ref={(domNode) => { this.image = domNode; }}>
+                : visible ? <div className="media-thumb-container">
+                    <div ref={(domNode) => { this.image = domNode; }} className={`media-view-image ${expandThumb ? "fullscreen" : ""} ${dragging ? "dragging" : ""}`}>
                         {loading && expandThumb ? <div><i className="fa fa-circle-notch fa-spin fa-fw"></i></div> : ""}
                         <div className="media-thumb" draggable="false" onClick={this.onImgClick}><img draggable="false" style={{ borderRadius: "4px", transform: `translate(${translateX}px, ${translateY}px) scale(${scale})` }} src={imageUrl} onLoad={this.imageOnLoad} onError={this.imageOnError} alt={this.props.media.filename} title={this.props.media.filename} /></div>
-                        {expandThumb ?
-                            <div className="media-description">test desription</div>
+                        {expandThumb && this.props.media.description ?
+                            <div className="media-description">{this.props.media.description}</div>
                             : ""}
                     </div>
                 </div> : ""}
