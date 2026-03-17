@@ -13,6 +13,7 @@ from rest_framework import status, exceptions, parsers
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from app.video import extract_jpeg_bytes_from_video
 from django.core.files.uploadedfile import InMemoryUploadedFile
 
 from app import models
@@ -200,9 +201,8 @@ class TaskMediaManage(TaskMediaBase):
         with transaction.atomic():
             task = self._lock_task(task.pk)
             task.media = [e for e in task.media if e['filename'] != filename]
+            task.update_size()
             task.save()
-
-        task.update_size(commit=True)
 
         return Response({
             'success': True,
@@ -253,9 +253,8 @@ class TaskMediaThumbnail(TaskMediaBase):
             raise exceptions.ValidationError(detail="Invalid thumb size")
             
         ext = os.path.splitext(filepath)[1].lower()
-        print(ext)
-        if ext in models.Task.PHOTO_EXTENSIONS:
-            try:
+        try:
+            if ext in models.Task.PHOTO_EXTENSIONS:
                 with Image.open(filepath) as im:
                     im.thumbnail((thumb_size, thumb_size))
                     buf = io.BytesIO()
@@ -263,7 +262,12 @@ class TaskMediaThumbnail(TaskMediaBase):
                     im.save(buf, format=fmt)
                     buf.seek(0)
                     return FileResponse(buf, content_type='image/jpeg')
-            except Exception:
-                raise exceptions.ValidationError(detail="Thumbnail not supported for this media type")
-        else:
-            raise exceptions.ValidationError(detail="Thumbnail not available")
+            elif ext in models.Task.VIDEO_EXTENSIONS:
+                jpeg_bytes = extract_jpeg_bytes_from_video(filepath, width=thumb_size)
+                if jpeg_bytes is None:
+                    raise RuntimeError
+                return FileResponse(io.BytesIO(jpeg_bytes), content_type='image/jpeg')
+            else:
+                raise RuntimeError
+        except Exception as e:
+            raise exceptions.ValidationError(detail="Thumbnail not supported for this media")
