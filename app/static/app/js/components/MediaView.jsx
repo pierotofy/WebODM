@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import '../css/MediaView.scss';
 import { _ } from '../classes/gettext';
 import $ from 'jquery';
+import Utils from '../classes/Utils';
 
 class MediaView extends React.Component {
     static propTypes = {
@@ -217,22 +218,9 @@ class MediaView extends React.Component {
 
 
     loadPannellum = () => {
-        if (window.pannellum) return Promise.resolve();
-        if (this._pannellumLoading) return this._pannellumLoading;
-
-        this._pannellumLoading = new Promise((resolve, reject) => {
-            const link = document.createElement('link');
-            link.rel = 'stylesheet';
-            link.href = '/static/app/js/vendor/pannellum/pannellum.css';
-            document.head.appendChild(link);
-
-            const script = document.createElement('script');
-            script.src = '/static/app/js/vendor/pannellum/pannellum.js';
-            script.onload = resolve;
-            script.onerror = reject;
-            document.head.appendChild(script);
-        });
-        return this._pannellumLoading;
+        return Utils.dynamicLoad([
+            '/static/app/js/vendor/pannellum/pannellum.css',
+            '/static/app/js/vendor/pannellum/pannellum.js'], 'pannellum');
     }
 
     openPanoViewer = () => {
