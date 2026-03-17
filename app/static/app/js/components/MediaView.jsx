@@ -36,7 +36,7 @@ class MediaView extends React.Component {
     }
 
     getThumbUrl() {
-        return `${this.getImageUrl()}?thumbnail=256`;
+        return `${this.props.basePath}/thumbnail/${encodeURIComponent(this.props.media.filename)}?size=256`;
     }
 
     componentDidMount() {

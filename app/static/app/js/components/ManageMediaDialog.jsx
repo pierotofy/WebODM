@@ -317,11 +317,6 @@ class ManageMediaDialog extends React.Component {
     return _('Photo');
   }
 
-  hasThumb(entry) {
-    const ext = (entry.filename.match(/\.[^.]+$/) || [''])[0].toLowerCase();
-    return PHOTO_EXTS.has(ext);
-  }
-
   cancelUpload = () => {
     this.dz.removeAllFiles(true);
   }
@@ -447,13 +442,7 @@ class ManageMediaDialog extends React.Component {
       <div className="media-grid">
         {media.map((entry) => (
           <div key={entry.filename} className="media-card">
-            {this.hasThumb(entry) ? (
-              <MediaView basePath={`/api/projects/${this.props.projectId}/tasks/${this.props.task.id}/media`} media={entry} />
-            ) : (
-              <div className="card-icon-placeholder">
-                <i className={this.typeIcon(entry.type)}></i>
-              </div>
-            )}
+            <MediaView basePath={`/api/projects/${this.props.projectId}/tasks/${this.props.task.id}/media`} media={entry} />
             <div className="card-details theme-secondary-complementary">
               <div className="card-filename" title={entry.filename}>
                 {entry.filename}

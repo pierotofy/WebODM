@@ -30,8 +30,8 @@ HALF = np.float32(0.5)
 
 def compute_params(filepath):
     with Image.open(filepath) as im:
-        orig_w = im.size[0]
-    cube_size = 8 * int(orig_w / math.pi / 8)
+        img_w = im.size[0]
+    cube_size = 8 * int(img_w / math.pi / 8)
     tile_size = min(TILE_SIZE, cube_size)
     levels = int(math.ceil(math.log(float(cube_size) / tile_size, 2))) + 1
     if levels >= 2 and int(cube_size / 2 ** (levels - 2)) == tile_size:
@@ -104,7 +104,7 @@ def render_tile(filepath, face_index, tile_left, tile_top, tile_w, tile_h, size_
 
 class TaskPanoramaConfig(TaskMediaBase):
     def get(self, request, pk=None, project_pk=None, filename=None):
-        task = self.get_task(request, pk, project_pk, ('view_project',))
+        task = self.get_and_check_task(request, pk)
 
         entry = task.get_media_entry(filename)
         if entry is None:
@@ -137,7 +137,7 @@ class TaskPanoramaConfig(TaskMediaBase):
 
 class TaskPanoramaTiles(TaskMediaBase):
     def get(self, request, pk=None, project_pk=None, filename=None, level=None, face=None, row=None, col=None):
-        task = self.get_task(request, pk, project_pk, ('view_project',))
+        task = self.get_and_check_task(request, pk)
 
         entry = task.get_media_entry(filename)
         if entry is None:

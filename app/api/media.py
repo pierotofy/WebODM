@@ -2,6 +2,8 @@ import os
 import re
 import mimetypes
 import shutil
+from PIL import Image
+import io
 
 from django.core.exceptions import ObjectDoesNotExist, SuspiciousFileOperation, ValidationError
 from django.db import transaction
@@ -14,7 +16,7 @@ from rest_framework.views import APIView
 from django.core.files.uploadedfile import InMemoryUploadedFile
 
 from app import models
-from app.api.tasks import flatten_files
+from app.api.tasks import flatten_files, TaskNestedView
 from .common import get_and_check_project, check_project_perms
 from app.security import path_traversal_check, sanitize_filename
 from webodm import settings
@@ -22,23 +24,7 @@ from webodm import settings
 MAX_MEDIA_FILE_SIZE = 128 * 1024 * 1024 * 1024  # 128 GB
 
 
-class TaskMediaBase(APIView):
-    queryset = models.Task.objects.all().select_related('project')
-    permission_classes = (AllowAny,)
-
-    def get_task(self, request, pk, project_pk, perms=('view_project',)):
-        try:
-            task = self.queryset.get(pk=pk, project=project_pk)
-        except (ObjectDoesNotExist, ValidationError):
-            raise exceptions.NotFound()
-
-        if not (task.public or task.project.public):
-            check_project_perms(request, task.project, perms)
-        elif perms != ('view_project',):
-            check_project_perms(request, task.project, perms)
-
-        return task
-
+class TaskMediaBase(TaskNestedView):
     @staticmethod
     def _lock_task(task_pk):
         return models.Task.objects.select_for_update().get(pk=task_pk)
@@ -48,7 +34,9 @@ class TaskMediaUpload(TaskMediaBase):
     parser_classes = (parsers.MultiPartParser, parsers.FormParser)
 
     def post(self, request, pk=None, project_pk=None):
-        task = self.get_task(request, pk, project_pk, ('change_project',))
+        task = self.get_and_check_task(request, pk)
+        check_project_perms(request, task.project, perms=("change_project", ))
+        
 
         files = flatten_files(request.FILES)
         if len(files) == 0:
@@ -158,7 +146,7 @@ class TaskMediaManage(TaskMediaBase):
     parser_classes = (parsers.JSONParser, parsers.FormParser, parsers.MultiPartParser)
 
     def get(self, request, pk=None, project_pk=None, filename=None):
-        task = self.get_task(request, pk, project_pk, ('view_project',))
+        task = self.get_and_check_task(request, pk)
         if not task.media:
             raise exceptions.NotFound()
 
@@ -169,8 +157,9 @@ class TaskMediaManage(TaskMediaBase):
         raise exceptions.NotFound()
 
     def patch(self, request, pk=None, project_pk=None, filename=None):
-        task = self.get_task(request, pk, project_pk, ('change_project',))
-
+        task = self.get_and_check_task(request, pk)
+        check_project_perms(request, task.project, perms=("change_project", ))
+        
         with transaction.atomic():
             task = self._lock_task(task.pk)
             if not task.media:
@@ -192,8 +181,9 @@ class TaskMediaManage(TaskMediaBase):
         return Response({'success': True, 'media': task.media}, status=status.HTTP_200_OK)
 
     def delete(self, request, pk=None, project_pk=None, filename=None):
-        task = self.get_task(request, pk, project_pk, ('change_project',))
-
+        task = self.get_and_check_task(request, pk)
+        check_project_perms(request, task.project, perms=("change_project", ))
+        
         media_dir = task.media_directory_path()
         filepath = os.path.join(media_dir, filename)
 
@@ -222,7 +212,7 @@ class TaskMediaManage(TaskMediaBase):
 
 class TaskMediaDownload(TaskMediaBase):
     def get(self, request, pk=None, project_pk=None, filename=None):
-        task = self.get_task(request, pk, project_pk, ('view_project',))
+        task = self.get_and_check_task(request, pk)
 
         media_dir = task.media_directory_path()
         filepath = os.path.join(media_dir, filename)
@@ -236,27 +226,44 @@ class TaskMediaDownload(TaskMediaBase):
             raise exceptions.NotFound()
 
         content_type = mimetypes.guess_type(filepath)[0] or 'application/octet-stream'
-
-        thumb = request.GET.get('thumbnail')
-        if thumb is not None:
-            ext = os.path.splitext(filepath)[1].lower()
-            if ext in models.Task.PHOTO_EXTENSIONS:
-                try:
-                    from PIL import Image
-                    import io
-                    size = int(thumb) if thumb else 256
-                    size = min(max(size, 32), 1024)
-                    with Image.open(filepath) as im:
-                        im.thumbnail((size, size))
-                        buf = io.BytesIO()
-                        fmt = 'JPEG'
-                        im.save(buf, format=fmt)
-                        buf.seek(0)
-                        return FileResponse(buf, content_type='image/jpeg')
-                except Exception:
-                    pass
-
         response = FileResponse(open(filepath, 'rb'), content_type=content_type)
         response['Content-Disposition'] = f'inline; filename={filename}'
         response['Content-Length'] = os.path.getsize(filepath)
         return response
+
+class TaskMediaThumbnail(TaskMediaBase):
+    def get(self, request, pk=None, project_pk=None, filename=None):
+        task = self.get_and_check_task(request, pk)
+
+        media_dir = task.media_directory_path()
+        filepath = os.path.join(media_dir, filename)
+
+        try:
+            filepath = path_traversal_check(filepath, media_dir)
+        except SuspiciousFileOperation:
+            raise exceptions.NotFound()
+
+        if not os.path.isfile(filepath):
+            raise exceptions.NotFound()
+
+        thumb_size = request.GET.get('size', 256)
+        try:
+            thumb_size = min(1024, max(1, int(thumb_size)))
+        except:
+            raise exceptions.ValidationError(detail="Invalid thumb size")
+            
+        ext = os.path.splitext(filepath)[1].lower()
+        print(ext)
+        if ext in models.Task.PHOTO_EXTENSIONS:
+            try:
+                with Image.open(filepath) as im:
+                    im.thumbnail((thumb_size, thumb_size))
+                    buf = io.BytesIO()
+                    fmt = 'JPEG'
+                    im.save(buf, format=fmt)
+                    buf.seek(0)
+                    return FileResponse(buf, content_type='image/jpeg')
+            except Exception:
+                raise exceptions.ValidationError(detail="Thumbnail not supported for this media type")
+        else:
+            raise exceptions.ValidationError(detail="Thumbnail not available")
