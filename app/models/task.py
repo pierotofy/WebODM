@@ -42,6 +42,7 @@ from app.pointcloud_utils import is_pointcloud_georeferenced
 from app.testwatch import testWatch
 from app.security import path_traversal_check
 from app.geoutils import geom_transform, epsg_from_wkt, get_raster_bounds_wkt, get_srs_name_units_from_epsg_or_wkt
+from app.imageutils import extract_gps_from_image
 from nodeodm import status_codes
 from nodeodm.models import ProcessingNode
 from pyodm.exceptions import NodeResponseError, NodeConnectionError, NodeServerError, OdmError
@@ -49,6 +50,7 @@ from webodm import settings
 from app.classes.gcp import GCPFile
 from .project import Project
 from django.utils.translation import gettext_lazy as _, gettext
+
 
 from functools import partial
 import subprocess
@@ -1319,72 +1321,6 @@ class Task(models.Model):
             pass
         return False
 
-    @staticmethod
-    def extract_gps_from_image(filepath):
-        try:
-            with Image.open(filepath) as im:
-                exif = im._getexif()
-                if exif is None:
-                    return None
-                gps_info = exif.get(34853)
-                if gps_info is None:
-                    return None
-
-                def to_decimal(values, ref):
-                    d = float(values[0])
-                    m = float(values[1])
-                    s = float(values[2])
-                    dec = d + m / 60.0 + s / 3600.0
-                    if ref in ('S', 'W'):
-                        dec = -dec
-                    return dec
-
-                lat = to_decimal(gps_info.get(2, (0, 0, 0)), gps_info.get(1, 'N'))
-                lon = to_decimal(gps_info.get(4, (0, 0, 0)), gps_info.get(3, 'E'))
-                alt = None
-                if 6 in gps_info:
-                    alt = float(gps_info[6])
-                    if gps_info.get(5, 0) == 1:
-                        alt = -alt
-
-                if lat == 0.0 and lon == 0.0:
-                    return None
-
-                result = [lon, lat]
-                if alt is not None:
-                    result.append(alt)
-                return result
-        except Exception:
-            return None
-
-    @staticmethod
-    def extract_gps_from_video(filepath):
-        try:
-            exiftool = shutil.which('exiftool')
-            if not exiftool:
-                return None
-            result = subprocess.run(
-                [exiftool, '-GPSLatitude', '-GPSLongitude', '-GPSAltitude', '-n', '-s3', filepath],
-                capture_output=True, text=True, timeout=30
-            )
-            lines = result.stdout.strip().split('\n')
-            if len(lines) < 2:
-                return None
-            lat = float(lines[0].strip())
-            lon = float(lines[1].strip())
-            if lat == 0.0 and lon == 0.0:
-                return None
-            coords = [lon, lat]
-            if len(lines) >= 3:
-                try:
-                    alt = float(lines[2].strip())
-                    coords.append(alt)
-                except (ValueError, IndexError):
-                    pass
-            return coords
-        except Exception:
-            return None
-
     def build_media_entry(self, filepath):
         filename = os.path.basename(filepath)
         media_type = self.get_media_type(filepath)
@@ -1392,11 +1328,13 @@ class Task(models.Model):
             return None
 
         size = os.path.getsize(filepath)
-        if media_type == 'video':
-            geolocation = self.extract_gps_from_video(filepath)
-        else:
-            geolocation = self.extract_gps_from_image(filepath)
+        geolocation = None
 
+        if media_type in ['photo', 'pano']:
+            geolocation = extract_gps_from_image(filepath)
+        elif media_type == 'video':
+            pass # TODO!!!
+        
         existing = None
         if self.media:
             for entry in self.media:
