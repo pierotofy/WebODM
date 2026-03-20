@@ -267,6 +267,13 @@ class MediaView extends React.Component {
         video.autoplay = true;
         overlay.appendChild(video);
 
+        if (this.props.media.description) {
+            const desc = document.createElement('div');
+            desc.className = 'media-description';
+            desc.textContent = this.props.media.description;
+            overlay.appendChild(desc);
+        }
+
         document.body.appendChild(overlay);
     }
 
