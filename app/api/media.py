@@ -226,9 +226,32 @@ class TaskMediaDownload(TaskMediaBase):
             raise exceptions.NotFound()
 
         content_type = mimetypes.guess_type(filepath)[0] or 'application/octet-stream'
+        file_size = os.path.getsize(filepath)
+
+        range_header = request.META.get('HTTP_RANGE', '').strip()
+        if range_header:
+            range_match = re.match(r'bytes=(\d+)-(\d*)', range_header)
+            if range_match:
+                start = int(range_match.group(1))
+                end = int(range_match.group(2)) if range_match.group(2) else file_size - 1
+                end = min(end, file_size - 1)
+                if start > end or start >= file_size:
+                    response = FileResponse(status=416)
+                    response['Content-Range'] = f'bytes */{file_size}'
+                    return response
+                length = end - start + 1
+                f = open(filepath, 'rb')
+                f.seek(start)
+                response = FileResponse(f, content_type=content_type, status=206)
+                response['Content-Range'] = f'bytes {start}-{end}/{file_size}'
+                response['Content-Length'] = length
+                response['Accept-Ranges'] = 'bytes'
+                return response
+
         response = FileResponse(open(filepath, 'rb'), content_type=content_type)
         response['Content-Disposition'] = f'inline; filename={filename}'
-        response['Content-Length'] = os.path.getsize(filepath)
+        response['Content-Length'] = file_size
+        response['Accept-Ranges'] = 'bytes'
         return response
 
 class TaskMediaThumbnail(TaskMediaBase):

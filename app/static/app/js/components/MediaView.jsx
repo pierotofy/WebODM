@@ -83,6 +83,8 @@ class MediaView extends React.Component {
             this.panoViewer.destroy();
             this.panoViewer = null;
         }
+
+        this.closeVideoViewer();
     }
 
     onFullscreenChange = (e) => {
@@ -223,6 +225,51 @@ class MediaView extends React.Component {
             '/static/app/js/vendor/pannellum/pannellum.js'], 'pannellum');
     }
 
+    getVideoUrl() {
+        return `${this.props.basePath}/download/${encodeURIComponent(this.props.media.filename)}`;
+    }
+
+    closeVideoViewer = () => {
+        if (this.videoOverlay) {
+            this.videoOverlay.remove();
+            this.videoOverlay = null;
+        }
+        if (this.videoEscHandler) {
+            document.removeEventListener('keydown', this.videoEscHandler, true);
+            this.videoEscHandler = null;
+        }
+    }
+
+    openVideoViewer = () => {
+        const overlay = document.createElement('div');
+        overlay.className = 'video-overlay';
+        this.videoOverlay = overlay;
+
+        this.videoEscHandler = (e) => {
+            if (e.key === 'Escape') {
+                e.stopImmediatePropagation();
+                e.preventDefault();
+                this.closeVideoViewer();
+            }
+        };
+        document.addEventListener('keydown', this.videoEscHandler, true);
+
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'video-close-btn';
+        closeBtn.innerHTML = '&times;';
+        closeBtn.onclick = () => this.closeVideoViewer();
+        overlay.appendChild(closeBtn);
+
+        const video = document.createElement('video');
+        video.className = 'video-player';
+        video.src = this.getVideoUrl();
+        video.controls = true;
+        video.autoplay = true;
+        overlay.appendChild(video);
+
+        document.body.appendChild(overlay);
+    }
+
     openPanoViewer = () => {
         this.loadPannellum().then(() => {
             const overlay = document.createElement('div');
@@ -272,6 +319,10 @@ class MediaView extends React.Component {
             this.openPanoViewer();
             return;
         }
+        if (this.props.media.type === 'video') {
+            this.openVideoViewer();
+            return;
+        }
 
         const { expandThumb } = this.state;
         
@@ -297,6 +348,8 @@ class MediaView extends React.Component {
 
         const imageUrl = expandThumb ? this.getImageUrl() : this.getThumbUrl();
 
+        const isVideo = this.props.media.type === 'video';
+
         return (<div className="media-view" ref={this.ref}>
             {(loading || !visible) ? <div><i className="fa fa-circle-notch fa-spin fa-fw media-loading"></i></div>
                 : ""}
@@ -304,7 +357,10 @@ class MediaView extends React.Component {
                 : visible ? <div className="media-thumb-container">
                     <div ref={(domNode) => { this.image = domNode; }} className={`media-view-image ${expandThumb ? "fullscreen" : ""} ${dragging ? "dragging" : ""}`}>
                         {loading && expandThumb ? <div><i className="fa fa-circle-notch fa-spin fa-fw"></i></div> : ""}
-                        <div className="media-thumb" draggable="false" onClick={this.onImgClick}><img draggable="false" style={{ borderRadius: "4px", transform: `translate(${translateX}px, ${translateY}px) scale(${scale})` }} src={imageUrl} onLoad={this.imageOnLoad} onError={this.imageOnError} alt={this.props.media.filename} title={this.props.media.filename} /></div>
+                        <div className="media-thumb" draggable="false" onClick={this.onImgClick}>
+                            <img draggable="false" style={{ borderRadius: "4px", transform: `translate(${translateX}px, ${translateY}px) scale(${scale})` }} src={imageUrl} onLoad={this.imageOnLoad} onError={this.imageOnError} alt={this.props.media.filename} title={this.props.media.filename} />
+                            {isVideo && !loading ? <div className="video-play-overlay"><i className="fa fa-play"></i></div> : ""}
+                        </div>
                         {expandThumb && this.props.media.description ?
                             <div className="media-description">{this.props.media.description}</div>
                             : ""}
