@@ -24,15 +24,15 @@ class ManageMediaDialog extends React.Component {
     task: PropTypes.object.isRequired,
     projectId: PropTypes.number.isRequired,
     canEdit: PropTypes.bool.isRequired,
-    onClose: PropTypes.func.isRequired,
-    onMediaUpdated: PropTypes.func,
+    onClose: PropTypes.func.isRequired
   };
 
   constructor(props) {
     super(props);
     this.state = {
       error: '',
-      media: props.task.media,
+      media: [],
+      loading: true,
       uploading: false,
       progress: 0,
       files: [],
@@ -67,6 +67,8 @@ class ManageMediaDialog extends React.Component {
     $(this.modal).on('hidden.bs.modal', () => {
       if (this._mounted) this.props.onClose();
     });
+
+    this.fetchMedia();
 
     if (this.props.canEdit && this.dropzone) {
       Dropzone.autoDiscover = false;
@@ -177,9 +179,12 @@ class ManageMediaDialog extends React.Component {
 
                     // Check response
                     let response = JSON.parse(file.xhr.response);
-                    if (response.success && response.media) {
-                      this.setState({ media: response.media });
-                      this.notifyParent(response.media);
+                    if (response.success && response.added) {
+                      this.setState(prevState => {
+                        const existing = new Map(prevState.media.map(e => [e.filename, e]));
+                        response.added.forEach(e => existing.set(e.filename, e));
+                        return { media: Array.from(existing.values()) };
+                      });
                     }
 
                     if (response.success){
@@ -243,16 +248,26 @@ class ManageMediaDialog extends React.Component {
     $(this.modal).off('hidden.bs.modal').modal('hide');
   }
 
+  fetchMedia() {
+    $.getJSON(this.mediaUrl())
+      .done((media) => {
+        if (this._mounted) this.setState({ media, loading: false });
+      })
+      .fail(() => {
+        if (this._mounted) this.setState({ error: _('Cannot load media.'), loading: false });
+      });
+  }
+
   uploadUrl() {
     return `/api/projects/${this.props.projectId}/tasks/${this.props.task.id}/media/upload`;
   }
 
-  downloadUrl(filename) {
-    return `/api/projects/${this.props.projectId}/tasks/${this.props.task.id}/media/download/${encodeURIComponent(filename)}`;
+  mediaUrl() {
+    return `/api/projects/${this.props.projectId}/tasks/${this.props.task.id}/media/`;
   }
 
-  notifyParent(media) {
-    if (this.props.onMediaUpdated) this.props.onMediaUpdated(media);
+  downloadUrl(filename) {
+    return `/api/projects/${this.props.projectId}/tasks/${this.props.task.id}/media/download/${encodeURIComponent(filename)}`;
   }
 
   handleDelete = (filename) => {
@@ -264,9 +279,10 @@ class ManageMediaDialog extends React.Component {
       dataType: 'json',
     })
       .done((resp) => {
-        if (resp.media !== undefined) {
-          this.setState({ media: resp.media });
-          this.notifyParent(resp.media);
+        if (resp.success) {
+          this.setState(prevState => ({
+            media: prevState.media.filter(e => e.filename !== filename)
+          }));
         }
       })
       .fail(() => {
@@ -291,9 +307,14 @@ class ManageMediaDialog extends React.Component {
       dataType: 'json',
     })
       .done((resp) => {
-        if (resp.media) {
-          this.setState({ media: resp.media, editingDescription: null, descriptionValue: '' });
-          this.notifyParent(resp.media);
+        if (resp.success) {
+          this.setState(prevState => ({
+            media: prevState.media.map(e =>
+              e.filename === filename ? {...e, description: this.state.descriptionValue} : e
+            ),
+            editingDescription: null,
+            descriptionValue: ''
+          }));
         }
       })
       .fail(() => {
@@ -443,8 +464,8 @@ class ManageMediaDialog extends React.Component {
         {media.map((entry) => (
           <div key={entry.filename} className="media-card">
             <MediaView basePath={`/api/projects/${this.props.projectId}/tasks/${this.props.task.id}/media`} media={entry} />
-            <div className="card-details theme-secondary-complementary">
-              <div className="card-filename" title={entry.filename}>
+            <div className="card-details theme-secondary">
+              <div className="card-filename theme-secondary-complementary" title={entry.filename}>
                 {entry.filename}
               </div>
             </div>
@@ -510,7 +531,7 @@ class ManageMediaDialog extends React.Component {
   }
 
   render() {
-    const { media, viewMode } = this.state;
+    const { media, viewMode, loading } = this.state;
 
     return (
       <div ref={(el) => (this.modal = el)} className="modal manage-media-dialog" tabIndex="-1" data-backdrop="static">
@@ -525,16 +546,18 @@ class ManageMediaDialog extends React.Component {
             <div className="modal-body">
               <ErrorMessage bind={[this, 'error']} />
               {this.renderUploadArea()}
-              {media.length === 0
-                ? this.renderEmpty()
-                : (
-                  <div>
-                    <div className="media-toolbar">
-                      {this.renderViewToggle()}
+              {loading
+                ? <div className="media-dialog-loading"><i className="fa fa-circle-notch fa-fw fa-spin"></i></div>
+                : media.length === 0
+                  ? this.renderEmpty()
+                  : (
+                    <div>
+                      <div className="media-toolbar">
+                        {this.renderViewToggle()}
+                      </div>
+                      {viewMode === 'grid' ? this.renderGrid() : this.renderList()}
                     </div>
-                    {viewMode === 'grid' ? this.renderGrid() : this.renderList()}
-                  </div>
-                )
+                  )
               }
             </div>
             <div className="modal-footer">

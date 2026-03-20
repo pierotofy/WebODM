@@ -31,6 +31,12 @@ class TaskMediaBase(TaskNestedView):
         return models.Task.objects.select_for_update().get(pk=task_pk)
 
 
+class TaskMediaList(TaskMediaBase):
+    def get(self, request, pk=None, project_pk=None):
+        task = self.get_and_check_task(request, pk)
+        return Response(task.media if task.media else [], status=status.HTTP_200_OK)
+
+
 class TaskMediaUpload(TaskMediaBase):
     parser_classes = (parsers.MultiPartParser, parsers.FormParser)
 
@@ -122,6 +128,7 @@ class TaskMediaUpload(TaskMediaBase):
                 raise exceptions.ValidationError(detail=_("File exceeds maximum allowed size"))
             uploaded[name] = fsize
 
+        added = []
         if len(uploaded) > 0:
             with transaction.atomic():
                 task = self._lock_task(task.pk)
@@ -131,6 +138,7 @@ class TaskMediaUpload(TaskMediaBase):
                     entry = task.build_media_entry(fp)
                     if entry is not None:
                         existing[name] = entry
+                        added.append(entry)
                 entries = list(existing.values())
                 entries.sort(key=lambda e: (
                     task.MEDIA_TYPE_ORDER.get(e['type'], 99),
@@ -140,7 +148,8 @@ class TaskMediaUpload(TaskMediaBase):
                 task.update_size()
                 task.save()
 
-        return Response({'success': True, 'uploaded': uploaded, 'media': task.media}, status=status.HTTP_200_OK)
+        result = {'success': True, 'uploaded': uploaded, 'added': added}
+        return Response(result, status=status.HTTP_200_OK)
 
 
 class TaskMediaManage(TaskMediaBase):
@@ -179,7 +188,7 @@ class TaskMediaManage(TaskMediaBase):
 
             task.save()
 
-        return Response({'success': True, 'media': task.media}, status=status.HTTP_200_OK)
+        return Response({'success': True}, status=status.HTTP_200_OK)
 
     def delete(self, request, pk=None, project_pk=None, filename=None):
         task = self.get_and_check_task(request, pk)
@@ -204,10 +213,7 @@ class TaskMediaManage(TaskMediaBase):
             task.update_size()
             task.save()
 
-        return Response({
-            'success': True,
-            'media': task.media,
-        }, status=status.HTTP_200_OK)
+        return Response({'success': True}, status=status.HTTP_200_OK)
 
 
 class TaskMediaDownload(TaskMediaBase):

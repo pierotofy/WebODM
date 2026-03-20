@@ -299,7 +299,7 @@ class MediaView extends React.Component {
             },
             showControls: false,
             autoRotate: -1,
-            title: media.description || ""
+            title: Utils.escapeHtml(media.description) || ""
         };
     }
 
@@ -373,9 +373,7 @@ class MediaView extends React.Component {
 
     render() {
         const { error, visible, loading, expandThumb, dragging, translateX, translateY, scale } = this.state;
-
         const imageUrl = expandThumb ? this.getImageUrl() : this.getThumbUrl();
-
         const isVideo = this.props.media.type === 'video';
 
         return (<div className="media-view" ref={this.ref}>

@@ -1,25 +1,39 @@
 .media-view{
     text-align: center;
 
-    div{
-        margin-top: 8px;
-    }
-
     .media-loading{
         position: relative;
         top: 40px;
     }
+    height: 134px;
 }
 
 div.media-view-image{
     overflow: hidden;
-    min-height: 144px;
+    height: 134px;
 
     .media-thumb{
         cursor: pointer;
         position: relative;
+        img{
+            width: 100%;
+        }
+
+        &:hover{
+            .video-play-overlay{
+                i{
+                    opacity: 1;
+                }
+            }
+        }
     }
     &.fullscreen{
+        .media-thumb{
+            img{
+                width: auto;
+            }
+        }
+        height: auto;
         position: absolute;
         left: 0;
         right: 0;
@@ -152,9 +166,8 @@ div.media-view-image{
     pointer-events: none;
 
     i.fa-play{
+        opacity: 0.85;
         font-size: 32px;
-        position: relative;
-        top: -16px;
         color: rgba(255, 255, 255, 0.95);
         text-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
     }

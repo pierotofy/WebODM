@@ -888,10 +888,6 @@ class TaskListItem extends React.Component {
                 projectId={task.project}
                 canEdit={this.props.hasPermission("change")}
                 onClose={() => this.setState({showMediaDialog: false})}
-                onMediaUpdated={(media) => {
-                  const t = Object.assign({}, this.state.task, {media});
-                  this.setState({task: t});
-                }}
             />
         : ""}
         <div className="row">
