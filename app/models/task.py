@@ -1404,13 +1404,23 @@ class Task(models.Model):
                     existing = entry
                     break
 
-        return {
+        entry = {
             'type': media_type,
             'filename': filename,
             'description': existing.get('description', '') if existing else '',
             'geolocation': geolocation,
             'size': size,
         }
+
+        if media_type == 'pano':
+            try:
+                with Image.open(filepath) as im:
+                    entry['width'] = im.size[0]
+                    entry['height'] = im.size[1]
+            except Exception:
+                pass
+
+        return entry
 
     def update_media_field(self, commit=False):
         media_dir = self.media_directory_path()

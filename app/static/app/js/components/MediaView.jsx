@@ -2,7 +2,6 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import '../css/MediaView.scss';
 import { _ } from '../classes/gettext';
-import $ from 'jquery';
 import Utils from '../classes/Utils';
 
 class MediaView extends React.Component {
@@ -277,6 +276,33 @@ class MediaView extends React.Component {
         document.body.appendChild(overlay);
     }
 
+    buildPanoConfig() {
+        const { media, basePath } = this.props;
+        const TILE_SIZE = 2048;
+        const imgW = media.width || 4096;
+        const cubeSize = 8 * Math.floor(imgW / Math.PI / 8);
+        const tileSize = Math.min(TILE_SIZE, cubeSize);
+        let levels = Math.ceil(Math.log(cubeSize / tileSize) / Math.log(2)) + 1;
+        if (levels >= 2 && Math.floor(cubeSize / Math.pow(2, levels - 2)) === tileSize) {
+            levels -= 1;
+        }
+        const tilePath = `${basePath}/panorama/${encodeURIComponent(media.filename)}/tiles/%l/%s/%y/%x`;
+        return {
+            autoLoad: true,
+            type: "multires",
+            multiRes: {
+                path: tilePath,
+                extension: "jpg",
+                tileResolution: tileSize,
+                maxLevel: levels,
+                cubeResolution: cubeSize,
+            },
+            showControls: false,
+            autoRotate: -1,
+            title: media.description || ""
+        };
+    }
+
     openPanoViewer = () => {
         this.loadPannellum().then(() => {
             const overlay = document.createElement('div');
@@ -291,8 +317,6 @@ class MediaView extends React.Component {
                 overlay.remove();
             };
 
-            // Prevent bootstrap models in the background
-            // from being closed
             const escHandler = (e) => {
                 if (e.key === 'Escape') {
                     e.stopImmediatePropagation();
@@ -314,10 +338,7 @@ class MediaView extends React.Component {
 
             document.body.appendChild(overlay);
 
-            $.getJSON(`${this.props.basePath}/panorama/${encodeURIComponent(this.props.media.filename)}/config.json`)
-                .done(config => {
-                    this.panoViewer = window.pannellum.viewer(container, config);
-                });
+            this.panoViewer = window.pannellum.viewer(container, this.buildPanoConfig());
         });
     }
 

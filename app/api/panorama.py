@@ -2,12 +2,10 @@ import os
 import io
 import math
 import logging
-import html
-
 import numpy as np
 from PIL import Image
 from django.core.exceptions import SuspiciousFileOperation
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse
 from rest_framework import exceptions
 
 from app.api.media import TaskMediaBase
@@ -101,39 +99,6 @@ def render_tile(filepath, face_index, tile_left, tile_top, tile_w, tile_h, size_
     py = np.clip(norm_py * ah - src_top, 0, arr.shape[0] - 1).astype(np.int32)
 
     return Image.fromarray(arr[py, px])
-
-class TaskPanoramaConfig(TaskMediaBase):
-    def get(self, request, pk=None, project_pk=None, filename=None):
-        task = self.get_and_check_task(request, pk)
-
-        entry = task.get_media_entry(filename)
-        if entry is None:
-            raise exceptions.NotFound()
-        
-        filepath = task.media_directory_path(entry.get('filename', 'invalid'))
-        if not os.path.isfile(filepath):
-            raise exceptions.NotFound()
-
-        cube_size, tile_size, levels = compute_params(filepath)
-
-        tile_path = f"/api/projects/{project_pk}/tasks/{pk}/media/panorama/{filename}/tiles/%l/%s/%y/%x"
-
-        config = {
-            "autoLoad": True,
-            "type": "multires",
-            "multiRes": {
-                "path": tile_path,
-                "extension": "jpg",
-                "tileResolution": tile_size,
-                "maxLevel": levels,
-                "cubeResolution": cube_size,
-            },
-            "showControls": False,
-            "autoRotate": -1,
-            "title": html.escape(entry.get('description', ''))
-        }
-
-        return JsonResponse(config)
 
 class TaskPanoramaTiles(TaskMediaBase):
     def get(self, request, pk=None, project_pk=None, filename=None, level=None, face=None, row=None, col=None):
