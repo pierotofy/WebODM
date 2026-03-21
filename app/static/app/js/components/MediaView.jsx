@@ -44,7 +44,6 @@ class MediaView extends React.Component {
                 if (entry.isIntersecting) {
                     setTimeout(() => {
                         if (this.image && !this.registeredEvents) {
-                            this.image.addEventListener("fullscreenchange", this.onFullscreenChange);
                             this.image.addEventListener("wheel", this.onMouseWheel);
                             this.image.addEventListener("mousedown", this.onMouseDown);
                             this.image.addEventListener("mousemove", this.onMouseMove);
@@ -67,7 +66,6 @@ class MediaView extends React.Component {
         if (this.observer) this.observer.disconnect();
 
         if (this.image) {
-            this.image.removeEventListener("fullscreenchange", this.onFullscreenChange);
             this.image.removeEventListener("wheel", this.onMouseWheel);
             this.image.removeEventListener("mousedown", this.onMouseDown);
             this.image.removeEventListener("mousemove", this.onMouseMove);
@@ -84,12 +82,6 @@ class MediaView extends React.Component {
         }
 
         this.closeVideoViewer();
-    }
-
-    onFullscreenChange = (e) => {
-        if (!document.fullscreenElement) {
-            this.setState({ expandThumb: false });
-        }
     }
 
     imageOnError = () => {
@@ -342,6 +334,14 @@ class MediaView extends React.Component {
         });
     }
 
+    photoEscHandler = (e) => {
+        if (e.key === 'Escape') {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+            this.onImgClick();
+        }
+    };
+
     onImgClick = () => {
         if (this.props.media.type === 'pano') {
             this.openPanoViewer();
@@ -352,6 +352,7 @@ class MediaView extends React.Component {
             return;
         }
 
+        // Photo
         const { expandThumb } = this.state;
         
         const image = this.image;
@@ -361,11 +362,13 @@ class MediaView extends React.Component {
             if (image.parentElement && image.parentElement.classList.contains('media-thumb-container')) {
                 this.originalParent = image.parentElement;
                 document.body.appendChild(image);
+                document.addEventListener('keydown', this.photoEscHandler, true);
             }
             this.setState({ loading: true, expandThumb: true, translateX: 0, translateY: 0, scale: 1 });
         } else if (!this.dragged) {
             if (image.parentElement === document.body && this.originalParent) {
                 this.originalParent.appendChild(image);
+                document.removeEventListener('keydown', this.photoEscHandler, true);
             }
             this.setState({ expandThumb: false, translateX: 0, translateY: 0, scale: 1 });
         }
@@ -384,7 +387,7 @@ class MediaView extends React.Component {
                     <div ref={(domNode) => { this.image = domNode; }} className={`media-view-image ${expandThumb ? "fullscreen" : ""} ${dragging ? "dragging" : ""}`}>
                         {loading && expandThumb ? <div><i className="fa fa-circle-notch fa-spin fa-fw"></i></div> : ""}
                         <div className="media-thumb" draggable="false" onClick={this.onImgClick}>
-                            <img draggable="false" style={{ borderRadius: "4px", transform: `translate(${translateX}px, ${translateY}px) scale(${scale})` }} src={imageUrl} onLoad={this.imageOnLoad} onError={this.imageOnError} alt={this.props.media.filename} title={this.props.media.filename} />
+                            <img draggable="false" style={{ visibility: loading ? "hidden" : "visible", borderRadius: "4px", transform: `translate(${translateX}px, ${translateY}px) scale(${scale})` }} src={imageUrl} onLoad={this.imageOnLoad} onError={this.imageOnError} alt={this.props.media.filename} title={this.props.media.filename} />
                             {isVideo && !loading ? <div className="video-play-overlay"><i className="fa fa-play"></i></div> : ""}
                         </div>
                         {expandThumb && this.props.media.description ?
