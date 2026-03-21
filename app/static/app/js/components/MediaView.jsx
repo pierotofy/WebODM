@@ -18,16 +18,12 @@ class MediaView extends React.Component {
         this.state = {
             error: "",
             visible: false,
-            loading: true,
-            expandThumb: false,
-
-            translateX: 0,
-            translateY: 0,
-            scale: 1,
-            dragging: false
+            loading: true
         }
 
-        this.registeredEvents = false;
+        this.translateX = 0;
+        this.translateY = 0;
+        this.scale = 1;
     }
 
     getImageUrl() {
@@ -42,18 +38,6 @@ class MediaView extends React.Component {
         this.observer = new IntersectionObserver(
             ([entry]) => {
                 if (entry.isIntersecting) {
-                    setTimeout(() => {
-                        if (this.image && !this.registeredEvents) {
-                            this.image.addEventListener("wheel", this.onMouseWheel);
-                            this.image.addEventListener("mousedown", this.onMouseDown);
-                            this.image.addEventListener("mousemove", this.onMouseMove);
-                            this.image.addEventListener("mouseup", this.onMouseUp);
-                            this.image.addEventListener("touchstart", this.onTouchStart);
-                            this.image.addEventListener("touchmove", this.onTouchMove);
-                            this.image.addEventListener("touchend", this.onTouchEnd);
-                            this.registeredEvents = true;
-                        }
-                    }, 0);
                     this.setState({ visible: true });
                     this.observer.disconnect();
                 }
@@ -65,22 +49,12 @@ class MediaView extends React.Component {
     componentWillUnmount() {
         if (this.observer) this.observer.disconnect();
 
-        if (this.image) {
-            this.image.removeEventListener("wheel", this.onMouseWheel);
-            this.image.removeEventListener("mousedown", this.onMouseDown);
-            this.image.removeEventListener("mousemove", this.onMouseMove);
-            this.image.removeEventListener("mouseup", this.onMouseUp);
-            this.image.removeEventListener("touchstart", this.onTouchStart);
-            this.image.removeEventListener("touchmove", this.onTouchMove);
-            this.image.removeEventListener("touchend", this.onTouchEnd);
-            this.registeredEvents = false;
-        }
-
         if (this.panoViewer) {
             this.panoViewer.destroy();
             this.panoViewer = null;
         }
 
+        this.closePhotoViewer();
         this.closeVideoViewer();
     }
 
@@ -93,21 +67,17 @@ class MediaView extends React.Component {
     }
 
     onMouseDown = (e) => {
-        if (!this.state.expandThumb) return;
-
-        const { translateX, translateY } = this.state;
         this.dragging = true;
         this.dragged = false;
         this.startMouseX = e.clientX;
-        this.startTranslateX = translateX;
+        this.startTranslateX = this.translateX;
         this.startMouseY = e.clientY;
-        this.startTranslateY = translateY;
+        this.startTranslateY = this.translateY;
     }
 
     onMouseUp = () => {
-        if (this.dragging) {
-            this.startMouseX = this.startMouseY = 0;
-            this.setState({ dragging: false });
+        if (this.dragging && this.photoOverlay) {
+            this.photoOverlay.classList.remove('dragging');
         }
         this.dragging = false;
     }
@@ -119,11 +89,10 @@ class MediaView extends React.Component {
 
             if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
                 this.dragged = true;
-                this.setState({
-                    dragging: true,
-                    translateX: dx + this.startTranslateX,
-                    translateY: dy + this.startTranslateY
-                });
+                this.translateX = dx + this.startTranslateX;
+                this.translateY = dy + this.startTranslateY;
+                if (this.photoOverlay) this.photoOverlay.classList.add('dragging');
+                this.applyFsTransform();
             }
         }
     }
@@ -178,35 +147,32 @@ class MediaView extends React.Component {
     }
 
     onMouseWheel = e => {
-        if (!this.image || !this.state.expandThumb) return;
-
-        let { translateX, translateY, scale } = this.state;
+        if (!this.fsImage) return;
 
         const maxScale = 60;
-
-        const rect = this.image.querySelector("img").getBoundingClientRect();
+        const rect = this.fsImage.getBoundingClientRect();
         const mouseX = e.clientX;
         const mouseY = e.clientY;
 
         const delta = -e.deltaY || e.wheelDelta || -e.detail;
         const zoomFactor = 1.0 + (2.0 * delta / Math.max(window.innerHeight, window.innerWidth));
-        const newScale = Math.max(1, scale * zoomFactor);
+        const newScale = Math.max(1, this.scale * zoomFactor);
 
         if (newScale > maxScale) return;
 
-        const imgX = (mouseX - rect.left) / scale;
-        const imgY = (mouseY - rect.top) / scale;
+        const imgX = (mouseX - rect.left) / this.scale;
+        const imgY = (mouseY - rect.top) / this.scale;
 
-        translateX -= imgX * (newScale - scale);
-        translateY -= imgY * (newScale - scale);
-        scale = newScale;
+        this.translateX -= imgX * (newScale - this.scale);
+        this.translateY -= imgY * (newScale - this.scale);
+        this.scale = newScale;
 
-        if (scale == 1) {
-            translateX = 0;
-            translateY = 0;
+        if (this.scale == 1) {
+            this.translateX = 0;
+            this.translateY = 0;
         }
 
-        this.setState({ translateX, translateY, scale });
+        this.applyFsTransform();
     }
 
 
@@ -334,13 +300,87 @@ class MediaView extends React.Component {
         });
     }
 
-    photoEscHandler = (e) => {
-        if (e.key === 'Escape') {
-            e.stopImmediatePropagation();
-            e.preventDefault();
-            this.onImgClick();
+    applyFsTransform = () => {
+        if (this.fsImage) {
+            this.fsImage.style.transform = `translate(${this.translateX}px, ${this.translateY}px) scale(${this.scale})`;
         }
-    };
+    }
+
+    openPhotoViewer = () => {
+        const overlay = document.createElement('div');
+        overlay.className = 'media-view-image fullscreen';
+        this.photoOverlay = overlay;
+
+        this.translateX = 0;
+        this.translateY = 0;
+        this.scale = 1;
+
+        const spinner = document.createElement('div');
+        spinner.innerHTML = '<i class="fa fa-circle-notch fa-spin fa-fw"></i>';
+        overlay.appendChild(spinner);
+
+        const thumb = document.createElement('div');
+        thumb.className = 'media-thumb';
+        thumb.draggable = false;
+        thumb.onclick = () => {
+            if (!this.dragged) this.closePhotoViewer();
+        };
+        overlay.appendChild(thumb);
+
+        const img = document.createElement('img');
+        img.draggable = false;
+        img.style.visibility = 'hidden';
+        img.style.borderRadius = '4px';
+        img.src = this.getImageUrl();
+        img.alt = this.props.media.filename;
+        img.title = this.props.media.filename;
+        this.fsImage = img;
+
+        img.onload = () => {
+            spinner.remove();
+            img.style.visibility = 'visible';
+        };
+
+        thumb.appendChild(img);
+
+        if (this.props.media.description) {
+            const desc = document.createElement('div');
+            desc.className = 'media-description';
+            desc.textContent = this.props.media.description;
+            overlay.appendChild(desc);
+        }
+
+        this.photoEscHandler = (e) => {
+            if (e.key === 'Escape') {
+                e.stopImmediatePropagation();
+                e.preventDefault();
+                this.closePhotoViewer();
+            }
+        };
+        document.addEventListener('keydown', this.photoEscHandler, true);
+
+        overlay.addEventListener('wheel', this.onMouseWheel);
+        overlay.addEventListener('mousedown', this.onMouseDown);
+        overlay.addEventListener('mousemove', this.onMouseMove);
+        overlay.addEventListener('mouseup', this.onMouseUp);
+        overlay.addEventListener('touchstart', this.onTouchStart);
+        overlay.addEventListener('touchmove', this.onTouchMove);
+        overlay.addEventListener('touchend', this.onTouchEnd);
+
+        document.body.appendChild(overlay);
+    }
+
+    closePhotoViewer = () => {
+        if (this.photoOverlay) {
+            this.photoOverlay.remove();
+            this.photoOverlay = null;
+        }
+        this.fsImage = null;
+        if (this.photoEscHandler) {
+            document.removeEventListener('keydown', this.photoEscHandler, true);
+            this.photoEscHandler = null;
+        }
+    }
 
     onImgClick = () => {
         if (this.props.media.type === 'pano') {
@@ -351,32 +391,11 @@ class MediaView extends React.Component {
             this.openVideoViewer();
             return;
         }
-
-        // Photo
-        const { expandThumb } = this.state;
-        
-        const image = this.image;
-        if (!image) return;
-
-        if (!expandThumb) {
-            if (image.parentElement && image.parentElement.classList.contains('media-thumb-container')) {
-                this.originalParent = image.parentElement;
-                document.body.appendChild(image);
-                document.addEventListener('keydown', this.photoEscHandler, true);
-            }
-            this.setState({ loading: true, expandThumb: true, translateX: 0, translateY: 0, scale: 1 });
-        } else if (!this.dragged) {
-            if (image.parentElement === document.body && this.originalParent) {
-                this.originalParent.appendChild(image);
-                document.removeEventListener('keydown', this.photoEscHandler, true);
-            }
-            this.setState({ expandThumb: false, translateX: 0, translateY: 0, scale: 1 });
-        }
+        this.openPhotoViewer();
     }
 
     render() {
-        const { error, visible, loading, expandThumb, dragging, translateX, translateY, scale } = this.state;
-        const imageUrl = expandThumb ? this.getImageUrl() : this.getThumbUrl();
+        const { error, visible, loading } = this.state;
         const isVideo = this.props.media.type === 'video';
 
         return (<div className="media-view" ref={this.ref}>
@@ -384,15 +403,11 @@ class MediaView extends React.Component {
                 : ""}
             {error !== "" ? <div style={{ marginTop: "8px" }}>{error}</div>
                 : visible ? <div className="media-thumb-container">
-                    <div ref={(domNode) => { this.image = domNode; }} className={`media-view-image ${expandThumb ? "fullscreen" : ""} ${dragging ? "dragging" : ""}`}>
-                        {loading && expandThumb ? <div><i className="fa fa-circle-notch fa-spin fa-fw"></i></div> : ""}
+                    <div className="media-view-image">
                         <div className="media-thumb" draggable="false" onClick={this.onImgClick}>
-                            <img draggable="false" style={{ visibility: loading ? "hidden" : "visible", borderRadius: "4px", transform: `translate(${translateX}px, ${translateY}px) scale(${scale})` }} src={imageUrl} onLoad={this.imageOnLoad} onError={this.imageOnError} alt={this.props.media.filename} title={this.props.media.filename} />
+                            <img draggable="false" style={{ visibility: loading ? "hidden" : "visible", borderRadius: "4px" }} src={this.getThumbUrl()} onLoad={this.imageOnLoad} onError={this.imageOnError} alt={this.props.media.filename} title={this.props.media.filename} />
                             {isVideo && !loading ? <div className="video-play-overlay"><i className="fa fa-play"></i></div> : ""}
                         </div>
-                        {expandThumb && this.props.media.description ?
-                            <div className="media-description">{this.props.media.description}</div>
-                            : ""}
                     </div>
                 </div> : ""}
         </div>);
