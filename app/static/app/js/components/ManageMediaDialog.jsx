@@ -94,6 +94,7 @@ class ManageMediaDialog extends React.Component {
       });
 
       this.dz.on("addedfiles", files => {
+          this.resetUploadState();
           let totalBytes = 0;
 
           for (let i = 0; i < files.length; i++){
@@ -365,7 +366,7 @@ class ManageMediaDialog extends React.Component {
         >
           <i className="glyphicon glyphicon-upload"></i> {_('Upload Files')}
         </button>
-        <span className="upload-hint">{_('Photos, panoramas, or videos')}</span>
+        <span className="upload-hint">{_('Georeferenced photos, panoramas and videos will be displayed on the map.')}</span>
         {uploading && (
           <div className="upload-progress-area">
             <UploadProgressBar

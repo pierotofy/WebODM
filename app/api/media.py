@@ -179,7 +179,7 @@ class TaskMediaManage(TaskMediaBase):
             for entry in task.media:
                 if entry['filename'] == filename:
                     if 'description' in request.data:
-                        entry['description'] = str(request.data['description'])[:1024]
+                        entry['description'] = str(request.data['description'])[:4096]
                     found = True
                     break
 

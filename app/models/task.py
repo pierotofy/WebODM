@@ -43,6 +43,7 @@ from app.testwatch import testWatch
 from app.security import path_traversal_check
 from app.geoutils import geom_transform, epsg_from_wkt, get_raster_bounds_wkt, get_srs_name_units_from_epsg_or_wkt
 from app.imageutils import extract_gps_from_image
+from app.video import extract_subtitles, srt_file_for_video, extract_gps_from_srt
 from nodeodm import status_codes
 from nodeodm.models import ProcessingNode
 from pyodm.exceptions import NodeResponseError, NodeConnectionError, NodeServerError, OdmError
@@ -1330,34 +1331,38 @@ class Task(models.Model):
         size = os.path.getsize(filepath)
         geolocation = None
 
-        if media_type in ['photo', 'pano']:
-            geolocation = extract_gps_from_image(filepath)
-        elif media_type == 'video':
-            pass # TODO!!!
-        
         existing = None
         if self.media:
             for entry in self.media:
                 if entry.get('filename') == filename:
                     existing = entry
-                    break
+                    break   
 
         entry = {
             'type': media_type,
             'filename': filename,
             'description': existing.get('description', '') if existing else '',
-            'geolocation': geolocation,
             'size': size,
         }
 
-        if media_type == 'pano':
-            try:
-                with Image.open(filepath) as im:
-                    entry['width'] = im.size[0]
-                    entry['height'] = im.size[1]
-            except Exception:
-                pass
+        if media_type in ['photo', 'pano']:
+            geolocation = extract_gps_from_image(filepath)
+            if media_type == 'pano':
+                try:
+                    with Image.open(filepath) as im:
+                        entry['width'] = im.size[0]
+                        entry['height'] = im.size[1]
+                except Exception:
+                    pass
 
+        elif media_type == 'video':
+            # Try to extract SRT, parse geolocation at t = 0
+            if extract_subtitles(filepath):
+                srt_file = srt_file_for_video(filepath)
+                geolocation = extract_gps_from_srt(srt_file)
+        
+        entry['geolocation'] = geolocation
+        
         return entry
 
     def update_media_field(self, commit=False):
