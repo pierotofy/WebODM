@@ -8,6 +8,7 @@ from app.geoutils import utm_transformers_from_lonlat
 
 logger = logging.getLogger('app.logger')
 
+VIDEO_EXTENSIONS = {'.mp4', '.mov', '.avi', '.mkv', '.webm'}
 
 def match_single(regexes, line, dtype=int):
     if isinstance(regexes, str):
@@ -267,6 +268,19 @@ def srt_file_for_video(video_path):
     srt_file = base + '.srt'
     return srt_file
 
+def video_file_for_srt(srt_path):
+    base, ext = os.path.splitext(srt_path)
+    
+    for video_ext in VIDEO_EXTENSIONS:
+        video_path = base + video_ext
+        if os.path.isfile(video_path):
+            return video_path
+        
+        video_path = base + video_ext.upper()
+        if os.path.isfile(video_path):
+            return video_path
+        
+    return None
 
 def extract_subtitles(video_path):
     srt_file = srt_file_for_video(video_path)
@@ -282,11 +296,9 @@ def extract_subtitles(video_path):
     ]
 
     process = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
-    print(" ".join(command))
     try:
         process.communicate(timeout=15)
     except Exception as e:
-        print(str(e))
         process.kill()
         process.communicate()
         logger.warning(f"Error: ffmpeg error while extracting subs from {video_path}: {str(e)}")

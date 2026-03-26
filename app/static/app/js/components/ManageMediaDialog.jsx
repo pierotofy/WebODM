@@ -10,8 +10,7 @@ import MediaView from './MediaView';
 import { _, interpolate } from '../classes/gettext';
 
 const MAX_FILE_SIZE = 128 * 1024 * 1024 * 1024;
-const ACCEPTED_EXTENSIONS = '.jpg,.jpeg,.png,.tif,.tiff,.mp4,.mov,.avi,.mkv,.webm';
-const PHOTO_EXTS = new Set(['.jpg', '.jpeg', '.png', '.tif', '.tiff']);
+const ACCEPTED_EXTENSIONS = '.jpg,.jpeg,.png,.tif,.tiff,.mp4,.mov,.avi,.mkv,.webm,.srt';
 
 class ManageMediaDialog extends React.Component {
   static defaultProps = {
@@ -419,7 +418,7 @@ class ManageMediaDialog extends React.Component {
     );
   }
 
-  renderDescriptionCell(entry) {
+  renderDescription(entry) {
     const { canEdit } = this.props;
     const { editingDescription } = this.state;
 
@@ -467,7 +466,7 @@ class ManageMediaDialog extends React.Component {
             <MediaView basePath={`/api/projects/${this.props.projectId}/tasks/${this.props.task.id}/media`} media={entry} />
             <div className="card-details theme-secondary">
               <div className="card-filename theme-secondary-complementary" title={entry.filename}>
-                {entry.filename}
+                {entry.filename + (entry.srt ? " + SRT" : "")}
               </div>
             </div>
             {canEdit && (
@@ -511,7 +510,7 @@ class ManageMediaDialog extends React.Component {
                   {entry.filename}
                 </a>
               </td>
-              <td>{this.renderDescriptionCell(entry)}</td>
+              <td>{this.renderDescription(entry)}</td>
               <td>{Utils.bytesToSize(entry.size)}</td>
               {canEdit && (
                 <td style={{ textAlign: "right" }}>

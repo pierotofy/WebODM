@@ -43,7 +43,7 @@ from app.testwatch import testWatch
 from app.security import path_traversal_check
 from app.geoutils import geom_transform, epsg_from_wkt, get_raster_bounds_wkt, get_srs_name_units_from_epsg_or_wkt
 from app.imageutils import extract_gps_from_image
-from app.video import extract_subtitles, srt_file_for_video, extract_gps_from_srt
+from app.video import extract_subtitles, srt_file_for_video, extract_gps_from_srt, VIDEO_EXTENSIONS as VIDEO_MOD_EXTENSIONS
 from nodeodm import status_codes
 from nodeodm.models import ProcessingNode
 from pyodm.exceptions import NodeResponseError, NodeConnectionError, NodeServerError, OdmError
@@ -1284,8 +1284,8 @@ class Task(models.Model):
         if commit: self.save()
 
     PHOTO_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.tif', '.tiff'}
-    VIDEO_EXTENSIONS = {'.mp4', '.mov', '.avi', '.mkv', '.webm'}
-    MEDIA_EXTENSIONS = PHOTO_EXTENSIONS | VIDEO_EXTENSIONS
+    VIDEO_EXTENSIONS = VIDEO_MOD_EXTENSIONS
+    MEDIA_EXTENSIONS = PHOTO_EXTENSIONS | VIDEO_EXTENSIONS | {'.srt'}
     MEDIA_TYPE_ORDER = {'photo': 0, 'pano': 1, 'video': 2}
 
     @staticmethod
@@ -1360,6 +1360,7 @@ class Task(models.Model):
             if extract_subtitles(filepath):
                 srt_file = srt_file_for_video(filepath)
                 geolocation = extract_gps_from_srt(srt_file)
+                entry['srt'] = True
         
         entry['geolocation'] = geolocation
         

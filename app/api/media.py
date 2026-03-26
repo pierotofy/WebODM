@@ -13,7 +13,7 @@ from rest_framework import status, exceptions, parsers
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from app.video import extract_jpeg_bytes_from_video
+from app.video import extract_jpeg_bytes_from_video, srt_file_for_video, video_file_for_srt
 from django.core.files.uploadedfile import InMemoryUploadedFile
 
 from app import models
@@ -84,9 +84,12 @@ class TaskMediaUpload(TaskMediaBase):
             if name is None:
                 continue
             safe_name = sanitize_filename(name)
-            ext = os.path.splitext(safe_name)[1].lower()
-            if ext not in models.Task.MEDIA_EXTENSIONS:
+            base, ext = os.path.splitext(safe_name)
+            if ext.lower() not in models.Task.MEDIA_EXTENSIONS:
                 continue
+            if ext.lower() == ".srt":
+                # Always save SRTs as .srt (lowercase)
+                safe_name = base + ".srt"
 
             media_dir = task.media_directory_path()
             if not os.path.exists(media_dir):
@@ -135,6 +138,17 @@ class TaskMediaUpload(TaskMediaBase):
                 existing = {e['filename']: e for e in task.media}
                 for name in uploaded:
                     fp = os.path.join(media_dir, name)
+
+                    # Handle special case for SRT files
+                    # if a SRT file is uploaded after a video file
+                    # we need to re-parse the video file rather than the SRT file
+                    base, ext = os.path.splitext(name)
+                    if ext.lower() == ".srt":
+                        video_file = video_file_for_srt(fp)
+                        if video_file is not None:
+                            fp = video_file
+                            name = os.path.basename(fp)
+
                     entry = task.build_media_entry(fp)
                     if entry is not None:
                         existing[name] = entry
@@ -204,6 +218,14 @@ class TaskMediaManage(TaskMediaBase):
 
         if not os.path.isfile(filepath):
             raise exceptions.NotFound()
+
+        # If video, check if we need to delete SRT
+        base, ext = os.path.splitext(filepath)
+        ext = ext.lower()
+        if ext in task.VIDEO_EXTENSIONS:
+            srt_file = srt_file_for_video(filepath)
+            if os.path.isfile(srt_file):
+                os.remove(srt_file)
 
         os.remove(filepath)
 
