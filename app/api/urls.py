@@ -5,7 +5,7 @@ from app.plugins.views import api_view_handler
 from .projects import ProjectViewSet
 from .tasks import TaskViewSet, TaskDownloads, TaskThumbnail, TaskAssets, TaskBackup, \
   TaskAssetsImport, TaskExternalImportInit, TaskExternalImportUpload, TaskExternalImportCommit, TaskSafeTexturedModel
-from .media import TaskMediaUpload, TaskMediaManage, TaskMediaDownload, TaskMediaThumbnail, TaskMediaList
+from .media import TaskMediaUpload, TaskMediaManage, TaskMediaDownload, TaskMediaThumbnail, TaskMediaList, TaskMediaGeoJSON
 from .panorama import TaskPanoramaTiles
 from .imageuploads import Thumbnail, ImageDownload
 from .processingnodes import ProcessingNodeViewSet, ProcessingNodeOptionsView
@@ -56,6 +56,7 @@ urlpatterns = [
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/thumbnail$', TaskThumbnail.as_view()),
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/backup$', TaskBackup.as_view()),
 
+    url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/media.geojson$', TaskMediaGeoJSON.as_view()),
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/media/$', TaskMediaList.as_view()),
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/media/upload$', TaskMediaUpload.as_view()),
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/media/download/(?P<filename>.+)$', TaskMediaDownload.as_view()),

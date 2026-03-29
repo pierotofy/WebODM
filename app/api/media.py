@@ -36,6 +36,28 @@ class TaskMediaList(TaskMediaBase):
         task = self.get_and_check_task(request, pk)
         return Response(task.media if task.media else [], status=status.HTTP_200_OK)
 
+class TaskMediaGeoJSON(TaskMediaBase):
+    def get(self, request, pk=None, project_pk=None):
+        task = self.get_and_check_task(request, pk)
+
+        features = []
+        for entry in (task.media or []):
+            geo = entry.get('geolocation')
+            if not geo:
+                continue
+            features.append({
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": geo,
+                },
+                "properties": {k: v for k, v in entry.items() if k != 'geolocation'},
+            })
+
+        return Response({
+            "type": "FeatureCollection",
+            "features": features,
+        }, status=status.HTTP_200_OK)
 
 class TaskMediaUpload(TaskMediaBase):
     parser_classes = (parsers.MultiPartParser, parsers.FormParser)

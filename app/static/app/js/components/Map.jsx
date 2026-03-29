@@ -78,6 +78,7 @@ class Map extends React.Component {
     this.autolayers = null;
     this.taskCount = 1;
     this.addedCameraShots = {};
+    this.addedMediaLayer = {};
     this.zIndexGroupMap = {};
     this.ious = {};
 
@@ -454,6 +455,61 @@ class Map extends React.Component {
             let mapBounds = this.mapBounds || Leaflet.latLngBounds();
             mapBounds.extend(bounds);
             this.mapBounds = mapBounds;
+
+            // Add media layer if available
+            if (meta.task && meta.task.media && !this.addedMediaLayer[meta.task.id]){
+                const mediaTypes = ['photo', 'pano', 'video'];
+                const mediaIcons = mediaTypes.reduce((obj, type) => {
+                  obj[type] = L.icon({
+                    iconUrl: `/static/app/js/icons/marker-media-${type}.png`,
+                    iconSize: [41, 46],
+                    iconAnchor: [17, 46],
+                  })
+                  return obj;
+                }, {});
+                  
+                const mediaLayer = new L.MarkersCanvas();
+                
+                mediaLayer.lazyLoad = (cb) => {
+                  $.getJSON(meta.task.media)
+                    .done((geojson) => {
+                      if (geojson.type === 'FeatureCollection'){
+                        let markers = [];
+  
+                        geojson.features.forEach(s => {
+                          if (!s.properties) return;
+                          if (mediaTypes.indexOf(s.properties.type) === -1) return;
+
+                          let marker = L.marker(
+                            [s.geometry.coordinates[1], s.geometry.coordinates[0]],
+                            { icon: mediaIcons[s.properties.type] }
+                          );
+                          markers.push(marker);
+                        });
+  
+                        mediaLayer.addMarkers(markers, this.map);
+                      }
+                      cb();
+                    }).fail(() => {
+                      cb(new Error("Cannot load media markers"))
+                    });
+                };
+                mediaLayer[Symbol.for("meta")] = {
+                  name: _("Media"), 
+                  icon: "fa fa-image fa-fw",
+                  zIndexGroup
+                };
+                if (this.taskCount > 1){
+                  // Assign to a group
+                  mediaLayer[Symbol.for("meta")].group = {id: meta.task.id, name: meta.task.name};
+                }
+
+                this.setState(update(this.state, {
+                    overlays: {$push: [mediaLayer]}
+                }));
+
+                this.addedMediaLayer[meta.task.id] = true;
+            }
 
             // Add camera shots layer if available
             if (meta.task && meta.task.camera_shots && !this.addedCameraShots[meta.task.id]){

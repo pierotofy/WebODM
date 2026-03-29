@@ -552,7 +552,7 @@ class TaskListItem extends React.Component {
           }, { className: "btn-margin-right" });
         }
 
-        addActionButton(" " + _("Media"), "btn-primary", "fa fa-photo-video fa-fw", () => {
+        addActionButton(" " + _("Media"), "btn-primary", "fa fa-image fa-fw", () => {
           this.setState({showMediaDialog: true});
         });
       }
