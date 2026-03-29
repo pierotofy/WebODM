@@ -7,7 +7,9 @@ import Utils from '../classes/Utils';
 class MediaView extends React.Component {
     static propTypes = {
         basePath: PropTypes.string.isRequired,
-        media: PropTypes.object.isRequired
+        media: PropTypes.object.isRequired,
+        autoOpen: PropTypes.bool,
+        onClose: PropTypes.func
     };
 
     constructor(props) {
@@ -44,6 +46,8 @@ class MediaView extends React.Component {
             }
         );
         if (this.ref.current) this.observer.observe(this.ref.current);
+
+        if (this.props.autoOpen) this.onImgClick();
     }
 
     componentWillUnmount() {
@@ -195,6 +199,7 @@ class MediaView extends React.Component {
             document.removeEventListener('keydown', this.videoEscHandler, true);
             this.videoEscHandler = null;
         }
+        if (this.props.onClose) this.props.onClose();
     }
 
     openVideoViewer = () => {
@@ -273,6 +278,7 @@ class MediaView extends React.Component {
                 }
                 document.removeEventListener('keydown', escHandler, true);
                 overlay.remove();
+                if (this.props.onClose) this.props.onClose();
             };
 
             const escHandler = (e) => {
@@ -380,6 +386,7 @@ class MediaView extends React.Component {
             document.removeEventListener('keydown', this.photoEscHandler, true);
             this.photoEscHandler = null;
         }
+        if (this.props.onClose) this.props.onClose();
     }
 
     onImgClick = () => {
@@ -395,6 +402,8 @@ class MediaView extends React.Component {
     }
 
     render() {
+        if (this.props.autoOpen) return null;
+
         const { error, visible, loading } = this.state;
         const isVideo = this.props.media.type === 'video';
 

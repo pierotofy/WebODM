@@ -26,6 +26,10 @@
         background-size: 22px;
     }
 
+    .leaflet-fade-anim  .leaflet-popup{
+        transition: none;
+    }
+
     .leaflet-popup-content{
         .title{
             font-weight: bold;

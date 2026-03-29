@@ -12,6 +12,7 @@ import $ from 'jquery';
 import ErrorMessage from './ErrorMessage';
 import ImagePopup from './ImagePopup';
 import GCPPopup from './GCPPopup';
+import MediaView from './MediaView';
 import SwitchModeButton from './SwitchModeButton';
 import ShareButton from './ShareButton';
 import {addTempLayer} from '../classes/TempLayer';
@@ -485,6 +486,23 @@ class Map extends React.Component {
                             { icon: mediaIcons[s.properties.type] }
                           );
                           markers.push(marker);
+
+                          marker.on('click', (e) => {
+                            const basePath = `/api/projects/${meta.task.project}/tasks/${meta.task.id}/media`;
+                            const container = document.createElement('div');
+                            ReactDOM.render(<MediaView
+                              basePath={basePath}
+                              media={s.properties}
+                              autoOpen
+                              onClose={() => {
+                                ReactDOM.unmountComponentAtNode(container);
+                                container.remove();
+                                this.map.closePopup();
+                              }}
+                            />, container);
+                            document.body.appendChild(container);
+                          });
+
                         });
   
                         mediaLayer.addMarkers(markers, this.map);
