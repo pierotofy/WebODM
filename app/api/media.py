@@ -13,7 +13,7 @@ from rest_framework import status, exceptions, parsers
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from app.video import extract_jpeg_bytes_from_video, srt_file_for_video, video_file_for_srt
+from app.video import extract_jpeg_bytes_from_video, srt_file_for_video, video_file_for_srt, SrtFileParser
 from django.core.files.uploadedfile import InMemoryUploadedFile
 
 from app import models
@@ -258,6 +258,53 @@ class TaskMediaManage(TaskMediaBase):
             task.save()
 
         return Response({'success': True}, status=status.HTTP_200_OK)
+
+
+class TaskVideoFlightPath(TaskMediaBase):
+    def get(self, request, pk=None, project_pk=None, filename=None):
+        task = self.get_and_check_task(request, pk)
+
+        media_dir = task.media_directory_path()
+        filepath = os.path.join(media_dir, filename)
+
+        try:
+            filepath = path_traversal_check(filepath, media_dir)
+        except SuspiciousFileOperation:
+            raise exceptions.NotFound()
+
+        if not os.path.isfile(filepath):
+            raise exceptions.NotFound()
+
+        ext = os.path.splitext(filepath)[1].lower()
+        if ext not in models.Task.VIDEO_EXTENSIONS:
+            raise exceptions.ValidationError(detail="Not a video file")
+
+        srt_path = srt_file_for_video(filepath)
+        if not os.path.isfile(srt_path):
+            raise exceptions.NotFound(detail="No SRT file found")
+
+        resolution = request.GET.get('t', 1)
+        try:
+            resolution = max(0.1, float(resolution))
+        except (ValueError, TypeError):
+            resolution = 1
+
+        parser = SrtFileParser(srt_path)
+        coords, timestamps = parser.get_linestring(resolution=resolution)
+        if coords is None:
+            raise exceptions.NotFound(detail="No GPS data in SRT")
+
+        return Response({
+            "type": "Feature",
+            "geometry": {
+                "type": "LineString",
+                "coordinates": coords,
+            },
+            "properties": {
+                "timestamps": timestamps,
+                "filename": filename,
+            },
+        }, status=status.HTTP_200_OK)
 
 
 class TaskMediaDownload(TaskMediaBase):

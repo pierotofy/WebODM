@@ -9,7 +9,10 @@ class MediaView extends React.Component {
         basePath: PropTypes.string.isRequired,
         media: PropTypes.object.isRequired,
         autoOpen: PropTypes.bool,
-        onClose: PropTypes.func
+        onClose: PropTypes.func,
+        halfScreen: PropTypes.bool,
+        mapContainer: PropTypes.object,
+        onVideoElement: PropTypes.func
     };
 
     constructor(props) {
@@ -203,8 +206,10 @@ class MediaView extends React.Component {
     }
 
     openVideoViewer = () => {
+        const halfScreen = this.props.halfScreen && this.props.mapContainer;
+
         const overlay = document.createElement('div');
-        overlay.className = 'video-overlay';
+        overlay.className = halfScreen ? 'video-overlay video-half-screen' : 'video-overlay';
         this.videoOverlay = overlay;
 
         this.videoEscHandler = (e) => {
@@ -229,6 +234,10 @@ class MediaView extends React.Component {
         video.autoplay = true;
         overlay.appendChild(video);
 
+        if (this.props.onVideoElement) {
+            this.props.onVideoElement(video);
+        }
+
         if (this.props.media.description) {
             const desc = document.createElement('div');
             desc.className = 'media-description';
@@ -236,7 +245,11 @@ class MediaView extends React.Component {
             overlay.appendChild(desc);
         }
 
-        document.body.appendChild(overlay);
+        if (halfScreen) {
+            this.props.mapContainer.appendChild(overlay);
+        } else {
+            document.body.appendChild(overlay);
+        }
     }
 
     buildPanoConfig() {

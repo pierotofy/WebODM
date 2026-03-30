@@ -1,7 +1,7 @@
 import subprocess
 import numpy as np
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 import re
 import os
 from app.geoutils import utm_transformers_from_lonlat
@@ -116,6 +116,48 @@ class SrtFileParser:
                     sy + dy * t,
                     sz + dz * t
                 )
+
+    def get_linestring(self, resolution=1):
+        if not self.data:
+            self.parse()
+
+        if not self.data:
+            return None, None
+
+        first = self.data[0].get('start')
+        last = self.data[-1].get('end')
+        if first is None or last is None:
+            return None, None
+
+        duration = (last - first).total_seconds()
+        if duration <= 0:
+            return None, None
+
+        coords = []
+        timestamps = []
+
+        t = 0.0
+        while t <= duration:
+            ts = first + timedelta(seconds=t)
+            pos = self.get_gps(ts)
+            if pos is not None:
+                lon, lat, alt = pos
+                coords.append([lon, lat, alt])
+                timestamps.append(round(t, 3))
+            t += resolution
+
+        if round(duration, 3) not in timestamps:
+            ts = first + timedelta(seconds=duration)
+            pos = self.get_gps(ts)
+            if pos is not None:
+                lon, lat, alt = pos
+                coords.append([lon, lat, alt])
+                timestamps.append(round(duration, 3))
+
+        if len(coords) < 2:
+            return None, None
+
+        return coords, timestamps
 
     def parse(self):
 

@@ -1,6 +1,15 @@
 .map{
     position: relative; 
 
+    .video-marker-spinner{
+        background: none;
+        border: none;
+        i{
+            font-size: 28px;
+            color: #4A90D9;
+        }
+    }
+
     .opacity-slider{
         border-radius: 4px;
         text-align: center;

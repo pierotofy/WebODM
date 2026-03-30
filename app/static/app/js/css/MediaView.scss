@@ -71,6 +71,7 @@ div.media-view-image{
 
 .media-description{
     position: absolute;
+    pointer-events: none;
     bottom: 4px;
     left: 0;
     background-color: rgba(0, 0, 0, 0.7);
@@ -129,6 +130,12 @@ div.media-view-image{
     display: flex;
     align-items: center;
     justify-content: center;
+
+    &.video-half-screen{
+        position: absolute;
+        height: 50%;
+        bottom: auto;
+    }
 }
 
 .video-player{
