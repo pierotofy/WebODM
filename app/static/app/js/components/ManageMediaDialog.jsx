@@ -455,83 +455,8 @@ class ManageMediaDialog extends React.Component {
     );
   }
 
-  renderGrid() {
-    const { canEdit } = this.props;
-    const { media } = this.state;
-
-    return (
-      <div className="media-grid">
-        {media.map((entry) => (
-          <div key={entry.filename} className="media-card">
-            <MediaView basePath={`/api/projects/${this.props.projectId}/tasks/${this.props.task.id}/media`} media={entry} />
-            <div className="card-details theme-secondary">
-              <div className="card-filename theme-secondary-complementary" title={entry.filename}>
-                {entry.filename + (entry.srt ? " + SRT" : "")}
-              </div>
-            </div>
-            {canEdit && (
-              <button
-                className="card-delete-btn btn btn-xs btn-danger"
-                onClick={() => this.handleDelete(entry.filename)}
-                title={_('Delete')}
-              >
-                <i className="fa fa-trash"></i>
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  renderList() {
-    const { canEdit } = this.props;
-    const { media } = this.state;
-
-    return (
-      <table className="table table-striped media-table">
-        <thead>
-          <tr>
-            <th className="col-type"></th>
-            <th style={{ width: '25%' }}>{_('Filename')}</th>
-            <th style={{ width: '57%' }}>{_('Description')}</th>
-            <th style={{ width: '17%' }}>{_('Size')}</th>
-            {canEdit && <th></th>}
-          </tr>
-        </thead>
-        <tbody>
-          {media.map((entry) => (
-            <tr key={entry.filename}>
-              <td>
-                <i className={this.typeIcon(entry.type)}></i>
-              </td>
-              <td>
-                <a href={this.downloadUrl(entry.filename)} download={entry.filename}>
-                  {entry.filename}
-                </a>
-              </td>
-              <td>{this.renderDescription(entry)}</td>
-              <td>{Utils.bytesToSize(entry.size)}</td>
-              {canEdit && (
-                <td style={{ textAlign: "right" }}>
-                  <button
-                    className="btn btn-xs btn-danger"
-                    onClick={() => this.handleDelete(entry.filename)}
-                    title={_('Delete')}
-                  >
-                    <i className="fa fa-trash"></i>
-                  </button>
-                </td>
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    );
-  }
-
   render() {
-    const { media, viewMode, loading } = this.state;
+    const { media, canEdit, viewMode, loading } = this.state;
 
     return (
       <div ref={(el) => (this.modal = el)} className="modal manage-media-dialog" tabIndex="-1" data-backdrop="static">
@@ -555,7 +480,67 @@ class ManageMediaDialog extends React.Component {
                       <div className="media-toolbar">
                         {this.renderViewToggle()}
                       </div>
-                      {viewMode === 'grid' ? this.renderGrid() : this.renderList()}
+                      
+                      <div className="media-grid" style={{display: viewMode === "grid" ? "grid" : "none"}}>
+                        {media.map((entry) => (
+                          <div key={entry.filename} className="media-card">
+                            <MediaView basePath={`/api/projects/${this.props.projectId}/tasks/${this.props.task.id}/media`} media={entry} />
+                            <div className="card-details theme-secondary">
+                              <div className="card-filename theme-secondary-complementary" title={entry.filename}>
+                                {entry.filename + (entry.srt ? " + SRT" : "")}
+                              </div>
+                            </div>
+                            {canEdit && (
+                              <button
+                                className="card-delete-btn btn btn-xs btn-danger"
+                                onClick={() => this.handleDelete(entry.filename)}
+                                title={_('Delete')}
+                              >
+                                <i className="fa fa-trash"></i>
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      {viewMode === "list" ? <table className="table table-striped media-table">
+                        <thead>
+                          <tr>
+                            <th className="col-type"></th>
+                            <th style={{ width: '25%' }}>{_('Filename')}</th>
+                            <th style={{ width: '57%' }}>{_('Description')}</th>
+                            <th style={{ width: '17%' }}>{_('Size')}</th>
+                            {canEdit && <th></th>}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {media.map((entry) => (
+                            <tr key={entry.filename}>
+                              <td>
+                                <i className={this.typeIcon(entry.type)}></i>
+                              </td>
+                              <td>
+                                <a href={this.downloadUrl(entry.filename)} download={entry.filename}>
+                                  {entry.filename}
+                                </a>
+                              </td>
+                              <td>{this.renderDescription(entry)}</td>
+                              <td>{Utils.bytesToSize(entry.size)}</td>
+                              {canEdit && (
+                                <td style={{ textAlign: "right" }}>
+                                  <button
+                                    className="btn btn-xs btn-danger"
+                                    onClick={() => this.handleDelete(entry.filename)}
+                                    title={_('Delete')}
+                                  >
+                                    <i className="fa fa-trash"></i>
+                                  </button>
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table> : ""}
                     </div>
                   )
               }
