@@ -111,7 +111,7 @@
     border-radius: 3px;
     overflow: hidden;
 
-    &:hover {
+    &:hover, &.deleting {
       .card-delete-btn {
         opacity: 1;
       }

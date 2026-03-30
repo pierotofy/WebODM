@@ -42,6 +42,8 @@ class ManageMediaDialog extends React.Component {
       lastUpdated: 0,
       editingDescription: null,
       descriptionValue: '',
+      savingDescription: false,
+      deletingFiles: new Set(),
       viewMode: 'grid'
     };
   }
@@ -273,6 +275,20 @@ class ManageMediaDialog extends React.Component {
   handleDelete = (filename) => {
     if (!window.confirm(interpolate(_('Are you sure you want to delete %(filename)s ?'), { filename }))) return;
 
+    this.setState(prevState => {
+      const s = new Set(prevState.deletingFiles);
+      s.add(filename);
+      return { deletingFiles: s };
+    });
+
+    const doneDeleting = () => {
+      this.setState(prevState => {
+        const s = new Set(prevState.deletingFiles);
+        s.delete(filename);
+        return { deletingFiles: s };
+      });
+    };
+
     $.ajax({
       url: `/api/projects/${this.props.projectId}/tasks/${this.props.task.id}/media/manage/${encodeURIComponent(filename)}`,
       type: 'DELETE',
@@ -284,9 +300,11 @@ class ManageMediaDialog extends React.Component {
             media: prevState.media.filter(e => e.filename !== filename)
           }));
         }
+        doneDeleting();
       })
       .fail(() => {
         this.setState({ error: _('Cannot delete file.') });
+        doneDeleting();
       });
   };
 
@@ -299,6 +317,8 @@ class ManageMediaDialog extends React.Component {
   };
 
   saveDescription = (filename) => {
+    this.setState({ savingDescription: true });
+
     $.ajax({
       url: `/api/projects/${this.props.projectId}/tasks/${this.props.task.id}/media/manage/${encodeURIComponent(filename)}`,
       type: 'PATCH',
@@ -313,12 +333,15 @@ class ManageMediaDialog extends React.Component {
               e.filename === filename ? {...e, description: this.state.descriptionValue} : e
             ),
             editingDescription: null,
-            descriptionValue: ''
+            descriptionValue: '',
+            savingDescription: false
           }));
+        } else {
+          this.setState({ savingDescription: false });
         }
       })
       .fail(() => {
-        this.setState({ error: _('Cannot update description.') });
+        this.setState({ error: _('Cannot update description.'), savingDescription: false });
       });
   };
 
@@ -420,9 +443,9 @@ class ManageMediaDialog extends React.Component {
 
   renderDescription(entry) {
     const { canEdit } = this.props;
-    const { editingDescription } = this.state;
+    const { editingDescription, savingDescription } = this.state;
 
-    if (editingDescription === entry.filename) {
+       if (editingDescription === entry.filename) {
       return (
         <div className="description-edit">
           <input
@@ -433,20 +456,27 @@ class ManageMediaDialog extends React.Component {
             onKeyDown={(e) => { if (e.key === 'Enter') this.saveDescription(entry.filename); }}
             maxLength={1024}
             autoFocus
+            disabled={savingDescription}
           />
-          <button className="btn btn-xs btn-primary" onClick={() => this.saveDescription(entry.filename)}>
-            <i className="fa fa-check"></i>
-          </button>
-          <button className="btn btn-xs btn-default" onClick={this.cancelEditDescription} style={{ paddingRight: "7px", paddingLeft: "7px" }}>
-            <i className="fa fa-times"></i>
-          </button>
+          <div>
+            {savingDescription ? <i className="fa fa-circle-notch fa-spin description-spinner"></i>
+            : [
+              <button key="V" className="btn btn-xs btn-primary" onClick={() => this.saveDescription(entry.filename)} style={{ visibility: savingDescription ? 'hidden' : 'visible' }}>
+                <i className="fa fa-check"></i>
+              </button>,
+              " ",
+              <button key="X" className="btn btn-xs btn-default" onClick={this.cancelEditDescription} style={{ paddingRight: "7px", paddingLeft: "7px", visibility: savingDescription ? 'hidden' : 'visible' }}>
+                <i className="fa fa-times"></i>
+              </button>
+            ]}
+          </div>
         </div>
       );
     }
     return (
       <span className="description-display">
         {entry.description || ""}
-        {canEdit && (
+        {canEdit && !savingDescription && (
           <a href="javascript:void(0)" className="edit-desc-link" onClick={() => this.startEditDescription(entry)} title={_('Edit')}>
             <i className={"fa " + (entry.description ? "fa-pencil-alt" : "fa-plus-circle")}></i>
           </a>
@@ -456,7 +486,8 @@ class ManageMediaDialog extends React.Component {
   }
 
   render() {
-    const { media, canEdit, viewMode, loading } = this.state;
+    const { media, viewMode, loading, deletingFiles } = this.state;
+    const { canEdit } = this.props; 
 
     return (
       <div ref={(el) => (this.modal = el)} className="modal manage-media-dialog" tabIndex="-1" data-backdrop="static">
@@ -483,7 +514,7 @@ class ManageMediaDialog extends React.Component {
                       
                       <div className="media-grid" style={{display: viewMode === "grid" ? "grid" : "none"}}>
                         {media.map((entry) => (
-                          <div key={entry.filename} className="media-card">
+                          <div key={entry.filename} className={"media-card " + (deletingFiles.has(entry.filename) ? "deleting" : "")}>
                             <MediaView basePath={`/api/projects/${this.props.projectId}/tasks/${this.props.task.id}/media`} media={entry} />
                             <div className="card-details theme-secondary">
                               <div className="card-filename theme-secondary-complementary" title={entry.filename}>
@@ -495,8 +526,9 @@ class ManageMediaDialog extends React.Component {
                                 className="card-delete-btn btn btn-xs btn-danger"
                                 onClick={() => this.handleDelete(entry.filename)}
                                 title={_('Delete')}
+                                disabled={deletingFiles.has(entry.filename)}
                               >
-                                <i className="fa fa-trash"></i>
+                                <i className={deletingFiles.has(entry.filename) ? "fa fa-circle-notch fa-spin" : "fa fa-trash"}></i>
                               </button>
                             )}
                           </div>
@@ -532,8 +564,9 @@ class ManageMediaDialog extends React.Component {
                                     className="btn btn-xs btn-danger"
                                     onClick={() => this.handleDelete(entry.filename)}
                                     title={_('Delete')}
+                                    disabled={deletingFiles.has(entry.filename)}
                                   >
-                                    <i className="fa fa-trash"></i>
+                                    <i className={deletingFiles.has(entry.filename) ? "fa fa-circle-notch fa-spin" : "fa fa-trash"}></i>
                                   </button>
                                 </td>
                               )}
