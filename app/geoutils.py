@@ -183,12 +183,13 @@ def get_rasterio_to_meters_factor(rasterio_ds):
             return UNIT_TO_M.get(unit, 1.0)
     return 1.0
 
-def utm_transformers_from_lonlat(lon, lat):
+def utm_crs_from_lonlat(lon, lat):
     utm_zone = (int(math.floor((lon + 180.0) / 6.0)) % 60) + 1
     epsg = 32600 + utm_zone if lat >= 0 else 32700 + utm_zone
+    return CRS.from_epsg(4326), CRS.from_epsg(epsg)
 
-    source_srs = CRS.from_epsg(4326)
-    target_srs = CRS.from_epsg(epsg)
+def utm_transformers_from_lonlat(lon, lat):
+    source_srs, target_srs = utm_crs_from_lonlat(lon, lat)
 
     def ll_to_utm(lon, lat, alt=0.0):
         return [p[0] for p in transform(source_srs, target_srs, [lon], [lat])] + [alt]

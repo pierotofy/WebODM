@@ -4,7 +4,8 @@ import logging
 from datetime import datetime, timedelta
 import re
 import os
-from app.geoutils import utm_transformers_from_lonlat
+from rasterio.warp import transform as rio_transform
+from app.geoutils import utm_transformers_from_lonlat, utm_crs_from_lonlat
 
 logger = logging.getLogger('app.logger')
 
@@ -133,31 +134,79 @@ class SrtFileParser:
         if duration <= 0:
             return None, None
 
-        coords = []
-        timestamps = []
+        gps_secs = []
+        gps_lons = []
+        gps_lats = []
+        gps_alts = []
+        prev_lon = prev_lat = None
 
-        t = 0.0
-        while t <= duration:
-            ts = first + timedelta(seconds=t)
-            pos = self.get_gps(ts)
-            if pos is not None:
-                lon, lat, alt = pos
-                coords.append([lon, lat, alt])
-                timestamps.append(round(t, 3))
-            t += resolution
+        for i, d in enumerate(self.data):
+            lat, lon = d.get('latitude'), d.get('longitude')
+            alt = d.get('altitude') or 0
+            tm = d.get('start')
+            if lat is None or lon is None or tm is None:
+                continue
+            if (lon != prev_lon or lat != prev_lat) or i == len(self.data) - 1:
+                gps_secs.append((tm - first).total_seconds())
+                gps_lons.append(lon)
+                gps_lats.append(lat)
+                gps_alts.append(alt)
+                prev_lon, prev_lat = lon, lat
 
-        if round(duration, 3) not in timestamps:
-            ts = first + timedelta(seconds=duration)
-            pos = self.get_gps(ts)
-            if pos is not None:
-                lon, lat, alt = pos
-                coords.append([lon, lat, alt])
-                timestamps.append(round(duration, 3))
-
-        if len(coords) < 2:
+        if len(gps_secs) < 2:
             return None, None
 
-        return coords, timestamps
+        src_crs, dst_crs = utm_crs_from_lonlat(gps_lons[0], gps_lats[0])
+        utm_xs, utm_ys = rio_transform(src_crs, dst_crs, gps_lons, gps_lats)
+
+        sample_times = []
+        t = 0.0
+        while t <= duration:
+            sample_times.append(round(t, 3))
+            t += resolution
+        if round(duration, 3) not in sample_times:
+            sample_times.append(round(duration, 3))
+
+        result_x = []
+        result_y = []
+        result_alt = []
+        result_ts = []
+        gi = 0
+        n = len(gps_secs)
+
+        for st in sample_times:
+            if st < gps_secs[0]:
+                continue
+
+            while gi < n - 1 and gps_secs[gi + 1] <= st:
+                gi += 1
+
+            if gi >= n - 1:
+                result_x.append(utm_xs[-1])
+                result_y.append(utm_ys[-1])
+                result_alt.append(gps_alts[-1])
+                result_ts.append(st)
+                continue
+
+            dt = gps_secs[gi + 1] - gps_secs[gi]
+            if dt == 0:
+                result_x.append(utm_xs[gi])
+                result_y.append(utm_ys[gi])
+                result_alt.append(gps_alts[gi])
+            else:
+                frac = (st - gps_secs[gi]) / dt
+                result_x.append(utm_xs[gi] + frac * (utm_xs[gi + 1] - utm_xs[gi]))
+                result_y.append(utm_ys[gi] + frac * (utm_ys[gi + 1] - utm_ys[gi]))
+                result_alt.append(gps_alts[gi] + frac * (gps_alts[gi + 1] - gps_alts[gi]))
+            result_ts.append(st)
+
+        if len(result_x) < 2:
+            return None, None
+
+        out_lons, out_lats = rio_transform(dst_crs, src_crs, result_x, result_y)
+        coords = [[out_lons[i], out_lats[i], result_alt[i]] for i in range(len(out_lons))]
+
+        return coords, result_ts
 
     def parse(self):
 
