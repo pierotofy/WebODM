@@ -1163,12 +1163,12 @@ _('Example:'),
 
       const flightPathLine = L.polyline(latLngs, {
         color: '#4A90D9',
-        weight: 3,
+        weight: 4,
         opacity: 0.8
       }).addTo(this.map);
 
       const startDot = L.circleMarker(latLngs[0], {
-        radius: 6,
+        radius: 8,
         color: '#fff',
         weight: 2,
         fillColor: '#2ECC71',
@@ -1176,7 +1176,7 @@ _('Example:'),
       }).addTo(this.map);
 
       const endDot = L.circleMarker(latLngs[latLngs.length - 1], {
-        radius: 6,
+        radius: 8,
         color: '#fff',
         weight: 2,
         fillColor: '#E74C3C',
@@ -1184,7 +1184,7 @@ _('Example:'),
       }).addTo(this.map);
 
       const positionDot = L.circleMarker(latLngs[0], {
-        radius: 7,
+        radius: 8,
         color: '#fff',
         weight: 2,
         fillColor: '#FF9E67',
