@@ -690,16 +690,16 @@ class TaskListItem extends React.Component {
                       <td><strong>{_("Points:")}</strong></td>
                       <td>{stats.pointcloud.points.toLocaleString()}</td>
                     </tr>}
-                    {stats && stats.spatial_refs && stats.spatial_refs.length &&
+                    {stats && stats.spatial_refs && stats.spatial_refs.length ?
                     <tr>
                       <td><strong>{_("Georeferencing:")}</strong></td>
                       <td>{this.spatialRefsToHuman(stats.spatial_refs)}</td>
-                    </tr>}
-                    {task.srs && task.srs.name && 
+                    </tr> : null}
+                    {task.srs && task.srs.name ?
                     <tr>
                       <td><strong>{_("CRS:")}</strong></td>
                       <td>{task.srs.name}</td>
-                    </tr>}
+                    </tr> : null}
                     {task.size > 0 && 
                     <tr>
                       <td><strong>{_("Disk Usage:")}</strong></td>
