@@ -420,15 +420,15 @@ class MediaView extends React.Component {
         const { error, visible, loading } = this.state;
         const isVideo = this.props.media.type === 'video';
 
-        return (<div className="media-view" ref={this.ref}>
+        return (<div className={"media-view " + (!loading ? " theme-secondary-complementary" : "")} ref={this.ref}>
             {(loading || !visible) ? <div><i className="fa fa-circle-notch fa-spin fa-fw media-loading"></i></div>
                 : ""}
             {error !== "" ? <div style={{ marginTop: "8px" }}>{error}</div>
                 : visible ? <div className="media-thumb-container">
                     <div className="media-view-image">
+                        {isVideo && !loading ? <div className="video-play-overlay"><i className="fa fa-play"></i></div> : ""}
                         <div className="media-thumb" draggable="false" onClick={this.onImgClick}>
                             <img draggable="false" style={{ visibility: loading ? "hidden" : "visible", borderRadius: "4px" }} src={this.getThumbUrl()} onLoad={this.imageOnLoad} onError={this.imageOnError} alt={this.props.media.filename} title={this.props.media.filename} />
-                            {isVideo && !loading ? <div className="video-play-overlay"><i className="fa fa-play"></i></div> : ""}
                         </div>
                     </div>
                 </div> : ""}

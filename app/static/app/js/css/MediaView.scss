@@ -12,25 +12,26 @@ div.media-view-image{
     overflow: hidden;
     height: 134px;
 
+    &:hover{
+        .video-play-overlay{
+            i{
+                opacity: 1;
+            }
+        }
+    }
+
     .media-thumb{
         cursor: pointer;
         position: relative;
         img{
-            width: 100%;
-        }
-
-        &:hover{
-            .video-play-overlay{
-                i{
-                    opacity: 1;
-                }
-            }
+            height: 100%;
         }
     }
     &.fullscreen{
         .media-thumb{
             img{
                 width: auto;
+                height: auto;
             }
         }
         height: auto;
@@ -162,8 +163,9 @@ div.media-view-image{
 }
 
 .video-play-overlay{
+    z-index: 1;
     position: absolute;
-    top: 0;
+    top: -14px;
     left: 0;
     right: 0;
     bottom: 0;
