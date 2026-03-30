@@ -652,7 +652,7 @@ class TaskListItem extends React.Component {
       const stats = task.statistics;
     
       expanded = (
-        <div className="expanded-panel">
+        <div className="expanded-panel theme-secondary">
           <div className="row">
             <div className="col-md-12 no-padding">
               <div className="col-md-9 col-sm-10 no-padding">
