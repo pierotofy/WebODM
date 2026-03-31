@@ -445,7 +445,7 @@ class ManageMediaDialog extends React.Component {
     const { canEdit } = this.props;
     const { editingDescription, savingDescription } = this.state;
 
-       if (editingDescription === entry.filename) {
+    if (editingDescription === entry.filename) {
       return (
         <div className="description-edit">
           <input
