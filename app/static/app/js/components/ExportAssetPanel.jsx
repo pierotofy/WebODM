@@ -9,7 +9,7 @@ import Workers from '../classes/Workers';
 
 export default class ExportAssetPanel extends React.Component {
   static defaultProps = {
-      exportFormats: ["gtiff-rgb", "gtiff", "jpg", "png", "kmz"],
+      exportFormats: ["cog", "gtiff-rgb", "gtiff", "jpg", "png", "kmz"],
       asset: "",
       exportParams: {},
       task: null,
@@ -32,6 +32,10 @@ export default class ExportAssetPanel extends React.Component {
     super(props);
 
     this.efInfo = {
+        'cog': {
+            label: "Cloud Optimized GeoTIFF",
+            icon: "fas fa-cloud"
+        },
         'gtiff-rgb': {
             label: "GeoTIFF (RGB)",
             icon: "fas fa-palette"
@@ -77,6 +81,7 @@ export default class ExportAssetPanel extends React.Component {
         customEpsg: Storage.getItem("last_export_custom_epsg") || "3857",
         customProj: Storage.getItem("last_export_custom_proj") || "",
         resample: 0,
+        resolution: 0,
         exporting: false,
         progress: null
     }
@@ -114,6 +119,10 @@ export default class ExportAssetPanel extends React.Component {
     this.setState({resample: e.target.value});
   }
 
+  handleChangeResolution = e => {
+    this.setState({resolution: e.target.value});
+  }
+
   getExportParams = (format) => {
       let params = {};
 
@@ -132,6 +141,8 @@ export default class ExportAssetPanel extends React.Component {
       if (proj) params.proj = this.getProj();
 
       if (this.state.resample > 0) params.resample = this.state.resample;
+
+      if (this.state.resolution > 0) params.resolution = this.state.resolution;
 
       return params;
   }
@@ -214,6 +225,16 @@ export default class ExportAssetPanel extends React.Component {
     let resampleUnits = _("Meters").toLowerCase();
     if (this.props.task.srs?.units != "m") resampleUnits = _("Feet").toLowerCase();
 
+    let resolutionInput = "";
+    if (!this.isPointCloud()) {
+      resolutionInput = <div className="row form-group form-inline">
+        <label className="col-sm-3 control-label">{_("Resolution (cm/px):")}</label>
+        <div className="col-sm-9 ">
+          <input type="number" min="0.1" step="0.1" className="form-control custom-interval" value={resolution} onChange={this.handleChangeResolution} placeholder={_("Original")} />
+        </div>
+      </div>;
+    }
+
     const disabled = (epsg === "custom" && !customEpsg) || 
                      (epsg === "proj" && (!customProj || (typeof customProj === "string" && !customProj.toLowerCase().startsWith("+proj")))) || 
                      exporting;
@@ -270,15 +291,22 @@ export default class ExportAssetPanel extends React.Component {
         </select>
         </div>
     </div>,
-    this.isPointCloud() ? <div key={2} className="row form-group form-inline">
+    !this.isPointCloud() ? <div key={2} className="row form-group form-inline">
+        <label className="col-sm-3 control-label">{_("Resolution (cm/px):")}</label>
+        <div className="col-sm-9 ">
+          <input type="number" min="0.1" step="0.1" className="form-control custom-interval" value={resolution} onChange={this.handleChangeResolution} placeholder={_("Original")} />
+        </div>
+      </div>
+    : <div key={2} className="row form-group form-inline">
         <label className="col-sm-3 control-label">{interpolate(_("Resample (%(unit)s):"), { unit: resampleUnits })}</label>
         <div className="col-sm-9 ">
           <input type="number" min="0" className="form-control custom-interval" value={resample} onChange={this.handleChangeResample} />
         </div>
       </div>
-    : ""];
+    ];
   }else{
-    exportSelector = (<div className="row form-group form-inline">
+    exportSelector = (<div>
+      <div className="row form-group form-inline">
         <label className="col-sm-3 control-label">{_("Export:")}</label>
         <div className="col-sm-9">
             <div className={"btn-group " + (this.props.dropUp ?  "dropup" : "")}>
@@ -296,6 +324,13 @@ export default class ExportAssetPanel extends React.Component {
                 </ul>
             </div>
         </div>
+      </div>
+      {!this.isPointCloud() ? <div className="row form-group form-inline">
+        <label className="col-sm-3 control-label">{_("Resolution (cm/px):")}</label>
+        <div className="col-sm-9 ">
+          <input type="number" min="0.1" step="0.1" className="form-control custom-interval" value={resolution} onChange={this.handleChangeResolution} placeholder={_("Original")} />
+        </div>
+      </div> : ""}
     </div>);
   }
 

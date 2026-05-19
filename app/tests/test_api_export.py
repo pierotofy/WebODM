@@ -168,6 +168,17 @@ class TestApiTask(BootTransactionTestCase):
                 ('georeferenced_model', {'format': 'las', 'proj': test_proj}, False, ".las", status.HTTP_200_OK),
 
                 ('georeferenced_model', {'format': 'tif'}, False, ".laz", status.HTTP_400_BAD_REQUEST),
+
+                # Resolution tests
+                ('orthophoto', {'resolution': 5}, False, ".tif", status.HTTP_200_OK),
+                ('dsm', {'resolution': 10}, False, ".tif", status.HTTP_200_OK),
+                ('orthophoto', {'resolution': 'invalid'}, False, ".tif", status.HTTP_400_BAD_REQUEST),
+                ('orthophoto', {'resolution': -1}, False, ".tif", status.HTTP_400_BAD_REQUEST),
+
+                # COG format tests
+                ('orthophoto', {'format': 'cog'}, True, ".tif", status.HTTP_200_OK),
+                ('dsm', {'format': 'cog'}, True, ".tif", status.HTTP_200_OK),
+                ('dtm', {'format': 'cog'}, True, ".tif", status.HTTP_200_OK),
             ]
 
             def testExport(crop = False):

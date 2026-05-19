@@ -26,6 +26,7 @@ def extension_for_export_format(export_format):
     extensions = {
         'gtiff': 'tif',
         'gtiff-rgb': 'tif',
+        'cog': 'tif',
     }
     return extensions.get(export_format, export_format)
 
@@ -116,6 +117,7 @@ def export_raster(input, output, progress_callback=None, **opts):
     asset_type = opts.get('asset_type')
     name = opts.get('name', 'raster') # KMZ specific
     crop_wkt = opts.get('crop')
+    resolution = opts.get('resolution')
 
     dem = asset_type in ['dsm', 'dtm']
     path_base, _ = os.path.splitext(output)
@@ -164,6 +166,12 @@ def export_raster(input, output, progress_callback=None, **opts):
         if kmz:
             export_format = "gtiff-rgb"
             output_raster = path_base + ".kmz.tif"
+
+        # COG (Cloud Optimized GeoTIFF) is exported as GeoTIFF then converted
+        cog = export_format == "cog"
+        if cog:
+            export_format = "gtiff"
+            output_raster = path_base + ".cog.tif"
 
         # JPG and PNG are exported to GeoTIFF only if reprojection is needed
         jpg = export_format == "jpg"
@@ -427,10 +435,24 @@ def export_raster(input, output, progress_callback=None, **opts):
                 dst.colorinterp = new_ci
         
         if kmz:
-            subprocess.check_output(["gdal_translate", "-of", "KMLSUPEROVERLAY", 
+            subprocess.check_output(["gdal_translate", "-of", "KMLSUPEROVERLAY",
                                         "-co", "Name={}".format(name),
                                         "-co", "FORMAT=AUTO", output_raster, output])
             p("Finalizing", post_perc)
+
+        elif cog:
+            from app.cogeo import assure_cogeo
+            assure_cogeo(output_raster)
+
+        # Resample when resolution is specified but no reprojection needed
+        elif resolution is not None:
+            output_resampled = path_base + ".resampled.tif"
+            res_m = resolution / 100.0
+            subprocess.check_output(["gdalwarp", "-r", resampling,
+                                    "-tr", str(res_m), str(res_m),
+                                    "-of", "GTiff", "--config", "GDAL_CACHEMAX", "25%",
+                                    output_raster, output_resampled])
+            output_raster = output_resampled
 
         elif reproject:
             output_vrt = path_base + ".vrt"
@@ -440,10 +462,16 @@ def export_raster(input, output, progress_callback=None, **opts):
             elif proj is not None:
                 t_srs = proj
 
-            subprocess.check_output(["gdalwarp", "-r", "near" if resampling == "nearest" else resampling, 
+            gdalwarp_args = ["-r", "near" if resampling == "nearest" else resampling,
                                     "-of", "VRT",
-                                    "-t_srs", t_srs,
-                                    output_raster, output_vrt])
+                                    "-t_srs", t_srs]
+            if resolution is not None:
+                # Convert cm/px to meters
+                res_m = resolution / 100.0
+                gdalwarp_args += ["-tr", str(res_m), str(res_m)]
+
+            subprocess.check_output(["gdalwarp"] + gdalwarp_args +
+                                    [output_raster, output_vrt])
             gt_args = ["-r", resampling, "--config", "GDAL_CACHEMAX", "25%"]
             if bigtiff and not jpg and not png:
                 gt_args += ["-co", "BIGTIFF=IF_SAFER", 

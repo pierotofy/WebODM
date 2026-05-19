@@ -595,6 +595,7 @@ class Export(TaskNestedView):
         color_map = request.data.get('color_map')
         hillshade = request.data.get('hillshade')
         resample = request.data.get('resample', 0)
+        resolution = request.data.get('resolution')
 
         if formula == '': formula = None
         if bands == '': bands = None
@@ -604,13 +605,14 @@ class Export(TaskNestedView):
         if color_map == '': color_map = None
         if hillshade == '': hillshade = None
         if resample == '': resample = 0
+        if resolution == '': resolution = None
 
         if epsg is not None:
             proj = None
 
         expr = None
 
-        if asset_type in ['orthophoto', 'dsm', 'dtm'] and not export_format in ['gtiff', 'gtiff-rgb', 'jpg', 'png', 'kmz']:
+        if asset_type in ['orthophoto', 'dsm', 'dtm'] and not export_format in ['gtiff', 'gtiff-rgb', 'jpg', 'png', 'kmz', 'cog']:
             raise exceptions.ValidationError(_("Unsupported format: %(value)s") % {'value': export_format})
         if asset_type == 'georeferenced_model' and not export_format in ['laz', 'las', 'ply', 'csv']:
             raise exceptions.ValidationError(_("Unsupported format: %(value)s") % {'value': export_format})
@@ -633,6 +635,14 @@ class Export(TaskNestedView):
                 resample = float(resample)
             except ValueError:
                 raise exceptions.ValidationError(_("Invalid resample value: %(value)s") % {'value': resample})
+
+        if resolution is not None:
+            try:
+                resolution = float(resolution)
+                if resolution <= 0:
+                    raise exceptions.ValidationError(_("Invalid resolution value: %(value)s") % {'value': resolution})
+            except ValueError:
+                raise exceptions.ValidationError(_("Invalid resolution value: %(value)s") % {'value': resolution})
 
         if epsg is not None:
             try:
@@ -690,6 +700,15 @@ class Export(TaskNestedView):
         if not os.path.isfile(url):
             raise exceptions.NotFound()
 
+        # Cap resolution to source raster's actual resolution (no upscaling)
+        if resolution is not None and asset_type in ['orthophoto', 'dsm', 'dtm']:
+            with COGReader(url) as src:
+                src_pixel_size_m = abs(src.dataset.transform[0])
+                src_pixel_size_cm = src_pixel_size_m * 100
+                # Only cap if source resolution is finer (smaller cm/px) than requested
+                if src_pixel_size_cm < resolution:
+                    resolution = src_pixel_size_cm
+
         if epsg is not None and (task.epsg is None and task.wkt is None):
             raise exceptions.ValidationError(_("Cannot use epsg on non-georeferenced dataset"))
         
@@ -703,10 +722,10 @@ class Export(TaskNestedView):
 
         if asset_type in ['orthophoto', 'dsm', 'dtm']:
             # Shortcut the process if no processing is required
-            if export_format == 'gtiff' and ((task.epsg is not None and epsg == task.epsg) or epsg is None) and (proj is None) and expr is None and task.crop is None:
+            if export_format == 'gtiff' and resolution is None and ((task.epsg is not None and epsg == task.epsg) or epsg is None) and (proj is None) and expr is None and task.crop is None:
                 return Response({'url': '/api/projects/{}/tasks/{}/download/{}.tif'.format(task.project.id, task.id, asset_type), 'filename': filename})
             else:
-                celery_task_id = export_raster.delay(url, epsg=epsg,
+      celery_task_id = export_raster.delay(url, epsg=epsg,
                                                         proj=proj, 
                                                         expression=expr, 
                                                         format=export_format, 
@@ -715,7 +734,8 @@ class Export(TaskNestedView):
                                                         hillshade=hillshade,
                                                         asset_type=asset_type,
                                                         name=task.name,
-                                                        crop=task.crop.wkt if task.crop is not None else None).task_id
+                                                        crop=task.crop.wkt if task.crop is not None else None,
+                                                        resolution=resolution).task_id
                 return Response({'celery_task_id': celery_task_id, 'filename': filename})
         elif asset_type == 'georeferenced_model':
             # Shortcut the process if no processing is required
