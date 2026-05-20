@@ -117,12 +117,34 @@ class Map extends React.Component {
       const d = new Date(dateStr);
       if (!isNaN(d.getTime())) return d.getTime();
       
-      const match = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+      const match = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
       if (match) {
-        const [, day, month, year] = match;
-        return new Date(`${year}-${month}-${day}`).getTime();
+        const [, first, second, year] = match;
+        const firstNum = parseInt(first, 10);
+        const secondNum = parseInt(second, 10);
+        
+        let month, day;
+        if (firstNum > 12) {
+          day = firstNum;
+          month = secondNum;
+        } else {
+          month = firstNum;
+          day = secondNum;
+        }
+        
+        return new Date(`${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}T00:00:00Z`).getTime();
       }
       
+      return null;
+    };
+    
+    const extractDateFromName = (name) => {
+      if (!name) return null;
+      const match = name.match(/(\d{1,2}\/\d{1,2}\/\d{4})\s*$/);
+      if (match) {
+        const [, dateStr] = match;
+        return { dateStr, timestamp: parseDate(dateStr) };
+      }
       return null;
     };
     
@@ -133,30 +155,42 @@ class Map extends React.Component {
       const endDate = task.end_date;
       const createdAt = task.created_at;
       let dateStr, timestamp;
-      
+
+      console.log(task.name, task.end_date, task.created_at);
+
       if (endDate) {
         timestamp = parseDate(endDate);
         dateStr = endDate;
-      } else if (createdAt) {
-        timestamp = createdAt * 1000;
-        dateStr = new Date(timestamp).toISOString();
       } else {
-        return;
+        const nameDate = extractDateFromName(task.name);
+        if (nameDate) {
+          timestamp = nameDate.timestamp;
+          dateStr = nameDate.dateStr;
+        } else if (createdAt) {
+          timestamp = createdAt * 1000;
+          dateStr = new Date(createdAt * 1000).toISOString();
+        } else {
+          return;
+        }
       }
       
       if (!timestamp) return;
       
-      const dateKey = endDate ? `end:${endDate}` : `created:${createdAt}`;
+      const dateKey = new Date(timestamp).toISOString().split('T')[0];
       
       if (!dateMap[dateKey]) {
         dateMap[dateKey] = {
-          date: new Date(timestamp).toISOString().split('T')[0],
+          date: dateKey,
           timestamp: timestamp,
-          taskIds: new Set()
+          taskIds: new Set(),
+          taskNames: []
         };
       }
       
-      dateMap[dateKey].taskIds.add(task.id);
+      if (!dateMap[dateKey].taskIds.has(task.id)) {
+        dateMap[dateKey].taskIds.add(task.id);
+        dateMap[dateKey].taskNames.push(task.name);
+      }
     });
     
     let dates = Object.values(dateMap)
@@ -173,7 +207,7 @@ class Map extends React.Component {
     } else if (dates.length === 1) {
       dates = dates.map(d => ({ ...d, sliderValue: 0 }));
     }
-    
+
     return dates;
   }
 

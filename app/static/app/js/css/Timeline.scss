@@ -1,7 +1,7 @@
 .timeline {
   position: absolute;
   z-index: 2000;
-  bottom: 6px;
+  top: 6px;
   left: 50%;
   transform: translateX(-50%);
   border-radius: 4px;
@@ -11,26 +11,23 @@
   width: 400px;
   min-width: 320px;
 
-  .timeline-header {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
+  .timeline-content {
     padding: 8px 12px;
-    border-bottom: 1px solid var(--theme-border);
+    position: relative;
 
     .timeline-close {
+      position: absolute;
+      top: 6px;
+      right: 6px;
       cursor: pointer;
-      font-size: 14px;
+      font-size: 12px;
       padding: 2px 4px;
+      opacity: 0.5;
 
       &:hover {
-        opacity: 0.7;
+        opacity: 0.8;
       }
     }
-  }
-
-  .timeline-content {
-    padding: 12px;
   }
 
   .timeline-date {
@@ -45,7 +42,7 @@
     font-size: 12px;
     color: var(--theme-primary);
     opacity: 0.6;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
   }
 
   .timeline-slider-container {
