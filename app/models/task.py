@@ -1150,6 +1150,9 @@ class Task(models.Model):
         if isinstance(self.media, list) and len(self.media) > 0:
              media = '/api/projects/{}/tasks/{}/media.geojson'.format(self.project.id, self.id)
 
+        stats = self.get_statistics()
+        end_date = stats.get('end_date') if stats else None
+        
         return {
             'tiles': [{'url': self.get_tile_base_url(t), 'type': t} for t in types],
             'meta': {
@@ -1167,7 +1170,9 @@ class Task(models.Model):
                     'orthophoto_bands': self.orthophoto_bands,
                     'crop': self.crop is not None,
                     'extent': self.get_extent(),
-                    'media': media
+                    'media': media,
+                    'created_at': self.created_at.astimezone(timezone.utc).timestamp(),
+                    'end_date': end_date
                 }
             }
         }

@@ -11,7 +11,14 @@ class LayersControlButton extends React.Component {
     layers: PropTypes.array.isRequired,
     overlays: PropTypes.array.isRequired,
     annotations: PropTypes.array.isRequired,
-    map: PropTypes.object.isRequired
+    map: PropTypes.object.isRequired,
+    showTimeline: PropTypes.bool,
+    onToggleTimeline: PropTypes.func,
+  }
+
+  static defaultProps = {
+    showTimeline: false,
+    onToggleTimeline: () => {},
   }
 
   constructor(props){
@@ -30,6 +37,10 @@ class LayersControlButton extends React.Component {
     this.setState({showPanel: false});
   }
 
+  handleToggleTimeline = () => {
+    this.props.onToggleTimeline();
+  }
+
   render(){
     const { showPanel } = this.state;
 
@@ -38,7 +49,7 @@ class LayersControlButton extends React.Component {
             title={_("Layers")}
             onClick={this.handleOpen} 
             className="leaflet-control-layers-control-button leaflet-bar-part theme-secondary"></a>
-        <LayersControlPanel map={this.props.map} layers={this.props.layers} overlays={this.props.overlays} annotations={this.props.annotations} onClose={this.handleClose} />
+        <LayersControlPanel map={this.props.map} layers={this.props.layers} overlays={this.props.overlays} annotations={this.props.annotations} onClose={this.handleClose} showTimeline={this.props.showTimeline} onToggleTimeline={this.handleToggleTimeline} />
     </div>);
   }
 }
@@ -58,8 +69,8 @@ export default L.Control.extend({
         return this.container;
     },
 
-    update: function(layers, overlays, annotations){
-        ReactDOM.render(<LayersControlButton ref={r => this.layersControlButton = r} map={this.map} layers={layers} overlays={overlays} annotations={annotations} />, this.container);
+    update: function(layers, overlays, annotations, showTimeline, onToggleTimeline){
+        ReactDOM.render(<LayersControlButton ref={r => this.layersControlButton = r} map={this.map} layers={layers} overlays={overlays} annotations={annotations} showTimeline={showTimeline} onToggleTimeline={onToggleTimeline} />, this.container);
     }
 });
 

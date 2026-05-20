@@ -13,6 +13,17 @@
 {% theme "success" as theme_success %}
 {% theme "failed" as theme_failed %}
 
+:root {
+    --theme-secondary: {{ theme_secondary }};
+    --theme-secondary-light: {% scalebyiv theme_secondary 0.90 %};
+    --theme-border: {{ theme_border }};
+    --theme-border-light: {% scalebyiv theme_border 0.7 %};
+    --theme-border-lighter: {% scalebyiv theme_border 0.5 %};
+    --theme-button-default: {{ theme_button_default }};
+    --theme-button-default-dark: {% scalebyiv theme_button_default 0.85 %};
+    --theme-primary: {{ theme_primary }};
+}
+
 /* Primary */
 body,
 ul#side-menu.nav a,

@@ -24,11 +24,18 @@
     margin-left: 16px;
     position: relative;
     left: 2px;
+    top: 2px;
 
     &:hover{
       opacity: 0.7;
       cursor: pointer;
     }
+  }
+
+  .timeline-button{
+    float: right;
+    vertical-align: middle;
+    font-size: 12px;
   }
 
   .title{

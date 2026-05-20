@@ -14,10 +14,17 @@ export default class LayersControlPanel extends React.Component {
   };
   static propTypes = {
     onClose: PropTypes.func.isRequired,
+    onToggleTimeline: PropTypes.func,
+    showTimeline: PropTypes.bool,
     layers: PropTypes.array.isRequired,
     overlays: PropTypes.array,
     annotations: PropTypes.array,
     map: PropTypes.object.isRequired
+  }
+
+  static defaultProps = {
+    onToggleTimeline: () => {},
+    showTimeline: false,
   }
 
   constructor(props){
@@ -113,6 +120,9 @@ export default class LayersControlPanel extends React.Component {
 
     return (<div className="layers-control-panel" ref={(domNode) => this.domNode = domNode}>
       <span className="close-button" onClick={this.props.onClose}/>
+      <button className="timeline-button btn btn-xs btn-secondary" onClick={this.props.onToggleTimeline} title={_("Timeline")}>
+        <i className="far fa-clock"></i> {_("Timeline")}
+      </button>
       <div className="title">{_("Layers")}</div>
       <hr/>
       {content}

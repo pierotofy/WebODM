@@ -33,6 +33,7 @@ import '../vendor/leaflet/Leaflet.SideBySide/leaflet-side-by-side';
 import { _ } from '../classes/gettext';
 import UnitSelector from './UnitSelector';
 import { unitSystem, toMetric } from '../classes/Units';
+import Timeline from './Timeline';
 
 const IOU_THRESHOLD = 0.7;
 
@@ -73,7 +74,9 @@ class Map extends React.Component {
       imageryLayers: [],
       overlays: [],
       annotations: [],
-      rightLayers: []
+      rightLayers: [],
+      showTimeline: false,
+      timelineData: []
     };
 
     this.basemaps = {};
@@ -88,6 +91,7 @@ class Map extends React.Component {
     this.loadImageryLayers = this.loadImageryLayers.bind(this);
     this.updatePopupFor = this.updatePopupFor.bind(this);
     this.handleMapMouseDown = this.handleMapMouseDown.bind(this);
+    this.handleToggleTimeline = this.handleToggleTimeline.bind(this);
   }
 
   countTasks = () => {
@@ -96,6 +100,81 @@ class Map extends React.Component {
         tasks[tile.meta.task.id] = true;
     });
     return Object.keys(tasks).length;
+  }
+
+  handleToggleTimeline = () => {
+    this.setState(prev => ({
+      showTimeline: !prev.showTimeline
+    }));
+  }
+
+  extractTimelineData = (tiles) => {
+    const dateMap = {};
+    
+    const parseDate = (dateStr) => {
+      if (!dateStr) return null;
+      
+      const d = new Date(dateStr);
+      if (!isNaN(d.getTime())) return d.getTime();
+      
+      const match = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+      if (match) {
+        const [, day, month, year] = match;
+        return new Date(`${year}-${month}-${day}`).getTime();
+      }
+      
+      return null;
+    };
+    
+    tiles.forEach(tile => {
+      const task = tile.meta.task;
+      if (!task) return;
+      
+      const endDate = task.end_date;
+      const createdAt = task.created_at;
+      let dateStr, timestamp;
+      
+      if (endDate) {
+        timestamp = parseDate(endDate);
+        dateStr = endDate;
+      } else if (createdAt) {
+        timestamp = createdAt * 1000;
+        dateStr = new Date(timestamp).toISOString();
+      } else {
+        return;
+      }
+      
+      if (!timestamp) return;
+      
+      const dateKey = endDate ? `end:${endDate}` : `created:${createdAt}`;
+      
+      if (!dateMap[dateKey]) {
+        dateMap[dateKey] = {
+          date: new Date(timestamp).toISOString().split('T')[0],
+          timestamp: timestamp,
+          taskIds: new Set()
+        };
+      }
+      
+      dateMap[dateKey].taskIds.add(task.id);
+    });
+    
+    let dates = Object.values(dateMap)
+      .sort((a, b) => a.timestamp - b.timestamp);
+    
+    if (dates.length > 1) {
+      const minTs = dates[0].timestamp;
+      const maxTs = dates[dates.length - 1].timestamp;
+      const range = maxTs - minTs || 1;
+      dates = dates.map(d => ({
+        ...d,
+        sliderValue: ((d.timestamp - minTs) / range) * 1000
+      }));
+    } else if (dates.length === 1) {
+      dates = dates.map(d => ({ ...d, sliderValue: 0 }));
+    }
+    
+    return dates;
   }
 
   updateOpacity = (evt) => {
@@ -193,7 +272,13 @@ class Map extends React.Component {
 
     this.taskCount = this.countTasks();
 
-    const { tiles } = this.props,
+    const { tiles } = this.props;
+    
+    this.setState({
+      timelineData: this.extractTimelineData(tiles)
+    });
+
+    const
           layerId = layer => {
             const meta = layer[Symbol.for("meta")];
             return meta.task.project + "_" + meta.task.id;
@@ -1131,7 +1216,7 @@ _('Example:'),
   }
 
   updateLayersControl = () => {
-    this.layersControl.update(this.state.imageryLayers, this.state.overlays, this.state.annotations);
+    this.layersControl.update(this.state.imageryLayers, this.state.overlays, this.state.annotations, this.state.showTimeline, this.handleToggleTimeline);
   }
 
   componentWillUnmount() {
@@ -1376,6 +1461,8 @@ _('Example:'),
             type="mapToModel" 
             public={this.props.public} />
         </div>
+
+        <Timeline visible={this.state.showTimeline} onClose={this.handleToggleTimeline} timelineData={this.state.timelineData} />
       </div>
     );
   }
