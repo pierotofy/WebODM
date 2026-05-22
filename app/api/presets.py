@@ -19,12 +19,6 @@ class PresetSerializer(serializers.ModelSerializer):
 
 
 class PresetViewSet(viewsets.ModelViewSet):
-    """
-    Preset get/add/delete/update
-    Presets represent a set of options that a user
-    can save/customize for use in processing a task.
-    """
-
     pagination_class = None
     serializer_class = PresetSerializer
 

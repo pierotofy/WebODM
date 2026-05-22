@@ -37,12 +37,6 @@ class ProcessingNodeFilter(FilterSet):
         fields = ['has_available_options', 'id', 'hostname', 'port', 'api_version', 'queue_count', 'max_images', 'label', 'engine', 'engine_version', ]
 
 class ProcessingNodeViewSet(viewsets.ModelViewSet):
-    """
-    Processing node get/add/delete/update
-    Processing nodes are associated with zero or more tasks and
-    take care of processing input images.
-    """
-
     filter_class = ProcessingNodeFilter
 
     pagination_class = None
