@@ -17,7 +17,6 @@
     }
 
     .lightning-nodes{
-        margin-top: 12px;
         ul{
             padding-left: 0;
         }
@@ -33,4 +32,17 @@
     h5{
         font-weight: bold;
     }    
+    .panels-container {
+      display: flex;
+    
+      .panel {
+        margin-bottom: 0;
+        border-width: 1px;
+        border-style: solid;
+        margin-right: 12px;
+        padding: 16px 16px 0px 16px;
+
+        border-radius: 4px;
+      }
+    }
 }

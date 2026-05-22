@@ -23,7 +23,9 @@ export default class Dashboard extends React.Component {
         loadingMessage: "",
         user: null,
         nodes: [],
-        syncingNodes: false
+        syncingNodes: false,
+        shareEnabled: true,
+        shareToggling: false
     }
   }
 
@@ -38,18 +40,30 @@ export default class Dashboard extends React.Component {
   loadDashboard = () => {
     this.setState({loading: true, loadingMessage: _("Loading dashboard...")});
 
-    $.get(this.apiUrl('/r/user')).done(json => {
+    $.when(
+        $.get(this.apiUrl('/r/user')),
+        $.get('get_share_buttons_prefs')
+    ).done((user, sharePrefs) => {
+        const json = user[0];
+        const prefs = sharePrefs[0];
+
         if (json.balance !== undefined){
-            this.setState({ loading: false, user: json });
+            this.setState({ 
+                user: json,
+                shareEnabled: prefs.enabled
+            });
             this.handleSyncProcessingNode();
         }else if (json.message === "Unauthorized"){
             this.props.onLogout();
         }else{
-            this.setState({ loading: false, error: _('Cannot load lightning dashboard. Are you running the latest version of WebODM?') });
+            this.setState({ error: _('Cannot load lightning dashboard. Are you running the latest version of WebODM?') });
         }
     })
     .fail(() => {
-        this.setState({ loading: false, error: _('Cannot load lightning dashboard. Please make sure you are connected to the internet, or try again in an hour.')});
+        this.setState({ error: _('Cannot load lightning dashboard. Please make sure you are connected to the internet, or try again in an hour.')});
+    })
+    .always(() => {
+        this.setState({ loading: false });
     });
   }
 
@@ -107,8 +121,23 @@ export default class Dashboard extends React.Component {
       window.open("https://webodm.net/dashboard");
   }
 
+  handleShareButtonsToggle = (e) => {
+    const enabled = !this.state.shareEnabled;
+    this.setState({shareToggling: true});
+
+    $.post("set_share_buttons_pref", {
+        enabled
+    }).done((json) => {
+        this.setState({shareEnabled: json.enabled});
+    }).fail(() => {
+        this.setState({error: 'Cannot save share button preference.'});
+    }).always(() => {
+        this.setState({shareToggling: false});
+    });
+  }
+
   render(){
-    const { loading, loadingMessage, user, syncingNodes, nodes } = this.state;
+    const { loading, loadingMessage, user, syncingNodes, shareToggling, nodes, shareEnabled } = this.state;
 
     let balance = "";
     if (user){
@@ -134,17 +163,31 @@ export default class Dashboard extends React.Component {
                 
                 <h4>{_("Hello,")} <a href="javascript:void(0)" onClick={this.handleOpenDashboard}>{ user.email }</a></h4>
 
-                <div className="lightning-nodes">
-                    <h5>{_("Synced Nodes")}</h5>
-                    { syncingNodes ? <i className="fa fa-spin fa-sync"></i> :
-                    <div>
-                        <ul>
-                            {nodes.map(n => 
-                                <li key={n.id}><i className="fa fa-laptop"></i> <a href={`/processingnode/${n.id}/`}>{n.label}</a></li>
-                            )}
-                        </ul>
-                        <button className="btn btn-sm btn-default" onClick={this.handleSyncProcessingNode}><i className="fa fa-sync"></i> {_("Resync")}</button>
-                    </div> }
+                <div className="panels-container">
+                    <div className="panel theme-border-secondary-07">
+                        <div className="lightning-nodes">
+                            <h5>{_("Synced Nodes")}</h5>
+                            { syncingNodes ? <i className="fa fa-spin fa-sync"></i> :
+                            <div>
+                                <ul>
+                                    {nodes.map(n => 
+                                        <li key={n.id}><i className="fa fa-laptop"></i> <a href={`/processingnode/${n.id}/`}>{n.label}</a></li>
+                                    )}
+                                </ul>
+                                <button className="btn btn-sm btn-default" onClick={this.handleSyncProcessingNode}><i className="fa fa-sync"></i> {_("Resync")}</button>
+                            </div> }
+                        </div>
+                    </div>
+                    <div className="panel theme-border-secondary-07">
+                        <div className="form-group">
+                            <h5>{_("Share Buttons")}</h5>
+                            { shareToggling ? <i className="fa fa-spin fa-sync"></i> :
+                              shareEnabled ? _("Enabled") : _("Disabled")}
+                            <div style={{marginTop: '10px'}}>
+                                <button className="btn btn-sm btn-default" onClick={this.handleShareButtonsToggle}><i className="fa fa-toggle-on"></i> {_("Toggle")}</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 {nodes.length > 0 ? 

@@ -98,6 +98,19 @@ class Plugin(PluginBase):
             lightning_node_ids = ds.get_json("nodes", [])
             return JsonResponse({'result': int(request.GET.get('id')) in lightning_node_ids})
 
+        @login_required
+        @require_POST
+        def set_share_buttons_pref(request):
+            uds = UserDataStore('lightning', request.user)
+            
+            enabled = request.POST.get('enabled') == 'true'
+            uds.set_bool("share_enabled", enabled)
+            return JsonResponse({'enabled': enabled})
+
+        @login_required
+        def get_share_buttons_prefs(request):
+            uds = UserDataStore('lightning', request.user)
+            return JsonResponse({'enabled': uds.get_bool("share_enabled", True)})
 
         return [
             MountPoint('$', main),
@@ -105,6 +118,8 @@ class Plugin(PluginBase):
             MountPoint('sync_processing_node$', sync_processing_node),
             MountPoint('get_processing_nodes$', get_processing_nodes),
             MountPoint('is_lightning_node$', is_lightning_node),
+            MountPoint('set_share_buttons_pref$', set_share_buttons_pref),
+            MountPoint('get_share_buttons_prefs$', get_share_buttons_prefs),
         ]
 
 
