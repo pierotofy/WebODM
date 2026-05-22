@@ -110,7 +110,7 @@ class Plugin(PluginBase):
         @login_required
         def get_share_buttons_prefs(request):
             uds = UserDataStore('lightning', request.user)
-            return JsonResponse({'enabled': uds.get_bool("share_enabled", True)})
+            return JsonResponse({'enabled': uds.get_bool("share_enabled")})
 
         return [
             MountPoint('$', main),

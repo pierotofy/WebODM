@@ -45,7 +45,12 @@ export default class Login extends React.Component {
                 this.setState({loggingIn: false});
 
                 if (!err){
-                    this.props.onLogin(json.api_key);
+                    // Enable sharing by default
+                    $.post("set_share_buttons_pref", {
+                        enabled: true
+                    }).always(() => {
+                        this.props.onLogin(json.api_key);
+                    });
                 }else{
                     this.setState({ error: err.message });
                 }
