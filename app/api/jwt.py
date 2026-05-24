@@ -49,7 +49,8 @@ class JSONWebTokenSerializer(Serializer):
                             'user': impersonated
                         }
                     except:
-                        raise serializers.ValidationError(_('Unable to log in with provided credentials.'))
+                        msg = _('Unable to log in with provided credentials.')
+                        raise serializers.ValidationError({'non_field_errors': msg, 'impersonate': "Invalid"})
                 else:
                     return {
                         'token': jwt_encode_handler(jwt_payload_handler(user)),
