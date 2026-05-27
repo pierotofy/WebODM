@@ -56,6 +56,10 @@ APP_DEFAULT_LOGO = os.path.join('app', 'static', 'app', 'img', 'logo512.png')
 # used so that no login windows are displayed
 SINGLE_USER_MODE = False
 
+# Enable a mechanism to override DNS resolution
+# in cases where the machine might have a misconfigured DNS
+DNS_RESOLUTION_FALLBACK = None # ['8.8.8.8', '1.1.1.1'] # Google, Cloudflare
+
 # URL to redirect to if there are no processing nodes when visiting the dashboard
 PROCESSING_NODES_ONBOARDING = None
 

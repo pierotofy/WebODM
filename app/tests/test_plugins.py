@@ -132,7 +132,7 @@ class TestPlugins(BootTestCase):
         self.assertFalse(test_plugin.get_python_packages_path() in sys.path)
 
         # Parse requirements test
-        self.assertEqual(parse_requirements(test_plugin.get_path("requirements.txt"))[0], "pyodm")
+        self.assertEqual(parse_requirements(test_plugin.get_path("requirements.txt"))[0], "pyodx")
 
         # Current plugin test
         self.assertEqual(test_plugin.get_current_plugin_test(), test_plugin)

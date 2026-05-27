@@ -8,8 +8,8 @@ import time
 from django.utils import timezone
 from os import path
 
-from pyodm import Node
-from pyodm.exceptions import NodeConnectionError, NodeServerError, NodeResponseError
+from pyodx import Node
+from pyodx.exceptions import NodeConnectionError, NodeServerError, NodeResponseError
 from webodm import settings
 from app.tests.utils import start_processing_node
 from .models import ProcessingNode

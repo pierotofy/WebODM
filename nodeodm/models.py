@@ -12,8 +12,8 @@ from django.utils.translation import gettext_lazy as _
 from webodm import settings
 
 import json
-from pyodm import Node
-from pyodm import exceptions
+from pyodx import Node
+from pyodx import exceptions
 from django.db.models import signals
 from datetime import timedelta
 import logging
@@ -92,7 +92,7 @@ class ProcessingNode(models.Model):
             self.last_refreshed = timezone.now()
             self.save()
             return True
-        except exceptions.OdmError:
+        except exceptions.GenericError:
             return False
 
     def api_client(self, timeout=30):
@@ -212,7 +212,7 @@ def auto_update_node_info(sender, instance, created, **kwargs):
     if created:
         try:
             instance.update_node_info()
-        except exceptions.OdmError:
+        except exceptions.GenericError:
             pass
         except Exception as e:
             logger.warning("auto_update_node_info: " + str(e))
