@@ -2,7 +2,6 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { _ } from 'webodm/classes/gettext';
 import ShareDialog from './ShareDialog';
-import $ from 'jquery';
 
 export default class ShareButton extends React.Component {
     static defaultProps = {
@@ -19,7 +18,6 @@ export default class ShareButton extends React.Component {
         super(props);
 
         this.state = {
-            showDialog: false
         };
     }
 
@@ -31,34 +29,27 @@ export default class ShareButton extends React.Component {
 
     }
 
-    handleClick = () => {
+    handleShare = () => {
+        this.dialog.show();
     }
-
-    handleClose = () => {
-        this.setState({ showDialog: false });
-    };
 
     render() {
         const { task } = this.props;
-        const { showDialog } = this.state;
 
         return (
             <div className="share-button">
                 <button
                     className="btn btn-primary btn-sm"
-                    onClick={this.handleClick}>
+                    onClick={this.handleShare}>
                     <i className="fa fa-bolt"></i>&nbsp;
                     {_("Share")}
                 </button>
 
-                {/* <ShareDialog
-                    show={showDialog}
-                    onHide={this.handleDialogHide}
-                    onShare={this.handleShare}
-                    apiURL="/api/plugins/dronedb"
-                    taskName={task.name}
-                    filesToShare={filesToShare}
-                /> */}
+                <ShareDialog
+                    ref={domNode => { this.dialog = domNode; }}
+                    task={task}
+                    apiKey={this.props.apiKey}
+                />
             </div>
         );
     }

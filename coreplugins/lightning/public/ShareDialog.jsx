@@ -33,51 +33,52 @@ class ShareDialog extends React.Component {
 
     }
 
-    reset(){
+    reset = () => {
       this.setState({
         error: ""
       });
     }
 
-    getFormData(){
+    getFormData = () => {
       return {
 
       };
     }
 
-    onShow(){
+    onShow = () => {
 
     }
 
-    show(){
+    show = () => {
       this.dialog.show();
     }
 
-    hide(){
+    hide = () => {
       this.dialog.hide();
     }
 
     render(){
         return (
             <FormDialog {...this.props}
-                getFormData={this.getFormData}
-                reset={this.reset}
-                onShow={this.onShow}
-                ref={(domNode) => { this.dialog = domNode; }}>
+              title={_("Share to Lightning")}
+              getFormData={this.getFormData}
+              reset={this.reset}
+              onShow={this.onShow}
+              ref={(domNode) => { this.dialog = domNode; }}>
               <ErrorMessage bind={[this, "error"]} />
               <div className="form-group lightning-share-dialog">
-                <label className="col-sm-2 control-label">{_("Name")}</label>
-                <div className="col-sm-10 name-fields">
-                  <input type="text" className="form-control" ref={(domNode) => { this.nameInput = domNode; }} value={this.state.name} onChange={this.handleChange('name')} onKeyPress={e => this.dialog.handleEnter(e)} />
-                  <button type="button" title={_("Add tags")} onClick={this.toggleTagsField} className="btn btn-sm btn-secondary toggle-tags">
-                    <i className="fa fa-tag"></i>
-                  </button>
-                </div>
-              </div>
-              <div className="form-group">
-                <label className="col-sm-2 control-label">{_("Description (optional)")}</label>
+                <label className="col-sm-2 control-label">{_("Project")}</label>
                 <div className="col-sm-10">
-                  <textarea className="form-control" rows="3" value={this.state.descr} onChange={this.handleChange('descr')} />
+                    <select 
+                      className="form-control"
+                      onChange={(e) => this.setState({ selectedProject: e.target.value })}
+                      value={this.state.selectedProject || ""}
+                    >
+                      <option value="">{_("+ Add To New Project")}</option>
+                      {this.state.projects.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
                 </div>
               </div>
             </FormDialog>
