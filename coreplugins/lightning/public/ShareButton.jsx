@@ -1,8 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import ErrorMessage from 'webodm/components/ErrorMessage';
 import { _ } from 'webodm/classes/gettext';
-// import ShareDialog from './components/ShareDialog';
+import ShareDialog from './ShareDialog';
 import $ from 'jquery';
 
 export default class ShareButton extends React.Component {
