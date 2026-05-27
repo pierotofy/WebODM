@@ -25,20 +25,34 @@ class Plugin(PluginBase):
         return [Menu(_("Lightning"), self.public_url(""), "fa fa-bolt fa-fw")]
 
     def include_js_files(self):
-        return ['add_cost_estimate.js']
+        return ['main.js']
 
     def build_jsx_components(self):
-        return ['app.jsx', 'CostEstimateItem.jsx']
+        return ['app.jsx', 'CostEstimateItem.jsx', 'ShareButton.jsx']
 
     def app_mount_points(self):
         @login_required
         def main(request):
-            uds = UserDataStore('lightning', request.user)
+            uds = self.get_user_data_store(request.user)
 
             return render(request, self.template_path("index.html"), {
                 'title': _('Lightning'),
                 'api_key': uds.get_string("api_key")
             })
+        
+        @login_required
+        def main_js(request):
+            uds = self.get_user_data_store(request.user)
+
+            return render(
+                request,
+                self.template_path("main.js"),
+                {
+                    "share_enabled": uds.get_bool("share_enabled"),
+                    'api_key': uds.get_string("api_key")
+                },
+                content_type="text/javascript",
+            )
 
         @login_required
         @require_POST
@@ -114,6 +128,7 @@ class Plugin(PluginBase):
 
         return [
             MountPoint('$', main),
+            MountPoint('main.js$', main_js),
             MountPoint('save_api_key$', save_api_key),
             MountPoint('sync_processing_node$', sync_processing_node),
             MountPoint('get_processing_nodes$', get_processing_nodes),

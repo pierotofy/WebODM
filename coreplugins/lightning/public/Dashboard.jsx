@@ -164,7 +164,7 @@ export default class Dashboard extends React.Component {
                 <h4>{_("Hello,")} <a href="javascript:void(0)" onClick={this.handleOpenDashboard}>{ user.email }</a></h4>
 
                 <div className="panels-container">
-                    <div className="panel theme-border-secondary-07">
+                    <div className="panel theme-border">
                         <div className="lightning-nodes">
                             <h5>{_("Synced Nodes")}</h5>
                             { syncingNodes ? <i className="fa fa-spin fa-sync"></i> :
@@ -178,7 +178,7 @@ export default class Dashboard extends React.Component {
                             </div> }
                         </div>
                     </div>
-                    <div className="panel theme-border-secondary-07">
+                    <div className="panel theme-border">
                         <div className="form-group">
                             <h5>{_("Share Buttons")}</h5>
                             { shareToggling ? <i className="fa fa-spin fa-sync"></i> :
