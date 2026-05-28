@@ -59,6 +59,25 @@
         }
     }
 
+    .page-size-custom{
+        display: flex;
+        padding: 4px 8px;
+        gap: 4px;
+
+        input{
+            width: 70px;
+            height: 25px;
+            padding: 2px 4px;
+            font-size: 12px;
+        }
+
+        button{
+            height: 25px;
+            padding: 0 8px;
+            font-size: 12px;
+        }
+    }
+
     .clear-search{
         margin-top: 1px;
         font-weight: bold;
