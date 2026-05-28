@@ -8,9 +8,11 @@ import Trans from 'webodm/components/Trans';
 export default class LightningPanel extends React.Component {
   static defaultProps = {
     apiKey: "", 
+    apiBase: "https://webodm.net"
   };
   static propTypes = {
-    apiKey: PropTypes.string
+    apiKey: PropTypes.string,
+    apiBase: PropTypes.string
   }
 
   constructor(props){
@@ -32,6 +34,7 @@ export default class LightningPanel extends React.Component {
 
   render(){
     const { apiKey } = this.state;
+    const { apiBase } = this.props;
 
     return (<div className="plugin-lightning">
         { !apiKey ? 
@@ -47,10 +50,10 @@ export default class LightningPanel extends React.Component {
             </ul>
             <Trans params={{ link: '<a href="https://webodm.net" target="_blank">webodm.net</a>', register: `<a href="https://webodm.net/register" target="_blank">${_("register")}</a>`}}>
             {_("Below you can enter your %(link)s credentials to sync your account and automatically setup a new processing node. If you don't have an account, you can %(register)s for free.")}</Trans>
-            <Login onLogin={this.handleLogin} />
+            <Login apiBase={apiBase} onLogin={this.handleLogin} />
         </div> : 
         <div>
-            <Dashboard apiKey={apiKey} onLogout={this.handleLogout} />
+            <Dashboard apiKey={apiKey} apiBase={apiBase} onLogout={this.handleLogout} />
         </div>}
     </div>);
   }

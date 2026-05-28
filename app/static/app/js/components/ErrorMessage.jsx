@@ -4,11 +4,16 @@ import { _ } from '../classes/gettext';
 
 class ErrorMessage extends React.Component {
     static propTypes = {
-        bind: PropTypes.array.isRequired // two element array, 
+        bind: PropTypes.array.isRequired, // two element array, 
                                                // with first element being the parent element 
                                                // and the second the error property to display
                                                // ex. [this, 'error']
+        closeable: PropTypes.bool
     };
+
+    static defaultProps = {
+        closeable: true
+    }
 
     constructor(props){
         super(props);
@@ -26,7 +31,7 @@ class ErrorMessage extends React.Component {
         if (parent.state[prop]){
             return (
                 <div className={"alert alert-warning alert-dismissible " + (this.props.className ? this.props.className : "")}>
-                    <button type="button" className="close" title={_("Close")} onClick={this.close}><span aria-hidden="true">&times;</span></button>
+                    {this.props.closeable ? <button type="button" className="close" title={_("Close")} onClick={this.close}><span aria-hidden="true">&times;</span></button> : ""}
                     {parent.state[prop]}
                 </div>
             );

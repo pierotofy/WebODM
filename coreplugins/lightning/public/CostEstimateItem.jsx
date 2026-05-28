@@ -7,11 +7,13 @@ import { _ } from 'webodm/classes/gettext';
 
 export default class CostEstimateItem extends React.Component {
   static defaultProps = {
+    apiBase: "https://webodm.net"
   };
   static propTypes = {
     taskInfo: PropTypes.object.isRequired,
     getFiles: PropTypes.func.isRequired,
-    filesCount: PropTypes.number.isRequired
+    filesCount: PropTypes.number.isRequired,
+    apiBase: PropTypes.string
   }
 
   constructor(props){
@@ -91,7 +93,7 @@ export default class CostEstimateItem extends React.Component {
             this.estimateRequest = null;
         }
 
-        this.estimateRequest = $.get("https://webodm.net/r/tasks/estimateCost", {
+        this.estimateRequest = $.get(`${this.props.apiBase}/r/tasks/estimateCost`, {
             images: this.props.filesCount,
             width,
             height

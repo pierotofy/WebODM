@@ -7,9 +7,11 @@ import { _ } from 'webodm/classes/gettext';
 
 export default class Login extends React.Component {
   static defaultProps = {
+    apiBase: "https://webodm.net"
   };
   static propTypes = {
-    onLogin: PropTypes.func.isRequired
+    onLogin: PropTypes.func.isRequired,
+    apiBase: PropTypes.string
   }
 
   constructor(props){
@@ -34,7 +36,7 @@ export default class Login extends React.Component {
   handleLogin = () => {
       this.setState({loggingIn: true});
 
-      $.post("https://webodm.net/r/auth/login",
+      $.post(`${this.props.apiBase}/r/auth/login`,
         {
           username: this.state.email,
           password: this.state.password
@@ -106,8 +108,8 @@ export default class Login extends React.Component {
                             onKeyPress={this.handleKeyPress} />
                     </p>
                     <div style={{float: 'right'}} >
-                        <a href="https://webodm.net/register" target="_blank">{_("Don't have an account?")}</a><br/>
-                        <a href="https://webodm.net/reset" target="_blank">{_("Forgot password?")}</a>
+                        <a href={`${this.props.apiBase}/register`} target="_blank">{_("Don't have an account?")}</a><br/>
+                        <a href={`${this.props.apiBase}/reset`} target="_blank">{_("Forgot password?")}</a>
                     </div>
                     <p><button className="btn btn-primary" onClick={this.handleLogin} disabled={this.state.loggingIn}>
                         {this.state.loggingIn ? 

@@ -12,7 +12,8 @@ class FormDialog extends React.Component {
         savingLabel: _("Saving…"),
         saveIcon: "glyphicon glyphicon-plus",
         deleteWarning: _("Are you sure?"),
-        show: false
+        show: false,
+        showFooter: true
     };
 
     static propTypes = {
@@ -31,7 +32,8 @@ class FormDialog extends React.Component {
             PropTypes.string,
             PropTypes.bool
         ]),
-        show: PropTypes.bool
+        show: PropTypes.bool,
+        showFooter: PropTypes.bool
     };
 
     constructor(props){
@@ -200,7 +202,7 @@ class FormDialog extends React.Component {
                       {this.props.children}
                     </div>
                   </div>
-                  <div className="modal-footer">
+                  {this.props.showFooter ? <div className="modal-footer">
                     <div className="pull-right">
                         <button type="button" className="btn btn-default" onClick={this.hide} disabled={this.state.saving}>{_("Cancel")}</button>
                         <button type="button" className="btn btn-primary save" onClick={this.handleSave} disabled={this.state.saving}>
@@ -219,7 +221,7 @@ class FormDialog extends React.Component {
                             {leftButtons}
                         </div>
                     : ""}
-                  </div>
+                  </div> : ""}
                 </div>
               </div>
             </div>

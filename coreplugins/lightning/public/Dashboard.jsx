@@ -8,10 +8,12 @@ import Trans from 'webodm/components/Trans';
 
 export default class Dashboard extends React.Component {
   static defaultProps = {
+    apiBase: "https://webodm.net"
   };
   static propTypes = {
     apiKey: PropTypes.string.isRequired,
-    onLogout: PropTypes.func.isRequired
+    onLogout: PropTypes.func.isRequired,
+    apiBase: PropTypes.string
   }
 
   constructor(props){
@@ -30,7 +32,7 @@ export default class Dashboard extends React.Component {
   }
 
   apiUrl = url => {
-    return `https://webodm.net${url}?api_key=${this.props.apiKey}`;
+    return `${this.props.apiBase}${url}?api_key=${this.props.apiKey}`;
   };
 
   componentDidMount = () => {
@@ -110,7 +112,7 @@ export default class Dashboard extends React.Component {
   }
   
   handleBuyCredits = () => {
-      window.open("https://webodm.net/dashboard?bc=0");
+      window.open(`${this.props.apiBase}/dashboard?bc=0`);
   }
 
   handleRefresh = () => {
@@ -118,7 +120,7 @@ export default class Dashboard extends React.Component {
   }
 
   handleOpenDashboard = () => {
-      window.open("https://webodm.net/dashboard");
+      window.open(`${this.props.apiBase}/dashboard`);
   }
 
   handleShareButtonsToggle = (e) => {
