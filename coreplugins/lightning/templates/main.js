@@ -12,7 +12,7 @@ PluginsAPI.Dashboard.addTaskActionButton([
 ],function(args, ShareButton){
 	var task = args.task;
 	if ("{{ api_key }}" && task && task.available_assets !== null && task.available_assets.length > 0 && task.status === 40 /* completed */){
-		return React.createElement(ShareButton, {apiBase: "{{ api_base }}", task: task, apiKey: "{{api_key}}", cloudToken: "{{cloud_token}}"});
+		return React.createElement(ShareButton, {apiBase: "{{ api_base }}", task: task, apiKey: "{{api_key}}"});
 	}
 });
 {% endif %}

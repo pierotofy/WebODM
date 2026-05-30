@@ -7,14 +7,12 @@ export default class ShareButton extends React.Component {
     static defaultProps = {
         task: null,
         apiKey: '',
-        cloudToken: '',
         apiBase: 'https://webodm.net'
     };
 
     static propTypes = {
         task: PropTypes.object.isRequired,
         apiKey: PropTypes.string.isRequired,
-        cloudToken: PropTypes.string.isRequired,
         apiBase: PropTypes.string
     };
 
@@ -53,7 +51,6 @@ export default class ShareButton extends React.Component {
                     ref={domNode => { this.dialog = domNode; }}
                     task={task}
                     apiKey={this.props.apiKey}
-                    cloudToken={this.props.cloudToken}
                     apiBase={this.props.apiBase}
                 />
             </div>

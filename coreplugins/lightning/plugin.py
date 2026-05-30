@@ -52,7 +52,6 @@ class Plugin(PluginBase):
                 {
                     "share_enabled": uds.get_bool("share_enabled"),
                     "api_key": uds.get_string("api_key"),
-                    "cloud_token": uds.get_string("cloud_token"),
                     "api_base": API_BASE
                 },
                 content_type="text/javascript",
@@ -67,18 +66,6 @@ class Plugin(PluginBase):
 
             uds = UserDataStore('lightning', request.user)
             uds.set_string('api_key', api_key)
-
-            return JsonResponse({'success': True})
-
-        @login_required
-        @require_POST
-        def save_cloud_token(request):
-            cloud_token = request.POST.get('cloud_token')
-            if cloud_token is None:
-                return JsonResponse({'error': 'cloud_token is required'})
-
-            uds = UserDataStore('lightning', request.user)
-            uds.set_string('cloud_token', cloud_token)
 
             return JsonResponse({'success': True})
 
@@ -146,7 +133,6 @@ class Plugin(PluginBase):
             MountPoint('$', main),
             MountPoint('main.js$', main_js),
             MountPoint('save_api_key$', save_api_key),
-            MountPoint('save_cloud_token$', save_cloud_token),
             MountPoint('sync_processing_node$', sync_processing_node),
             MountPoint('get_processing_nodes$', get_processing_nodes),
             MountPoint('is_lightning_node$', is_lightning_node),

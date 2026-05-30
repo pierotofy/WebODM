@@ -3,7 +3,8 @@ import ErrorMessage from 'webodm/components/ErrorMessage';
 import PropTypes from 'prop-types';
 import './CloudLogin.scss';
 import $ from 'jquery';
-import { _ } from 'webodm/classes/gettext';
+import { _, interpolate } from 'webodm/classes/gettext';
+import { setCloudToken } from './CloudTokenStore';
 
 export default class Login extends React.Component {
   static defaultProps = {
@@ -20,8 +21,11 @@ export default class Login extends React.Component {
 
     this.state = {
         error: "",
+        loginError: "",
         loading: true,
         loggingIn: false,
+        showResetPwd: false,
+        cloudNotFound: false,
         password: "",
         user: null
     }
@@ -62,29 +66,27 @@ export default class Login extends React.Component {
 
       $.post(`${this.props.apiBase}/r/auth/cloud`,
         {
-          token: this.props.apiKey,
+          api_key: this.props.apiKey,
           password: this.state.password
         }
       ).done(json => {
           if (json.token){
-              this.saveCloudToken(json.token, (err) => {
-                this.setState({loggingIn: false});
-
-                if (!err){
-                    this.props.onLogin(json);
-                }else{
-                    this.setState({ error: err.message });
-                }
-              });
-          }else if (json.message){
-              this.setState({ loggingIn: false, error: json.message });
+            setCloudToken(this.props.apiKey, json.token);
+            this.setState({ showResetPwd: false});
+            this.props.onLogin(json);
+          }else if (json.code === 'invalid'){
+            this.setState({ showResetPwd: true, loginError: _("Invalid password. Do you need to reset it?")});
+          }else if (json.code === 'not_found'){
+            // Show info box to open cloud interface once
+            this.setState({cloudNotFound: true});
           }else{
-              this.setState({ loggingIn: false, error: _("Cannot login. Invalid response:") + " " + JSON.stringify(json)});
+            this.setState({ loginError: _("Cannot login. Invalid response:") + " " + JSON.stringify(json)});
           }
+      }).fail(() => {
+          this.setState({error: _("Cannot login. Please make sure you are connected to the internet, or try again in an hour.")});
+      }).always(() => {
+        this.setState({loggingIn: false});
       })
-      .fail(() => {
-          this.setState({loggingIn: false, error: _("Cannot login. Please make sure you are connected to the internet, or try again in an hour.")});
-      });
   }
 
   handleKeyPress = (e) => {
@@ -93,29 +95,25 @@ export default class Login extends React.Component {
     }
   }
 
-  saveCloudToken = (token, cb) => {
-      $.post("/plugins/lightning/save_cloud_token", {
-          token
-      }).done(json => {
-        if (!json.success){
-            cb(new Error(`Cannot save token: ${JSON.stringify(json)}`));
-        }else cb();
-      }).fail(e => {
-        cb(new Error(`Cannot save token: ${JSON.stringify(e)}`));
-      });
-  }
-
   render(){
-    const { loading, error, user } = this.state;
+    const { loading, error, user, showResetPwd, loginError, cloudNotFound } = this.state;
 
-    return (<div className="lightning-cloud-login">
-        <div className="row">
-            <div className="col-sm-12">
-                <ErrorMessage bind={[this, "error"]} />
+    let content = "";
+    if (loading) content = <i className="fa fa-circle-notch fa-spin"></i>;
+    else{
+        if (!error){
+            if (cloudNotFound){
+                content = <div className="alert alert-info" dangerouslySetInnerHTML={{__html: interpolate(_("Your Lightning cloud platform account is not active yet. To activate it, visit %(link)s and make sure you can access the cloud platform, then try again."), {
+                        link: `<a href="https://webodm.net/cloud" target="_blank">webodm.net/cloud</a>`
+                    })}}>
+                </div>;
+            }else{
+                content = <div className="form-group text-left">
+                    <ErrorMessage bind={[this, "loginError"]} />
 
-                {loading ? <i className="fa fa-circle-notch fa-spin"></i> :
-                (!error ? <div className="form-group text-left">
-                    <div style={{marginBottom: '12px'}}>
+                    {!loginError ? <div style={{marginBottom: '24px'}}>{_("Please confirm the password of your Lightning account to continue:")}</div> : ""}
+
+                    <div style={{marginBottom: '12px', marginBottom: '12px'}}>
                         <div className="login-labels">
                             <label htmlFor="password">{_("Password")}</label> 
                             <label>{user.email} <div style={{display: 'inline-block', marginLeft: '4px'}}><small>(<a href="/plugins/lightning/">{_("switch")}</a>)</small></div></label>
@@ -125,15 +123,26 @@ export default class Login extends React.Component {
                             onChange={this.handlePasswordChange} 
                             onKeyPress={this.handleKeyPress} />
                     </div>
-                    {/* <div style={{float: 'right', marginTop: '4px'}} >
-                        <a href={`${this.props.apiBase}/reset`} target="_blank">{_("Forgot password?")}</a>
-                    </div> */}
-                    <p><button className="btn btn-primary" onClick={this.handleLogin} disabled={this.state.loggingIn}>
+                    {showResetPwd ? <div style={{float: 'right', marginTop: '4px'}} >
+                        <a href={`${this.props.apiBase}/reset`} target="_blank">{_("Reset password")}</a>
+                    </div> : ""}
+                    <div>
+                        <button className="btn btn-primary" onClick={this.handleLogin} disabled={this.state.loggingIn}>
                         {this.state.loggingIn ? 
                         <span><i className="fa fa-spin fa-circle-notch"></i></span> : 
                         <span><i className="fa fa-lock"></i> {_("Confirm Password")}</span>}
-                    </button></p>
-                </div> : "")}
+                        </button>
+                    </div>
+                </div>;
+            }
+        }
+    }
+    return (<div className="lightning-cloud-login">
+        <div className="row">
+            <div className="col-sm-12">
+                <ErrorMessage bind={[this, "error"]} />
+
+                {content}
             </div>
         </div>
     </div>);

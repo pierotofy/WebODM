@@ -35,7 +35,6 @@ export default class Login extends React.Component {
 
   handleLogin = () => {
       this.setState({loggingIn: true});
-
       $.post(`${this.props.apiBase}/r/auth/login`,
         {
           username: this.state.email,

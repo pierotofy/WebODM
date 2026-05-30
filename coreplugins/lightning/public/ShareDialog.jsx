@@ -5,12 +5,12 @@ import './ShareDialog.scss';
 import ErrorMessage from 'webodm/components/ErrorMessage';
 import CloudLogin from './CloudLogin';
 import { _ } from 'webodm/classes/gettext';
+import { getCloudToken } from './CloudTokenStore';
 import $ from 'jquery';
 
 class ShareDialog extends React.Component {
     static defaultProps = {
       apiKey: "",
-      cloudToken: "",
       task: null,
       apiBase: "https://webodm.net"
     };
@@ -18,7 +18,6 @@ class ShareDialog extends React.Component {
     static propTypes = {
         task: PropTypes.object.isRequired,
         apiKey: PropTypes.string.isRequired,
-        cloudToken: PropTypes.object.isRequired,
         apiBase: PropTypes.string
     };
 
@@ -31,7 +30,7 @@ class ShareDialog extends React.Component {
           fetchingProjects: false,
           showLogin: false,
           cloudUrl: "",
-          cloudToken: props.cloudToken,
+          cloudToken: getCloudToken(this.props.apiKey),
           selectedProject: "",
           projects: [{
             id: 1,
@@ -61,7 +60,7 @@ class ShareDialog extends React.Component {
           this.setState({error: _("Invalid response. Try again later.")});
         }
       }).fail(() => {
-        this.setState({ error: _("Cannot fetch projects. Try again later.") });
+        this.setState({ error: _("Cannot communicate with Lightning's cloud platform. Try again later.") });
       }).always(() => {
         this.setState({ fetchingProjects: false });
       });
@@ -94,8 +93,8 @@ class ShareDialog extends React.Component {
         type: 'POST',
         url: `${this.props.apiBase}/r/auth/cloud/verify`,
         data: JSON.stringify({
-          token: this.props.apiKey,
-          cloudToken: this.state.cloudToken
+          api_key: this.props.apiKey,
+          cloud_token: this.state.cloudToken
         }),
         contentType: 'application/json'
       }).done(json => {
@@ -122,7 +121,7 @@ class ShareDialog extends React.Component {
       this.dialog.hide();
     }
 
-    handleCloudLogin = () => {
+    handleCloudLogin = (json) => {
       console.log("TODO")
     }
 
@@ -141,6 +140,7 @@ class ShareDialog extends React.Component {
       }else{
         if (!error){
           if (fetchingProjects){
+            showFooter = false;
             formContent = (<div className="text-center">
               <p>{_("Retrieving projects...")}</p>,
               <i className="fa fa-circle-notch fa-spin fa-fw"></i>
