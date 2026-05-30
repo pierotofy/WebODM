@@ -3,6 +3,7 @@ import FormDialog from 'webodm/components/FormDialog';
 import PropTypes from 'prop-types';
 import './ShareDialog.scss';
 import ErrorMessage from 'webodm/components/ErrorMessage';
+import CloudLogin from './CloudLogin';
 import { _ } from 'webodm/classes/gettext';
 import $ from 'jquery';
 
@@ -121,8 +122,12 @@ class ShareDialog extends React.Component {
       this.dialog.hide();
     }
 
+    handleCloudLogin = () => {
+      console.log("TODO")
+    }
+
     render(){
-      const { checkingToken, fetchingProjects, error } = this.state;
+      const { checkingToken, fetchingProjects, error, showLogin } = this.state;
 
       let formContent = "";
       let showFooter = true;
@@ -141,21 +146,27 @@ class ShareDialog extends React.Component {
               <i className="fa fa-circle-notch fa-spin fa-fw"></i>
             </div>);
           }else{
-            formContent = [
-              <label className="col-sm-2 control-label">{_("Project")}</label>,
-              <div className="col-sm-10">
-                  <select 
-                    className="form-control"
-                    onChange={(e) => this.setState({ selectedProject: e.target.value })}
-                    value={this.state.selectedProject || ""}
-                  >
-                    <option value="">{_("+ Add To New Project")}</option>
-                    {this.state.projects.map(p => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
-              </div>
-            ];
+
+            if (showLogin){
+              showFooter = false;
+              formContent = <CloudLogin onLogin={this.handleCloudLogin} apiKey={this.props.apiKey} apiBase={this.props.apiBase} />;
+            }else{
+              formContent = [
+                <label className="col-sm-2 control-label">{_("Project")}</label>,
+                <div className="col-sm-10">
+                    <select 
+                      className="form-control"
+                      onChange={(e) => this.setState({ selectedProject: e.target.value })}
+                      value={this.state.selectedProject || ""}
+                    >
+                      <option value="">{_("+ Add To New Project")}</option>
+                      {this.state.projects.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                </div>
+              ];
+            }
           }
         }
       }
