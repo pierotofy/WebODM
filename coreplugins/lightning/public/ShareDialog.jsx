@@ -47,9 +47,17 @@ class ShareDialog extends React.Component {
     getAvailableAssets = () => {
       if (!this.props.task || !Array.isArray(this.props.task.available_assets)) return [];
 
-      let assets = AssetDownloads.only(this.props.task.available_assets);
-      const subset = ["orthophoto.tif", "dtm.tif", "dsm.tif", "georeferenced_model.laz", "textured_model.glb", "report.pdf"];
-      return assets.filter(a => subset.includes(a.asset));
+      const displayAssets = ["orthophoto.tif", "dtm.tif", "dsm.tif", "georeferenced_model.laz", "report.pdf", "textured_model.zip"];
+      
+      // Treat all textured models as a single choice
+      let taa = Utils.clone(this.props.task.available_assets).filter(a => !a.startsWith("textured_model"));
+      if (this.props.task.available_assets.indexOf("textured_model.zip") !== -1 ||
+         this.props.task.available_assets.indexOf("textured_model.glb") !== -1){
+        taa.push("textured_model.zip")
+      }
+
+      let assets = AssetDownloads.only(taa);
+      return assets.filter(a => displayAssets.includes(a.asset));
     }
 
     getSavedAssets = () => {
@@ -198,11 +206,25 @@ class ShareDialog extends React.Component {
       this.updateSize();
     }
 
-    handleAssetToggle = (assetId) => {
+   handleAssetToggle = (assetId) => {
        let { selectedCustomAssets } = this.state;
-       if (selectedCustomAssets.indexOf(assetId) === -1) selectedCustomAssets.push(assetId);
-       else selectedCustomAssets = selectedCustomAssets.filter(a => a !== assetId);
-        
+       
+       // Always require point cloud when textured model is selected
+       const pointcloud = assetId === 'georeferenced_model.laz';
+       const texModel = assetId === 'textured_model.zip';
+
+       if (selectedCustomAssets.indexOf(assetId) === -1) {
+          selectedCustomAssets = [...selectedCustomAssets, assetId];
+          if (texModel && !selectedCustomAssets.includes('georeferenced_model.laz')) {
+             selectedCustomAssets.push('georeferenced_model.laz');
+          }
+       } else {
+          selectedCustomAssets = selectedCustomAssets.filter(a => a !== assetId);
+          if (pointcloud && selectedCustomAssets.includes('textured_model.zip')) {
+             selectedCustomAssets = selectedCustomAssets.filter(a => a !== 'textured_model.zip');
+          }
+       }
+       
        this.setState({selectedCustomAssets});
        this.updateSize();
     }
@@ -232,7 +254,7 @@ class ShareDialog extends React.Component {
             if (showLogin){
               showFooter = false;
               formContent = <CloudLogin onLogin={this.handleCloudLogin} apiKey={this.props.apiKey} apiBase={this.props.apiBase} />;
-            }else{
+            }else if (profile){
               const availableAssets = this.getAvailableAssets();
 
               formContent = [
@@ -273,7 +295,7 @@ class ShareDialog extends React.Component {
                 </div>,
 
                 this.state.selectedAssets === 'custom' ? <div className="row" key="custom">
-                  <div className="col-sm-12 lightning-custom-assets">
+                  <div className="col-sm-12">
                       {availableAssets.length > 0 ? <div className="row">
                         {availableAssets.map(asset => (
                           <div className="col-sm-6" key={asset.asset}>
@@ -300,7 +322,7 @@ class ShareDialog extends React.Component {
                       <i className="fa fa-circle-notch fa-spin fa-fw"></i> : 
                       <span>
                         {Utils.bytesToSize(size)} 
-                        {profile.has_quota && (profile.quota - profile.used_quota) < size  / 1024 / 1024 ? <i style={{marginLeft: "8px"}} title={_("Size exceeds your available storage quota")} className="fa fa-exclamation-triangle"></i> : ""}
+                        {profile.has_quota && (profile.quota - profile.used_quota) < size  / 1024 / 1024 ? <i style={{marginLeft: "8px"}} title={_("Size exceeds available storage quota")} className="fa fa-exclamation-triangle"></i> : ""}
                       </span>}
                   </div>
                 </div>,

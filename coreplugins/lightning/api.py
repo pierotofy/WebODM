@@ -37,6 +37,12 @@ def get_resources(task, assets, customAssets):
                 ept_dir = task.assets_path("entwine_pointcloud")
                 if os.path.isdir(ept_dir):
                     resources.append(ept_dir)
+            
+            # Include entire texturing folder (GLB + OBJ)
+            if asset == "textured_model.zip":
+                tex_dir = task.assets_path("odm_texturing")
+                if os.path.isdir(tex_dir):
+                    resources.append(tex_dir)
 
     return resources
 
