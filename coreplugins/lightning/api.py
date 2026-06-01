@@ -9,7 +9,6 @@ logger = logging.getLogger('app.logger')
 
 
 def get_resources(task, assets, customAssets):
-    print(assets, customAssets)
     if assets not in ["all", "backup", "custom"]:
         raise exceptions.ValidationError({"assets": "Invalid"})
     if assets == "custom":
@@ -32,6 +31,12 @@ def get_resources(task, assets, customAssets):
             file = task.get_asset_download_path(asset)
             if os.path.isfile(file):
                 resources.append(file)
+            
+            # Include EPT folder if available
+            if asset == "georeferenced_model.laz":
+                ept_dir = task.assets_path("entwine_pointcloud")
+                if os.path.isdir(ept_dir):
+                    resources.append(ept_dir)
 
     return resources
 

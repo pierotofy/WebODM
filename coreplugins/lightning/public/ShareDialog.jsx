@@ -4,7 +4,7 @@ import PropTypes from 'prop-types';
 import './ShareDialog.scss';
 import ErrorMessage from 'webodm/components/ErrorMessage';
 import CloudLogin from './CloudLogin';
-import { _ } from 'webodm/classes/gettext';
+import { _, interpolate } from 'webodm/classes/gettext';
 import { getCloudToken } from './CloudTokenStore';
 import AssetDownloads from 'webodm/classes/AssetDownloads';
 import Utils from 'webodm/classes/Utils';
@@ -189,7 +189,7 @@ class ShareDialog extends React.Component {
     }
 
     handleCloudLogin = (json) => {
-      this.setState({cloudToken: json.token, cloudUrl: json.url});
+      this.setState({cloudToken: json.token, cloudUrl: json.url, showLogin: false});
       this.fetchProjectList();
     }
 
@@ -202,7 +202,7 @@ class ShareDialog extends React.Component {
        let { selectedCustomAssets } = this.state;
        if (selectedCustomAssets.indexOf(assetId) === -1) selectedCustomAssets.push(assetId);
        else selectedCustomAssets = selectedCustomAssets.filter(a => a !== assetId);
-
+        
        this.setState({selectedCustomAssets});
        this.updateSize();
     }
@@ -236,65 +236,74 @@ class ShareDialog extends React.Component {
               const availableAssets = this.getAvailableAssets();
 
               formContent = [
-              <div className="row" key="project">
-                <label className="col-sm-2 control-label">{_("Project")}</label>
-                <div className="col-sm-10">
-                    <select 
-                      className="form-control"
-                      onChange={(e) => this.setState({ selectedProject: e.target.value })}
-                      value={this.state.selectedProject || ""}
-                    >
-                      <option value="">{_("+ Add To New Project")}</option>
-                      {this.state.projects.map(p => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
-                      ))}
-                    </select>
-                </div>
-              </div>,
-              <div className="row" key="upload">
-                <label className="col-sm-2 control-label">{_("Upload")}</label>
-                <div className="col-sm-10">
-                    <select 
-                      className="form-control"
-                      onChange={this.handleUploadChange}
-                      value={this.state.selectedAssets}
-                    >
-                      <option value="all">{_("All Assets")}</option>
-                      <option value="backup">{_("All Assets + Original Images")}</option>
-                      <option value="custom">{_("Only")}</option>
-                    </select>
-                </div>
-              </div>,
-
-              this.state.selectedAssets === 'custom' ? <div className="row" key="custom">
-                <div className="col-sm-12 lightning-custom-assets">
-                    {availableAssets.length > 0 ? <div className="row">
-                      {availableAssets.map(asset => (
-                        <div className="col-sm-6" key={asset.asset}>
-                          <div className="checkbox lightning-custom-asset-option">
-                            <label>
-                              <input
-                                type="checkbox"
-                                checked={selectedCustomAssets.indexOf(asset.asset) !== -1}
-                                onChange={() => this.handleAssetToggle(asset.asset)} />
-                              <i className={asset.icon}></i>
-                              <span>{asset.label}</span>
-                            </label>
-                          </div>
-                        </div>
-                      ))}
-                    </div> : ""}
-                  </div>
+                (profile.has_quota && profile.quota === 0) ? 
+                <div className="lightning-quota-warn row alert alert-warning" key="quota-warn">
+                  <span>{_("Your Lightning account does not have permanent cloud storage. You can still share, but data will be deleted shortly after upload.")} </span>
+                  <a href="https://webodm.net/pricing" target="_blank">webodm.net/pricing</a>
                 </div> : "",
+                
+                <div className="row" key="project">
+                  <label className="col-sm-2 control-label">{_("Project")}</label>
+                  <div className="col-sm-10">
+                      <select 
+                        className="form-control"
+                        onChange={(e) => this.setState({ selectedProject: e.target.value })}
+                        value={this.state.selectedProject || ""}
+                      >
+                        <option value="">{_("Add To New Project")} [+]</option>
+                        {this.state.projects.map(p => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                  </div>
+                </div>,
+                <div className="row" key="upload">
+                  <label className="col-sm-2 control-label">{_("Upload")}</label>
+                  <div className="col-sm-10">
+                      <select 
+                        className="form-control"
+                        onChange={this.handleUploadChange}
+                        value={this.state.selectedAssets}
+                      >
+                        <option value="all">{_("All Assets")}</option>
+                        <option value="backup">{_("All Assets + Original Images")}</option>
+                        <option value="custom">{_("Only")}</option>
+                      </select>
+                  </div>
+                </div>,
+
+                this.state.selectedAssets === 'custom' ? <div className="row" key="custom">
+                  <div className="col-sm-12 lightning-custom-assets">
+                      {availableAssets.length > 0 ? <div className="row">
+                        {availableAssets.map(asset => (
+                          <div className="col-sm-6" key={asset.asset}>
+                            <div className="checkbox lightning-custom-asset-option">
+                              <label>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedCustomAssets.indexOf(asset.asset) !== -1}
+                                  onChange={() => this.handleAssetToggle(asset.asset)} />
+                                <i className={asset.icon}></i>
+                                <span>{asset.label}</span>
+                              </label>
+                            </div>
+                          </div>
+                        ))}
+                      </div> : ""}
+                    </div>
+                  </div> : "",
 
                 <div className="row" key="size">
                   <label className="col-sm-2 control-label">{_("Size")}</label>
                   <div className="col-sm-10 lightning-upload-size">
                     {loadingSize ? 
                       <i className="fa fa-circle-notch fa-spin fa-fw"></i> : 
-                      <span>{Utils.bytesToSize(size)}</span>}
+                      <span>
+                        {Utils.bytesToSize(size)} 
+                        {profile.has_quota && (profile.quota - profile.used_quota) < size  / 1024 / 1024 ? <i style={{marginLeft: "8px"}} title={_("Size exceeds your available storage quota")} className="fa fa-exclamation-triangle"></i> : ""}
+                      </span>}
                   </div>
-                </div>
+                </div>,
               ];
             }
           }
