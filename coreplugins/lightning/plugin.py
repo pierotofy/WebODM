@@ -14,6 +14,7 @@ from django.views.decorators.http import require_POST
 
 from nodeodm.models import ProcessingNode
 from app.api.processingnodes import ProcessingNodeSerializer
+from .api import GetTaskSize
 
 API_BASE = "http://192.168.2.253:5000" # TODO: ADJUST!
 ds = GlobalDataStore('lightning')
@@ -140,6 +141,10 @@ class Plugin(PluginBase):
             MountPoint('get_share_buttons_prefs$', get_share_buttons_prefs),
         ]
 
+    def api_mount_points(self):
+        return [
+            MountPoint('task/(?P<pk>[^/.]+)/size$', GetTaskSize.as_view())
+        ]
 
 @receiver(signals.processing_node_removed, dispatch_uid="lightning_on_processing_node_removed")
 def lightning_on_processing_node_removed(sender, processing_node_id, **kwargs):

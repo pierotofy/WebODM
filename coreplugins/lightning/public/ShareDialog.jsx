@@ -7,6 +7,7 @@ import CloudLogin from './CloudLogin';
 import { _ } from 'webodm/classes/gettext';
 import { getCloudToken } from './CloudTokenStore';
 import AssetDownloads from 'webodm/classes/AssetDownloads';
+import Utils from 'webodm/classes/Utils';
 import $ from 'jquery';
 
 class ShareDialog extends React.Component {
@@ -36,7 +37,9 @@ class ShareDialog extends React.Component {
           projects: [],
           selectedAssets: this.getSavedAssets(),
           custom: this.getSavedCustom(),
-          profile: null
+          profile: null,
+          size: null,
+          loadingSize: true
         };
 
     }
@@ -50,7 +53,7 @@ class ShareDialog extends React.Component {
     }
 
     getSavedAssets = () => {
-      return localStorage.getItem("lightning_last_assets") || "all-assets";
+      return localStorage.getItem("lightning_last_assets") || "all";
     }
 
     getSavedCustom = () => {
@@ -97,6 +100,7 @@ class ShareDialog extends React.Component {
         
         if (Array.isArray(projects)){
           this.setState({ projects, profile });
+          this.updateSize();
         }else{
           this.setState({error: _("Invalid response. Try again later.")});
         }
@@ -120,10 +124,28 @@ class ShareDialog extends React.Component {
       });
     }
 
+    updateSize = () => {
+      this.setState({loadingSize: true});
+      setTimeout(() => {
+        $.ajax({
+          type: 'POST',
+          url: `/api/plugins/lightning/task/${this.props.task.id}/size`,
+          data: JSON.stringify(this.getFormData()),
+          contentType: 'application/json'
+        }).done((json) => {
+          this.setState({ size: json.size });
+        }).fail(() => {
+          this.setState({ error: _("Cannot calculate size. Try again later.") });
+        }).always(() => {
+          this.setState({ loadingSize: false });
+        });
+      }, 0);
+    }
+
     getFormData = () => {
       return {
         project: this.state.selectedProject,
-        asset: this.state.selectedAssets,
+        assets: this.state.selectedAssets,
         customAssets: this.state.selectedAssets === 'custom' ? this.state.selectedCustomAssets : []
       };
     }
@@ -173,6 +195,7 @@ class ShareDialog extends React.Component {
 
     handleUploadChange = (e) => {
       this.setState({selectedAssets: e.target.value});
+      this.updateSize();
     }
 
     handleAssetToggle = (assetId) => {
@@ -181,11 +204,12 @@ class ShareDialog extends React.Component {
        else selectedCustomAssets = selectedCustomAssets.filter(a => a !== assetId);
 
        this.setState({selectedCustomAssets});
+       this.updateSize();
     }
 
     render(){
-      const { checkingToken, fetchingProjects, error, profile, showLogin, selectedCustomAssets } = this.state;
-      console.log(profile)
+      const { checkingToken, fetchingProjects, error, profile, loadingSize, size, showLogin, selectedCustomAssets } = this.state;
+
       let formContent = "";
       let showFooter = true;
 
@@ -235,7 +259,7 @@ class ShareDialog extends React.Component {
                       onChange={this.handleUploadChange}
                       value={this.state.selectedAssets}
                     >
-                      <option value="all-assets">{_("All Assets")}</option>
+                      <option value="all">{_("All Assets")}</option>
                       <option value="backup">{_("All Assets + Original Images")}</option>
                       <option value="custom">{_("Only")}</option>
                     </select>
@@ -260,8 +284,17 @@ class ShareDialog extends React.Component {
                         </div>
                       ))}
                     </div> : ""}
+                  </div>
+                </div> : "",
+
+                <div className="row" key="size">
+                  <label className="col-sm-2 control-label">{_("Size")}</label>
+                  <div className="col-sm-10 lightning-upload-size">
+                    {loadingSize ? 
+                      <i className="fa fa-circle-notch fa-spin fa-fw"></i> : 
+                      <span>{Utils.bytesToSize(size)}</span>}
+                  </div>
                 </div>
-              </div> : ""
               ];
             }
           }
@@ -272,6 +305,9 @@ class ShareDialog extends React.Component {
           <FormDialog {...this.props}
             title={_("Share to Lightning")}
             getFormData={this.getFormData}
+            saveLabel={_("Share")}
+            savingLabel={_("Sharing...")}
+            saveIcon="fa fa-upload"
             reset={this.reset}
             onShow={this.onShow}
             showFooter={showFooter && !error}
