@@ -50,3 +50,20 @@ class TestApiUsers(BootTestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res.data), 1)
 
+    def test_user_profile(self):
+        client = APIClient()
+
+        # Need to be logged in
+        res = client.get("/api/user/profile/")
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+        client.login(username="testuser", password="test1234")
+        
+        res = client.get("/api/user/profile/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertTrue('quota' in res.data)
+        self.assertTrue('username' in res.data)
+
+
+        
+

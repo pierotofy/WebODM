@@ -22,3 +22,15 @@ class UsersList(APIView):
                 raise exceptions.ValidationError(detail="Invalid query parameters")
 
         return Response([{'username': u.username, 'email': u.email} for u in qs])
+
+    
+class UsersProfile(APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get(self, request):
+        return Response({
+            'username': request.user.username,
+            'has_quota': request.user.profile.has_quota(),
+            'used_quota': request.user.profile.used_quota_cached(),
+            'quota': request.user.profile.quota,
+        })

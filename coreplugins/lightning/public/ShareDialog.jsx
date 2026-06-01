@@ -36,6 +36,7 @@ class ShareDialog extends React.Component {
           projects: [],
           selectedAssets: this.getSavedAssets(),
           custom: this.getSavedCustom(),
+          profile: null
         };
 
     }
@@ -75,15 +76,27 @@ class ShareDialog extends React.Component {
     fetchProjectList = () => {
       this.setState({fetchingProjects: true});
 
-      $.ajax({
-        type: 'GET',
-        url: `${this.state.cloudUrl}/api/projects/`,
-        headers: {
-          'Authorization': 'JWT ' + this.state.cloudToken
-        }
-      }).done(json => {
-        if (Array.isArray(json)){
-          this.setState({ projects: json });
+      $.when(
+        $.ajax({
+          type: 'GET',
+          url: `${this.state.cloudUrl}/api/projects/`,
+          headers: {
+            'Authorization': 'JWT ' + this.state.cloudToken
+          }
+        }),
+        $.ajax({
+          type: 'GET',
+          url: `${this.state.cloudUrl}/api/user/profile`,
+          headers: {
+            'Authorization': 'JWT ' + this.state.cloudToken
+          }
+        })
+      ).done((projectsRes, profileRes) => {
+        const projects = projectsRes[0];
+        const profile = profileRes[0];
+        
+        if (Array.isArray(projects)){
+          this.setState({ projects, profile });
         }else{
           this.setState({error: _("Invalid response. Try again later.")});
         }
@@ -171,8 +184,8 @@ class ShareDialog extends React.Component {
     }
 
     render(){
-      const { checkingToken, fetchingProjects, error, showLogin, selectedCustomAssets } = this.state;
-
+      const { checkingToken, fetchingProjects, error, profile, showLogin, selectedCustomAssets } = this.state;
+      console.log(profile)
       let formContent = "";
       let showFooter = true;
 
@@ -198,7 +211,8 @@ class ShareDialog extends React.Component {
             }else{
               const availableAssets = this.getAvailableAssets();
 
-              formContent = [<div className="row" key="project">
+              formContent = [
+              <div className="row" key="project">
                 <label className="col-sm-2 control-label">{_("Project")}</label>
                 <div className="col-sm-10">
                     <select 

@@ -15,7 +15,7 @@ from .jwt import obtain_jwt_token
 from .tiler import TileJson, Bounds, Metadata, Tiles, Export
 from .potree import Scene, CameraView
 from .workers import CheckTask, GetTaskResult
-from .users import UsersList
+from .users import UsersList, UsersProfile
 from .groups import GroupsList
 from .externalauth import ExternalTokenAuth
 from webodm import settings
@@ -80,6 +80,8 @@ urlpatterns = [
     url(r'^token-auth/', obtain_jwt_token),
 
     url(r'^plugins/(?P<plugin_name>[^/.]+)/(.*)$', api_view_handler),
+    
+    url(r'^user/profile/$', UsersProfile.as_view())
 ]
 
 if settings.ENABLE_USERS_API:
