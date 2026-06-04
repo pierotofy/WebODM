@@ -126,6 +126,7 @@ class ShareDialog extends React.Component {
         fetchingProjects: false,
         showLogin: false,
         cloudUrl: "",
+        cloudToken: getCloudToken(this.props.apiKey),
         selectedProject: "",
         selectedAssets: this.getSavedAssets(),
         selectedCustomAssets: this.getSavedCustom(),
@@ -138,7 +139,7 @@ class ShareDialog extends React.Component {
         $.ajax({
           type: 'POST',
           url: `/api/plugins/lightning/task/${this.props.task.id}/size`,
-          data: JSON.stringify(this.getFormData()),
+          data: JSON.stringify(this.getSizeFormData()),
           contentType: 'application/json'
         }).done((json) => {
           this.setState({ size: json.size });
@@ -150,12 +151,19 @@ class ShareDialog extends React.Component {
       }, 0);
     }
 
-    getFormData = () => {
+    getSizeFormData = () => {
       return {
-        project: this.state.selectedProject,
         assets: this.state.selectedAssets,
         customAssets: this.state.selectedAssets === 'custom' ? this.state.selectedCustomAssets : []
       };
+    }
+
+    getFormData = () => {
+      const d = this.getSizeFormData();
+      d.project = this.state.selectedProject;
+      d.cloudToken = this.state.cloudToken;
+      d.cloudUrl = this.state.cloudUrl;
+      return d;
     }
 
     onShow = () => {
@@ -227,6 +235,17 @@ class ShareDialog extends React.Component {
        
        this.setState({selectedCustomAssets});
        this.updateSize();
+    }
+
+    handleShare = (formData) => {
+      return $.ajax({
+        type: 'POST',
+        url: `/api/plugins/lightning/task/${this.props.task.id}/share`,
+        data: JSON.stringify(formData),
+        contentType: 'application/json'
+      }).done((json) => {
+          console.log("OK");
+      });
     }
 
     render(){
@@ -342,7 +361,9 @@ class ShareDialog extends React.Component {
             reset={this.reset}
             onShow={this.onShow}
             showFooter={showFooter && !error}
-            ref={(domNode) => { this.dialog = domNode; }}>
+            ref={(domNode) => { this.dialog = domNode; }}
+            saveAction={this.handleShare}
+            >
             <ErrorMessage bind={[this, "error"]} closeable={false} />
             <div className="form-group lightning-share-dialog">
               {formContent}
