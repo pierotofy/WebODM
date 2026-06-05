@@ -519,8 +519,7 @@ class TaskListItem extends React.Component {
     
     let expanded = "";
     if (this.state.expanded){
-      let showOrthophotoMissingWarning = false,
-          showMemoryErrorWarning = this.state.memoryError && task.status == statusCodes.FAILED && window.location.hostname.indexOf("webodm.net") === -1,
+      let showMemoryErrorWarning = this.state.memoryError && task.status == statusCodes.FAILED && window.location.hostname.indexOf("webodm.net") === -1,
           showTaskWarning = this.state.friendlyTaskError !== "" && task.status == statusCodes.FAILED,
           showExitedWithCodeOneHints = task.last_error === "Process exited with code 1" &&
                                        !showMemoryErrorWarning &&
@@ -540,8 +539,6 @@ class TaskListItem extends React.Component {
           addActionButton(" " + _("Map"), "btn-primary", "fa fa-globe fa-fw", () => {
             location.href = `/map/project/${task.project}/task/${task.id}/`;
           });
-        }else{
-          showOrthophotoMissingWarning = task.available_assets.indexOf("orthophoto.tif") === -1;
         }
 
         if (task.available_assets.indexOf("georeferenced_model.laz") !== -1 || 
@@ -740,9 +737,6 @@ class TaskListItem extends React.Component {
                     showConsoleButtons={true}
                     maximumLines={500}
                     /> : ""}
-
-              {showOrthophotoMissingWarning ?
-              <div className="task-warning"><i className="fa fa-exclamation-triangle"></i> <span>{_("An orthophoto could not be generated. To generate one, make sure GPS information is embedded in the EXIF tags of your images, or use a Ground Control Points (GCP) file.")}</span></div> : ""}
 
               {showMemoryErrorWarning ?
               <div className="task-warning"><i className="fa fa-support"></i> <Trans params={{ memlink: `<a href="${memoryErrorLink}" target='_blank'>${_("enough RAM allocated")}</a>`, cloudlink: `<a href='https://webodm.net' target='_blank'>${_("cloud processing node")}</a>` }}>{_("It looks like your processing node ran out of memory. If you are using docker, make sure that your docker environment has %(memlink)s. Alternatively, make sure you have enough physical RAM, reduce the number of images, make your images smaller, or reduce the max-concurrency parameter from the task's options. You can also try to use a %(cloudlink)s.")}</Trans></div> : ""}

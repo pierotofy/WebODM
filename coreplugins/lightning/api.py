@@ -90,6 +90,7 @@ def share_task(task_name, project, cloud_token, cloud_url, resources, resources_
     import uuid
     import requests
     import os
+    import time
     from zipstream.ng import ZipStream
     import logging
     logger = logging.getLogger('app.logger')
@@ -133,7 +134,7 @@ def share_task(task_name, project, cloud_token, cloud_url, resources, resources_
     # Calculate total chunk count (ceiling division)
     total_chunks = (total_length + CHUNK_SIZE - 1) // CHUNK_SIZE
 
-    # Upload in 8MB chunks using Dropzone protocol
+    # Upload in 8MB chunks
     offset = 0
     chunk_index = 0
     buffer = b''
@@ -148,19 +149,37 @@ def share_task(task_name, project, cloud_token, cloud_url, resources, resources_
         chunk = buffer[:CHUNK_SIZE]
         buffer = buffer[CHUNK_SIZE:]
 
+        # TODO REMOVE
+        time.sleep(2)
+
         files = {'file': ('all.zip', chunk, 'application/zip')}
         data = {
             'name': task_name,
+            'public': True,
             'dzchunkindex': chunk_index,
             'dzuuid': dzuuid,
             'dztotalchunkcount': total_chunks,
             'dzchunkbyteoffset': offset,
         }
 
-        resp = session.post(cloud_url + '/api/projects/{}/tasks/import'.format(project),
-            files=files,
-            data=data
-        )
+        NUM_RETRIES = 15
+        retry = 0
+
+        while True:
+            try:
+                resp = session.post(cloud_url + '/api/projects/{}/tasks/import'.format(project),
+                    files=files,
+                    data=data
+                )
+            except Exception as e:
+                if retry < NUM_RETRIES:
+                    retry += 1
+                    logger.warning(f"Failed upload ({str(e)}), retrying... ({retry})")
+                    time.sleep(retry)
+                    continue
+                else:
+                    raise Exception(f"Cannot complete upload: {str(e)}")
+            break
 
         offset += len(chunk)
         chunk_index += 1
@@ -168,26 +187,32 @@ def share_task(task_name, project, cloud_token, cloud_url, resources, resources_
         try:
             j = resp.json()
         except ValueError:
-            raise Exception("Chunk upload failed: {}".format(resp.text))
+            raise Exception("Chunk upload failed: not a JSON response from server")
+
+        if resp.status_code == 403:
+            raise Exception("Authentication expired. Please try sharing again.")
 
         if j.get('uploaded'):
-            # Intermediate chunk - server acknowledges, continue uploading
-            continue
-        elif j.get('id'):
-            # Final chunk - server has imported and created the task
-
-            # TODO: set shared
-
+            continue # next chunk
+        elif j.get('id') and j.get('project'):
+            # Final chunk
             task_id = j.get('id')
-            return cloud_url + '/projects/{}/tasks/{}'.format(
-                project,
-                task_id
-            )
-        else:
-            raise Exception("Chunk upload failed: {}".format(resp.text))
-    
-    # TODO: exponential backoff retries 
+            project_id = j.get('project')
+            count = 0
 
+            while j.get('pending_action') or count >= 360:
+                time.sleep(5)
+                try:
+                    resp = session.get(cloud_url + f'/api/projects/{project_id}/tasks/{task_id}/')
+                    j = resp.json()
+                except Exception as e:
+                    logger.warning(f"Cannot retrieve task information: {str(e)}, retrying...")
+                count += 1
+
+            return cloud_url + f'/public/task/{task_id}/{view}/'
+        else:
+            raise Exception("Chunk upload failed: invalid response from server")
+    
     raise Exception("No data uploaded")
 
 class ShareTask(TaskView):
@@ -196,7 +221,7 @@ class ShareTask(TaskView):
         serializer = ShareTaskSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         resources, base_path = get_resources(task, serializer['assets'].value, serializer['customAssets'].value)
-
+        
         try:
             project = int(serializer['project'].value) if serializer['project'].value != "" else None
         except ValueError:
