@@ -86,7 +86,7 @@ class GetTaskSize(TaskView):
 
         return Response({'size': get_size_bytes(resources)})
 
-def share_task(project, cloud_token, cloud_url, resources, resources_base_path):
+def share_task(task_name, project, cloud_token, cloud_url, resources, resources_base_path):
     import uuid
     import requests
     import os
@@ -124,7 +124,6 @@ def share_task(project, cloud_token, cloud_url, resources, resources_base_path):
                     zs.add_path(fp, os.path.relpath(fp, resources_base_path))
 
     total_length = len(zs)
-    logger.info("SIZE: %s" % total_length)
     stream = zs.finalize()
 
 
@@ -151,11 +150,11 @@ def share_task(project, cloud_token, cloud_url, resources, resources_base_path):
 
         files = {'file': ('all.zip', chunk, 'application/zip')}
         data = {
+            'name': task_name,
             'dzchunkindex': chunk_index,
             'dzuuid': dzuuid,
             'dztotalchunkcount': total_chunks,
             'dzchunkbyteoffset': offset,
-            'name': 'Imported Task'
         }
 
         resp = session.post(cloud_url + '/api/projects/{}/tasks/import'.format(project),
@@ -212,7 +211,7 @@ class ShareTask(TaskView):
             raise exceptions.ValidationError({"cloudUrl": "Missing parameter"})
         
         try: 
-            celery_task_id = run_function_async(share_task, project=project, cloud_token=cloud_token, cloud_url=cloud_url, resources=resources, resources_base_path=base_path).task_id
+            celery_task_id = run_function_async(share_task, task_name=task.name, project=project, cloud_token=cloud_token, cloud_url=cloud_url, resources=resources, resources_base_path=base_path).task_id
             return Response({'celery_task_id': celery_task_id}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_200_OK)
