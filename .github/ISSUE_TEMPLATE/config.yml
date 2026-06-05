@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Community Support
+    url: https://webodm.org/community
+    about: Please ask and answer questions here.
+  - name: FAQs
+    url: https://docs.webodm.org/faq/
+    about: Frequently asked questions.

@@ -1,3 +1,8 @@
+---
+name: Software Fault
+about: Report a bug/issue
+---
+
 ****************************************
 PLEASE REMOVE THIS NOTE AFTER READING IT!
 
