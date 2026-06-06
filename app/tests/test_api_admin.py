@@ -1,4 +1,5 @@
 import time
+import jwt
 from django.contrib.auth.models import User, Group
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -269,6 +270,24 @@ class TestApiAdmin(BootTestCase):
         res = client.post('/api/admin/profiles/%s/update_quota_deadline/' % user.id, data={'hours': 0})
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertTrue(abs(user.profile.get_quota_deadline() - time.time()) < 10)
+
+    def test_refresh_token(self):
+        client = APIClient()
+        res = client.post('/api/token-auth/', {
+            'username': "testuser",
+            'password': "test1234",
+        })
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        token = res.data['token']
+
+        time.sleep(2)
+
+        res = client.post('/api/token-auth/refresh/', {
+            'token': token
+        })
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertNotEqual(token, res.data['token'])
+        self.assertEqual(jwt.decode(res.data['token'], None, False).get('username'), 'testuser')
 
     def test_impersonation(self):
         client = APIClient()
