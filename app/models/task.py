@@ -981,6 +981,7 @@ class Task(models.Model):
                 with zipfile.ZipFile(zip_path, "r") as zip_h:
                     zip_h.extractall(assets_dir)
             except zlib.error as e:
+                os.remove(zip_path)
                 raise zipfile.BadZipFile(str(e))
 
             logger.info("Extracted all.zip for {}".format(self))
