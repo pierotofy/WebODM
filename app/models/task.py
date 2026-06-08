@@ -978,12 +978,15 @@ class Task(models.Model):
         if os.path.isfile(zip_path):
             # Extract from zip
             try:
-                with zipfile.ZipFile(zip_path, "r") as zip_h:
-                    zip_h.extractall(assets_dir)
-            except zlib.error as e:
+                try:
+                    with zipfile.ZipFile(zip_path, "r") as zip_h:
+                        zip_h.extractall(assets_dir)
+                except zlib.error as e:
+                    raise zipfile.BadZipFile(str(e))
+            except zipfile.BadZipFile as e:
                 os.remove(zip_path)
-                raise zipfile.BadZipFile(str(e))
-
+                raise e
+            
             logger.info("Extracted all.zip for {}".format(self))
             
             os.remove(zip_path)
