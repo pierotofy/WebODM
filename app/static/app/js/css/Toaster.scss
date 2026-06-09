@@ -23,28 +23,50 @@
             align-items: center;
             gap: 4px;
             margin-left: auto;
-
-            .toaster-btn{
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                width: 24px;
-                height: 24px;
-                border: none;
-                border-radius: 50%;
-                color: inherit;
-                cursor: pointer;
-                text-decoration: none;
-                font-size: 12px;
-
-                i{
-                    margin: 0;
-                }
-            }
         }
     }
 
     .toaster-body{
         max-height: 480px;
+    }
+
+    .toaster-task{
+        padding: 4px 8px 4px 8px;
+        min-height: 32px;
+        border-top-width: 1px;
+        border-top-style: solid;
+        display: flex;
+        justify-content: space-between;
+        font-size: 90%;
+
+        .toaster-btn{
+            width: 22px;
+            height: 22px;
+            display: none;
+        }
+
+        &:hover{
+            .toaster-btn{
+                display: flex;
+            }
+        }
+    }
+
+     .toaster-btn{
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border: none;
+        border-radius: 50%;
+        color: inherit;
+        cursor: pointer;
+        text-decoration: none;
+        font-size: 12px;
+
+        i{
+            margin: 0;
+        }
     }
 }

@@ -540,6 +540,11 @@ class ProjectListItem extends React.Component {
   }
 
   handleEditProject(){
+    PluginsAPI.Workers.addTask({
+      workerId: "123"
+    })
+    return; // TODO REMOVE!!!
+
     this.editProjectDialog.show();
   }
 
