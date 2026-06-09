@@ -2,7 +2,7 @@
     width: 300px;
     position: fixed;    
     bottom: 0px;
-    right: 32px;
+    right: 31px;
     border-width: 1px 1px 0px 1px;
     border-style: solid;
     border-radius: 4px 4px 0 0;
@@ -42,5 +42,9 @@
                 }
             }
         }
+    }
+
+    .toaster-body{
+        max-height: 480px;
     }
 }
