@@ -105,6 +105,17 @@ class TaskSerializer(serializers.ModelSerializer):
         exclude = ('orthophoto_extent', 'dsm_extent', 'dtm_extent', )
         read_only_fields = ('processing_time', 'status', 'last_error', 'created_at', 'pending_action', 'available_assets', 'size', )
 
+
+def check_processing_node_perms(request):
+    if request.data.get('processing_node'):
+        try:
+            pnode = ProcessingNode.objects.get(pk=int(request.data.get('processing_node')))
+            if not request.user.has_perm("view_processingnode", pnode):
+                raise Exception("Invalid")
+        except:
+            raise exceptions.ValidationError(detail=_("Cannot create task, processing node is not valid"))
+
+
 class TaskViewSet(viewsets.ViewSet):
     """
     Task get/add/delete/update
@@ -362,6 +373,9 @@ class TaskViewSet(viewsets.ViewSet):
     def create(self, request, project_pk=None):
         project = get_and_check_project(request, project_pk, ('change_project', ))
 
+        # Check if user has permissions to set processing node
+        check_processing_node_perms(request)
+
         # Check if an alignment field is set to a valid task
         # this means a user wants to align this task with another
         align_to = request.data.get('align_to')
@@ -414,6 +428,9 @@ class TaskViewSet(viewsets.ViewSet):
             check_project_perms(request, task.project, ('change_project', ))
         except (ObjectDoesNotExist, ValidationError):
             raise exceptions.NotFound()
+
+        # Check if user has permissions to set processing node
+        check_processing_node_perms(request)
 
         # Check that a user has access to reassign a project
         if 'project' in request.data:

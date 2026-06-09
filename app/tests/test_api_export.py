@@ -61,12 +61,25 @@ class TestApiTask(BootTransactionTestCase):
             pnode = ProcessingNode.objects.create(hostname="localhost", port=11223)
             assign_perm('view_processingnode', user, pnode)
             assign_perm('view_processingnode', other_user, pnode)
+
+            other_pnode = ProcessingNode.objects.create(hostname="localhost", port=11224)
+            assign_perm('view_processingnode', other_user, other_pnode)
             
             # task creation via file upload
             image1 = open("app/fixtures/tiny_drone_image.jpg", 'rb')
             image2 = open("app/fixtures/tiny_drone_image_2.jpg", 'rb')
 
             client.login(username="testuser", password="test1234")
+
+            # Attempt to create a task with a processing node we have no access to
+            res = client.post("/api/projects/{}/tasks/".format(project.id), {
+                'images': [image1, image2],
+                'name': 'test task',
+                'processing_node': other_pnode.id
+            }, format="multipart")
+            self.assertTrue(res.status_code == status.HTTP_400_BAD_REQUEST)
+            image1.seek(0)
+            image2.seek(0)
 
             # Normal case with images[], name and processing node parameter
             res = client.post("/api/projects/{}/tasks/".format(project.id), {
@@ -96,11 +109,17 @@ class TestApiTask(BootTransactionTestCase):
                 res = client.post("/api/projects/{}/tasks/{}/{}/export".format(project.id, task.id, asset_type), data)
                 self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
 
+            # Assign invalid processing node to task via API
+            res = client.patch("/api/projects/{}/tasks/{}/".format(project.id, task.id), {
+                'processing_node': other_pnode.id
+            })
+            self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
             # Assign processing node to task via API
             res = client.patch("/api/projects/{}/tasks/{}/".format(project.id, task.id), {
                 'processing_node': pnode.id
             })
-            self.assertTrue(res.status_code == status.HTTP_200_OK)
+            self.assertEqual(res.status_code, status.HTTP_200_OK)
 
             retry_count = 0
             while task.status != status_codes.COMPLETED:

@@ -735,6 +735,7 @@ class Task(models.Model):
             if self.processing_node:
                 # Need to process some images (UUID not yet set and task doesn't have pending actions)?
                 if not self.uuid and self.pending_action is None and self.status is None:
+                    
                     logger.info("Processing... {}".format(self))
 
                     images_path = self.task_path()
@@ -978,18 +979,14 @@ class Task(models.Model):
         if os.path.isfile(zip_path):
             # Extract from zip
             try:
-                try:
-                    with zipfile.ZipFile(zip_path, "r") as zip_h:
-                        zip_h.extractall(assets_dir)
-                except zlib.error as e:
-                    raise zipfile.BadZipFile(str(e))
-            except zipfile.BadZipFile as e:
+                with zipfile.ZipFile(zip_path, "r") as zip_h:
+                    zip_h.extractall(assets_dir)
+            except zlib.error as e:
+                raise zipfile.BadZipFile(str(e))
+            finally:
                 os.remove(zip_path)
-                raise e
             
             logger.info("Extracted all.zip for {}".format(self))
-            
-            os.remove(zip_path)
 
             # Check if this looks like a backup file, in which case we need to move the files
             # a directory level higher
