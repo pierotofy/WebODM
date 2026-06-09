@@ -7,6 +7,25 @@ import Storage from './classes/Storage';
 import update from 'immutability-helper';
 import $ from 'jquery';
 
+class ToasterTask extends React.Component {
+    static propTypes = {
+        task: PropTypes.object.isRequired,
+        onCancel: PropTypes.func.isRequired
+    };
+
+
+    onCancel = () => {
+        console.log("Cancel", this.props.task);
+    }
+
+    render() {
+        const { task, onCancel } = this.props;
+        return <div className="toaster-task theme-border-highlight-9">
+            Status message <a href="javascript:void(0);" className="toaster-btn toaster-btn-close theme-background-highlight-8-hover" title={_("Cancel")} onClick={this.onCancel}><i className="fa fa-times"></i></a>
+        </div>;
+    }
+}
+
 class Toaster extends React.Component {
     static defaultProps = {
     };
@@ -83,12 +102,6 @@ class Toaster extends React.Component {
         this.setState({ expanded: false });
     }
 
-    cancelTask = (t) => {
-        return () => {
-            console.log("Cancel", t);
-        };
-    }
-
     render() {
         const { expanded, tasks, visible } = this.state;
         let verb = _("Sharing"); // TODO: read from all items
@@ -109,9 +122,7 @@ class Toaster extends React.Component {
             </div>
             {expanded && <div className="toaster-body">
                 {tasks.map((t, idx) =>
-                    <div className="toaster-task theme-border-highlight-9" key={`task-${idx}`}>
-                        Status message <a href="javascript:void(0);" className="toaster-btn toaster-btn-close theme-background-highlight-8-hover" title={_("Cancel")} onClick={this.cancelTask(t)}><i className="fa fa-times"></i></a>
-                    </div>
+                    <ToasterTask key={`task-${idx}`} task={t} />
                 )}
             </div>}
         </div>;
