@@ -26,7 +26,7 @@ class Toaster extends React.Component {
 
         this.state = {
             visible: tasks.length > 0,
-            expanded: !!Storage.getItem("toaster_expanded"),
+            expanded: Storage.getItem("toaster_expanded") === "1",
             tasks
         };
     }
@@ -108,8 +108,8 @@ class Toaster extends React.Component {
 
             </div>
             {expanded && <div className="toaster-body">
-                {tasks.map(t =>
-                    <div className="toaster-task theme-border-highlight-9">
+                {tasks.map((t, idx) =>
+                    <div className="toaster-task theme-border-highlight-9" key={`task-${idx}`}>
                         Status message <a href="javascript:void(0);" className="toaster-btn toaster-btn-close theme-background-highlight-8-hover" title={_("Cancel")} onClick={this.cancelTask(t)}><i className="fa fa-times"></i></a>
                     </div>
                 )}
