@@ -286,6 +286,9 @@ pre.prettyprint:focus,
 .theme-background-highlight-hover:hover{
 	background-color: {% scalebyiv theme_highlight 0.98 %};
 }
+.theme-background-highlight-8-hover:hover{
+	background-color: {% scalebyiv theme_highlight 0.8 %};
+}
 
 /* Dialog warning */
 .alert-warning{

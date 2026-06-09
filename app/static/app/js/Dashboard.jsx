@@ -12,6 +12,7 @@ import {
 import $ from 'jquery';
 import { _ } from './classes/gettext';
 
+
 class Dashboard extends React.Component {
   static defaultProps = {
     permissions: [],

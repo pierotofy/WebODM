@@ -60,9 +60,11 @@
 				<div class="placeholder-item pulse border shimmer" style="height: 100px; margin-top: 16px; width: 100%;"></div>
 			</div>
 		</div>
-		
+
+		<div id="global-toaster" data-toaster></div>
 	{% endif %}
 
 	{% load render_bundle from webpack_loader %}
 	{% render_bundle 'Dashboard' attrs='async' %}
+	{% render_bundle 'Toaster' attrs='async' %}
 {% endblock %}
