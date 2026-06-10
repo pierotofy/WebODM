@@ -9,10 +9,8 @@ import $ from 'jquery';
 
 class ToasterTask extends React.Component {
     static propTypes = {
-        task: PropTypes.object.isRequired,
-        onCancel: PropTypes.func.isRequired
+        task: PropTypes.object.isRequired
     };
-
 
     onCancel = () => {
         console.log("Cancel", this.props.task);
