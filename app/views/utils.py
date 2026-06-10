@@ -22,6 +22,19 @@ def ResponseClusterRedirect(request, to_cluster):
 def cluster_mode():
     return settings.CLUSTER_ID is not None
 
+def csrf_samesite_none_if_secure(func):
+    # Set same-site None for secure connections when using iframes
+    # otherwise the CSRF cookie is not sent
+    @wraps(func)
+    def wrap(request, *args, **kwargs):
+        response = func(request, *args, **kwargs)
+        if "csrftoken" in response.cookies and \
+           "secure" in response.cookies["csrftoken"] and response.cookies["csrftoken"]["secure"] and \
+           "samesite" in response.cookies["csrftoken"] and response.cookies["csrftoken"]["samesite"] == "Lax":
+            response.cookies["csrftoken"]["samesite"] = "None"
+        return response
+    return wrap
+
 def handle_302(func):
     @wraps(func)
     def wrap(request, *args, **kwargs):

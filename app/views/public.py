@@ -7,7 +7,7 @@ from django.shortcuts import render
 
 from app.api.tasks import TaskSerializer
 from app.models import Basemap
-from app.views.utils import get_permissions, get_task_or_raise, get_project_or_raise, handle_302
+from app.views.utils import get_permissions, get_task_or_raise, get_project_or_raise, handle_302, csrf_samesite_none_if_secure
 from django.views.decorators.csrf import ensure_csrf_cookie
 from webodm import settings
 
@@ -65,6 +65,7 @@ def handle_map(request, template, uuid_type=None, uuid=None, hide_title=False):
 def map(request, uuid_type=None, uuid=None):
     return handle_map(request, 'app/public/map.html', uuid_type, uuid, False)
 
+@csrf_samesite_none_if_secure
 def map_iframe(request, uuid_type=None, uuid=None):
     return handle_map(request, 'app/public/map_iframe.html', uuid_type, uuid, True)
 
