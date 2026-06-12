@@ -94,3 +94,15 @@ class GetTaskResult(APIView):
 
     def handle_output(self, output, result, **kwargs):
         return output
+
+
+class CancelTask(APIView):
+    permission_classes = (permissions.AllowAny,)
+
+    def get(self, request, celery_task_id=None, **kwargs):
+        res = TestSafeAsyncResult(celery_task_id)
+
+        if not res.ready():
+            res.update_state(state="PROGRESS", meta={"status": "Cancelling...", "progress": 0, "cancel": True})
+                    
+        return Response({'success': True})

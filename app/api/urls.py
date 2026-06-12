@@ -14,7 +14,7 @@ from rest_framework_nested import routers
 from .jwt import obtain_jwt_token, refresh_jwt_token
 from .tiler import TileJson, Bounds, Metadata, Tiles, Export
 from .potree import Scene, CameraView
-from .workers import CheckTask, GetTaskResult
+from .workers import CheckTask, GetTaskResult, CancelTask
 from .users import UsersList, UsersProfile
 from .groups import GroupsList
 from .externalauth import ExternalTokenAuth
@@ -75,6 +75,8 @@ urlpatterns = [
 
     url(r'workers/check/(?P<celery_task_id>.+)', CheckTask.as_view()),
     url(r'workers/get/(?P<celery_task_id>.+)', GetTaskResult.as_view()),
+    url(r'workers/cancel/(?P<celery_task_id>.+)', CancelTask.as_view()),
+    
 
     url(r'^auth/', include('rest_framework.urls')),
     

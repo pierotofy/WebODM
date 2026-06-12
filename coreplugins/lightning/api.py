@@ -86,7 +86,7 @@ class GetTaskSize(TaskView):
 
         return Response({'size': get_size_bytes(resources)})
 
-def share_task(task_name, project, cloud_token, cloud_url, resources, resources_base_path):
+def share_task(task_name, project, cloud_token, cloud_url, resources, resources_base_path, progress_callback, should_cancel):
     import uuid
     import requests
     import os
@@ -97,12 +97,10 @@ def share_task(task_name, project, cloud_token, cloud_url, resources, resources_
 
     CHUNK_SIZE = 8 * 1024 * 1024  # 8MB
     cloud_url = cloud_url.rstrip('/')
-    headers = {
-        'Authorization': 'JWT {}'.format(cloud_token)
-    }
-
     session = requests.Session()
-    session.headers.update(headers)
+    session.headers.update({
+        'Authorization': 'JWT {}'.format(cloud_token)
+    })
 
     # If project is None, create a new project on the remote
     if project is None:
@@ -140,6 +138,8 @@ def share_task(task_name, project, cloud_token, cloud_url, resources, resources_
     buffer = b''
 
     while offset < total_length:
+        if should_cancel():
+            return
         
         while len(buffer) < CHUNK_SIZE:
             buf = next(stream, b'')
@@ -166,6 +166,8 @@ def share_task(task_name, project, cloud_token, cloud_url, resources, resources_
         retry = 0
 
         while True:
+            if should_cancel:
+                return
             try:
                 resp = session.post(cloud_url + '/api/projects/{}/tasks/import'.format(project),
                     files=files,
@@ -236,7 +238,7 @@ class ShareTask(TaskView):
             raise exceptions.ValidationError({"cloudUrl": "Missing parameter"})
         
         try: 
-            celery_task_id = run_function_async(share_task, task_name=task.name, project=project, cloud_token=cloud_token, cloud_url=cloud_url, resources=resources, resources_base_path=base_path).task_id
+            celery_task_id = run_function_async(share_task, task_name=task.name, project=project, cloud_token=cloud_token, cloud_url=cloud_url, resources=resources, resources_base_path=base_path, with_progress=True, with_cancel=True).task_id
             return Response({'celery_task_id': celery_task_id}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_200_OK)

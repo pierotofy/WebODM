@@ -31,5 +31,13 @@ def eval_async(self, source, funcname, *args, **kwargs):
             self.update_state(state="PROGRESS", meta={"status": status, "progress": perc})
         kwargs['progress_callback'] = progress_callback
         del kwargs['with_progress']
+    
+    if kwargs.get("with_cancel"):
+        def should_cancel():
+            if (not self.ready()) and res.state == "PROGRESS" and res.info is not None:
+                return "cancel" in res.info
+            return False
+        kwargs['should_cancel'] = should_cancel
+        del kwargs['with_cancel']
 
     return ns[funcname](*args, **kwargs)
