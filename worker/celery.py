@@ -70,7 +70,7 @@ app.conf.beat_schedule = {
     },
 }
 
-# Mock class for handling async results during testing
+# Mock classes for handling async results during testing
 class MockAsyncResult:
     def __init__(self, celery_task_id, result = None):
         self.celery_task_id = celery_task_id
@@ -91,8 +91,17 @@ class MockAsyncResult:
     def ready(self):
         return self.result is not None
 
+class MockAsyncBackend:
+    def store_result(self, celery_task_id, result, state, *args, **kwargs):
+        if result is not None:
+            MockAsyncResult.results[celery_task_id] = result
+        
+        if MockAsyncResult.results.get(celery_task_id) is not None:
+            MockAsyncResult.results[celery_task_id].state = state
+
 MockAsyncResult.results = {}
 MockAsyncResult.set = lambda cti, r: MockAsyncResult(cti, r)
+MockAsyncResult.backend = MockAsyncBackend()
 
 if __name__ == '__main__':
     app.start()
