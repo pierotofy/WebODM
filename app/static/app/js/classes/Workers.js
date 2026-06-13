@@ -46,6 +46,16 @@ export default {
             else if (result.output !== undefined) cb(null, result.output);
             else cb(new Error("Invalid response: " + JSON.stringify(result)));
         }).fail(cb);
+    },
+
+    cancel: (celery_task_id, cb) => {
+        let url = "/api/workers/cancel/" + celery_task_id;
+        $.ajax(url, {
+            type: 'POST',
+        }).done(result => {
+            if (result.success) cb(null);
+            else cb(new Error("Cannot cancel task"));
+        }).fail(cb);
     }
 };
 

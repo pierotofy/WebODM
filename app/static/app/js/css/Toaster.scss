@@ -28,7 +28,12 @@
     }
 
     .toaster-body{
-        max-height: 480px;
+        max-height: 240px;
+        overflow-y: auto;
+        display: none;
+        &.expanded{
+            display: block;
+        }
     }
 
     .toaster-task{
@@ -50,6 +55,12 @@
             .toaster-btn{
                 display: flex;
             }
+        }
+
+        .toaster-task-label{
+            display: flex;
+            align-items: center;
+            i{ margin-right: 6px; }
         }
     }
 

@@ -24,6 +24,9 @@ class CheckTask(APIView):
                 for k in res.info:
                     out[k] = res.info[k]
             
+            if res.state == "ABORTED":
+                out['canceled'] = True
+            
             return Response(out, status=status.HTTP_200_OK)
         else:
             result = res.get()
@@ -99,10 +102,10 @@ class GetTaskResult(APIView):
 class CancelTask(APIView):
     permission_classes = (permissions.AllowAny,)
 
-    def get(self, request, celery_task_id=None, **kwargs):
+    def post(self, request, celery_task_id=None, **kwargs):
         res = TestSafeAsyncResult(celery_task_id)
 
         if not res.ready():
-            res.update_state(state="PROGRESS", meta={"status": "Cancelling...", "progress": 0, "cancel": True})
-                    
+            res.backend.store_result(celery_task_id, result=None, state="ABORTED", traceback=None)
+
         return Response({'success': True})

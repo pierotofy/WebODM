@@ -137,7 +137,7 @@ class TestWorker(BootTestCase):
         self.assertEqual(reply["error"], "Task not ready")
 
         # Can cancel bogus worker task
-        res = client.get("/api/workers/cancel/bogus")
+        res = client.post("/api/workers/cancel/bogus")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertTrue(reply["success"])
 

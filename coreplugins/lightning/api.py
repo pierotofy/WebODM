@@ -93,6 +93,7 @@ def share_task(task_name, project, cloud_token, cloud_url, resources, resources_
     import time
     from zipstream.ng import ZipStream
     import logging
+    import jwt
     logger = logging.getLogger('app.logger')
 
     CHUNK_SIZE = 8 * 1024 * 1024  # 8MB
@@ -102,12 +103,41 @@ def share_task(task_name, project, cloud_token, cloud_url, resources, resources_
         'Authorization': 'JWT {}'.format(cloud_token)
     })
 
+    def check_refresh_token():
+        nonlocal cloud_token
+
+        try:
+            meta = jwt.decode("cloud_token", None, False)
+            exp = meta.get('exp', time.time())
+
+            # Refresh token if less than 1 hour remaining to expiry
+            if exp - time.time() < 60 * 60:
+                res = session.post(cloud_url + '/api/token-auth/refresh/', json={'token': cloud_token})
+                if res.status_code == 200:
+                    j = res.json()
+                    if 'token' in j:
+                        cloud_token = j['token']
+                        session.headers.update({
+                            'Authorization': 'JWT {}'.format(cloud_token)
+                        })
+        except Exception as e:
+            logger.warning(f"Cannot check refresh token: {str(e)}")
+
+    check_refresh_token()
+    cleanup = lambda: None
+
     # If project is None, create a new project on the remote
     if project is None:
-        resp = session.post(cloud_url + '/api/projects/', json={'name': 'Imported Task'})
-        if resp.status_code != 201:
+        res = session.post(cloud_url + '/api/projects/', json={'name': 'Imported Task'})
+        if res.status_code != 201:
             raise Exception("Failed to create remote project")
-        project = resp.json().get('id')
+        project = res.json().get('id')
+
+        def cleanup():
+            try:
+                session.delete(cloud_url + f'/api/projects/{project}')
+            except Exception as e:
+                logger.warning(f"Cannot cleanup project: {str(e)}")
 
     dzuuid = str(uuid.uuid4())
     zs = ZipStream(sized=True)
@@ -125,6 +155,9 @@ def share_task(task_name, project, cloud_token, cloud_url, resources, resources_
     total_length = len(zs)
     stream = zs.finalize()
 
+    if should_cancel():
+        return cleanup()
+    progress_callback("Preparing files for upload", 5)
 
     if total_length == 0:
         raise Exception("No data to upload")
@@ -139,7 +172,7 @@ def share_task(task_name, project, cloud_token, cloud_url, resources, resources_
 
     while offset < total_length:
         if should_cancel():
-            return
+            return cleanup()
         
         while len(buffer) < CHUNK_SIZE:
             buf = next(stream, b'')
@@ -166,10 +199,12 @@ def share_task(task_name, project, cloud_token, cloud_url, resources, resources_
         retry = 0
 
         while True:
-            if should_cancel:
-                return
+            if should_cancel():
+                return cleanup()
+            check_refresh_token()
+            
             try:
-                resp = session.post(cloud_url + '/api/projects/{}/tasks/import'.format(project),
+                res = session.post(cloud_url + '/api/projects/{}/tasks/import'.format(project),
                     files=files,
                     data=data
                 )
@@ -183,15 +218,21 @@ def share_task(task_name, project, cloud_token, cloud_url, resources, resources_
                     raise Exception(f"Cannot complete upload: {str(e)}")
             break
 
+
         offset += len(chunk)
         chunk_index += 1
 
+        pct = min(95, int((chunk_index / total_chunks) * 100))
+        if should_cancel():
+            return cleanup()
+        progress_callback("Uploading chunk {} of {}".format(chunk_index, total_chunks), pct)
+
         try:
-            j = resp.json()
+            j = res.json()
         except ValueError:
             raise Exception("Chunk upload failed: not a JSON response from server")
 
-        if resp.status_code == 403:
+        if res.status_code == 403:
             raise Exception("Authentication expired. Please try sharing again.")
 
         if j.get('uploaded'):
@@ -204,13 +245,17 @@ def share_task(task_name, project, cloud_token, cloud_url, resources, resources_
 
             while j.get('pending_action') or count >= 360:
                 time.sleep(5)
+                check_refresh_token()
                 try:
-                    resp = session.get(cloud_url + f'/api/projects/{project_id}/tasks/{task_id}/')
-                    j = resp.json()
+                    res = session.get(cloud_url + f'/api/projects/{project_id}/tasks/{task_id}/')
+                    j = res.json()
                 except Exception as e:
                     logger.warning(f"Cannot retrieve task information: {str(e)}, retrying...")
                 count += 1
 
+            if should_cancel():
+                return cleanup()
+            progress_callback("Upload complete, finalizing...", 100)
             return cloud_url + f'/public/task/{task_id}/{view}/'
         else:
             raise Exception("Chunk upload failed: invalid response from server")
