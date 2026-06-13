@@ -19,13 +19,19 @@ const ACTION_LABELS = {
         'share': _("Sharing"),
         'export': _("Exporting")
     }
-}
+};
+
+const ACTION_ICONS = {
+    'process': "fa fa-cog fa-spin fa-fw",
+    'share': "fa fa-share-alt",
+    'export': "glyphicon glyphicon-download"
+};
 
 class ToasterTask extends React.Component {
     static propTypes = {
         task: PropTypes.object.isRequired,
         onUpdate: PropTypes.func.isRequired,
-        onCancel: PropTypes.func.isRequired
+        onRemove: PropTypes.func.isRequired
     };
 
     constructor(props) {
@@ -36,10 +42,16 @@ class ToasterTask extends React.Component {
         }
     }
 
-    onCancel = () => {
-        Workers.cancel(this.props.task.workerId, () => {
-            this.props.onCancel(this.props.task);
-        });
+    onRemove = () => {
+        const { task } = this.state;
+        if (!task.ready && !task.canceled && !task.error){
+            Workers.cancel(this.props.task.workerId, () => {
+                this.props.onRemove(this.props.task);
+            });
+        }else{
+            // No need to cancel, just remove
+            this.props.onRemove(this.props.task);
+        }
     }
 
     componentDidMount() {
@@ -61,7 +73,7 @@ class ToasterTask extends React.Component {
         let errorCount = 0;
         let url = checkUrl + task.workerId;
 
-        if (!task.output) {
+        if (!task.output && !task.canceled) {
             const doCheck = () => {
                 if (!this.mounted) return;
 
@@ -84,6 +96,9 @@ class ToasterTask extends React.Component {
 
                             this.updateTask(task);
                         });
+                    } else if (result.canceled){
+                        task.canceled = true;
+                        this.updateTask(task);
                     } else {
                         if (result.progress !== undefined && result.status !== undefined) {
                             task.status = result.status;
@@ -117,12 +132,21 @@ class ToasterTask extends React.Component {
     }
 
     render() {
-        const { task, onCancel } = this.props;
+        const { task } = this.props;
+        let icon = ACTION_ICONS[task.action] || ACTION_ICONS['process'];
+        if (task.canceled) icon = "fa fa-ban";
+        if (task.error) icon = "fa fa-exclamation-triangle";
+        if (task.ready) icon = "fa fa-check";
+
+        let label = task.name;
+        if (!task.ready && task.progress !== undefined && !task.canceled) label += ` (${task.progress.toFixed(0)}%)`;
+        if (task.error) label = task.error;
+
         return <div className="toaster-task theme-border-highlight-9">
             <div className="toaster-task-label">
-                <i className={task.icon}></i> {task.name}
+                <i className={icon}></i> {task.name}
             </div>
-            <a href="javascript:void(0);" className="toaster-btn toaster-btn-close theme-background-highlight-8-hover" title={_("Cancel")} onClick={this.onCancel}><i className="fa fa-times"></i></a>
+            <a href="javascript:void(0);" className="toaster-btn toaster-btn-close theme-background-highlight-8-hover" title={_("Cancel")} onClick={this.onRemove}><i className="fa fa-times"></i></a>
         </div>;
     }
 }
@@ -181,9 +205,10 @@ class Toaster extends React.Component {
     handleAddTask = t => {
         if (!t.workerId) return;
 
+        if (this.state.tasks.find(x => x.workerId === t.workerId)) return; // duplicate
+
         t.name = t.name || `${_("Task")} ${t.workerId}`;
         t.action = t.action || "process";
-        t.icon = t.icon || "fa fa-cog fa-spin fa-fw";
 
         this.setState(update(this.state, {
             tasks: { $push: [t] }
@@ -193,7 +218,7 @@ class Toaster extends React.Component {
     handleRemoveTask = t => {
         if (!t.workerId) return;
 
-        const tasks = this.state.tasks.filter(t => t.workerId !== t.workerId);
+        const tasks = this.state.tasks.filter(x => x.workerId !== t.workerId);
         this.setState({ tasks });
     }
 
@@ -251,8 +276,8 @@ class Toaster extends React.Component {
 
             </div>
             <div className={"toaster-body " + (expanded ? "expanded" : "")}>
-                {tasks.map((t, idx) =>
-                    <ToasterTask key={`task-${idx}`} task={t} onUpdate={this.handleTaskUpdate(t)} onCancel={this.handleRemoveTask} />
+                {tasks.map(t =>
+                    <ToasterTask key={`task-${t.workerId}`} task={t} onUpdate={this.handleTaskUpdate(t)} onRemove={this.handleRemoveTask} />
                 )}
             </div>
         </div>;

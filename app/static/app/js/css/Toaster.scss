@@ -48,19 +48,22 @@
         .toaster-btn{
             width: 22px;
             height: 22px;
-            display: none;
+        }
+        
+        .toaster-btn-close{
+            visibility: hidden;
         }
 
         &:hover{
-            .toaster-btn{
-                display: flex;
+            .toaster-btn-close{
+                visibility: visible;
             }
         }
 
         .toaster-task-label{
             display: flex;
             align-items: center;
-            i{ margin-right: 6px; }
+            i{ margin-right: 6px; font-size: 15px; }
         }
     }
 

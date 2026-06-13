@@ -23,7 +23,7 @@ class CheckTask(APIView):
             if res.state == "PROGRESS" and res.info is not None:
                 for k in res.info:
                     out[k] = res.info[k]
-            
+
             if res.state == "ABORTED":
                 out['canceled'] = True
             
