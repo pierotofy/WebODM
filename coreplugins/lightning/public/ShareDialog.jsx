@@ -8,6 +8,7 @@ import { _, interpolate } from 'webodm/classes/gettext';
 import { getCloudToken } from './CloudTokenStore';
 import AssetDownloads from 'webodm/classes/AssetDownloads';
 import Utils from 'webodm/classes/Utils';
+import PluginsAPI from 'webodm/classes/plugins/API';
 import $ from 'jquery';
 
 class ShareDialog extends React.Component {
@@ -244,7 +245,17 @@ class ShareDialog extends React.Component {
         data: JSON.stringify(formData),
         contentType: 'application/json'
       }).done((json) => {
-          console.log("OK");
+          if (json.celery_task_id){
+            PluginsAPI.Workers.addTask({
+              workerId: json.celery_task_id,
+              name: this.props.task.name || _("Task"),
+              action: 'share'
+            });
+          }else{
+            this.setState({error: _("Invalid response")});
+          }
+      }).fail(() => {
+        this.setState({error: _("Cannot share. Please try again in a bit.")});
       });
     }
 

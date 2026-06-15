@@ -1,3 +1,8 @@
+@keyframes toaster-share-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
 .global-toaster{
     z-index: 2;
     width: 300px;
@@ -64,6 +69,10 @@
             display: flex;
             align-items: center;
             i{ margin-right: 6px; font-size: 15px; }
+
+            .toaster-share-pulse{
+                animation: toaster-share-pulse 1.5s ease-in-out infinite;
+            }
         }
     }
 

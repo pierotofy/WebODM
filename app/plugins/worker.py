@@ -34,7 +34,7 @@ def eval_async(self, source, funcname, *args, **kwargs):
     
     if kwargs.get("with_cancel"):
         def should_cancel():
-            return (not self.ready()) and res.state == "ABORTED"
+            return self.state == "ABORTED"
 
         kwargs['should_cancel'] = should_cancel
         del kwargs['with_cancel']

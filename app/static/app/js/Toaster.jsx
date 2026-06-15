@@ -23,7 +23,7 @@ const ACTION_LABELS = {
 
 const ACTION_ICONS = {
     'process': "fa fa-cog fa-spin fa-fw",
-    'share': "fa fa-share-alt",
+    'share': "fa fa-upload toaster-share-pulse",
     'export': "glyphicon glyphicon-download"
 };
 
@@ -73,7 +73,7 @@ class ToasterTask extends React.Component {
         let errorCount = 0;
         let url = checkUrl + task.workerId;
 
-        if (!task.output && !task.canceled) {
+        if (!task.output && !task.canceled && !task.error) {
             const doCheck = () => {
                 if (!this.mounted) return;
 
@@ -144,7 +144,7 @@ class ToasterTask extends React.Component {
 
         return <div className="toaster-task theme-border-highlight-9">
             <div className="toaster-task-label">
-                <i className={icon}></i> {task.name}
+                <i className={icon} title={task.error || task.name}></i> {task.name}
             </div>
             <a href="javascript:void(0);" className="toaster-btn toaster-btn-close theme-background-highlight-8-hover" title={_("Cancel")} onClick={this.onRemove}><i className="fa fa-times"></i></a>
         </div>;
@@ -187,10 +187,8 @@ class Toaster extends React.Component {
 
     componentDidUpdate(prevProps, prevState) {
         // Save state changes so that on reload the UI looks the same
-
-        const tasksDump = JSON.stringify(this.state.tasks);
-        if (tasksDump !== JSON.stringify(prevState.tasks)) {
-            Storage.setItem("toaster_tasks", tasksDump);
+        if (prevState.tasks !== this.state.tasks) {
+            Storage.setItem("toaster_tasks", JSON.stringify(this.state.tasks));
         }
 
         if (this.state.expanded !== prevState.expanded) {
@@ -235,11 +233,9 @@ class Toaster extends React.Component {
     handleTaskUpdate = (t) => {
         return (task) => {
             const { tasks } = this.state;
-            for (let i = 0; i < tasks.length; i++) {
-                if (tasks[i].workerId === t.workerId) tasks[i] = task;
-                break;
-            }
-            this.setState({ tasks });
+            console.log(task);
+            // Recreate array to trigger state update
+            this.setState({ tasks: tasks.map(x => x.workerId === t.workerId ? {...task} : x ) });
         };
     }
 
