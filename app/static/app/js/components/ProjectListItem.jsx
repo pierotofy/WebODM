@@ -540,11 +540,6 @@ class ProjectListItem extends React.Component {
   }
 
   handleEditProject(){
-    PluginsAPI.Workers.addTask({
-      workerId: 456 + Math.floor(Math.random() * 100000)
-    })
-    return; // TODO REMOVE!!!
-
     this.editProjectDialog.show();
   }
 

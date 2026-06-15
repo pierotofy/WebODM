@@ -86,7 +86,7 @@ class GetTaskSize(TaskView):
 
         return Response({'size': get_size_bytes(resources)})
 
-def share_task(task_name, project, cloud_token, cloud_url, resources, resources_base_path, progress_callback, should_cancel):
+def share_task(task_name, project_name, project, cloud_token, cloud_url, resources, resources_base_path, progress_callback, should_cancel):
     import uuid
     import requests
     import os
@@ -107,7 +107,7 @@ def share_task(task_name, project, cloud_token, cloud_url, resources, resources_
         nonlocal cloud_token
 
         try:
-            meta = jwt.decode("cloud_token", None, False)
+            meta = jwt.decode(cloud_token, None, False)
             exp = meta.get('exp', time.time())
 
             # Refresh token if less than 1 hour remaining to expiry
@@ -128,7 +128,7 @@ def share_task(task_name, project, cloud_token, cloud_url, resources, resources_
 
     # If project is None, create a new project on the remote
     if project is None:
-        res = session.post(cloud_url + '/api/projects/', json={'name': 'Imported Task'})
+        res = session.post(cloud_url + '/api/projects/', json={'name': project_name})
         if res.status_code != 201:
             raise Exception("Failed to create remote project")
         project = res.json().get('id')
@@ -183,7 +183,9 @@ def share_task(task_name, project, cloud_token, cloud_url, resources, resources_
         buffer = buffer[CHUNK_SIZE:]
 
         # TODO REMOVE
-        time.sleep(2)
+        time.sleep(6)
+
+        logger.info(f"Processing {chunk_index}")
 
         files = {'file': ('all.zip', chunk, 'application/zip')}
         data = {
@@ -255,8 +257,33 @@ def share_task(task_name, project, cloud_token, cloud_url, resources, resources_
 
             if should_cancel():
                 return cleanup()
+
             progress_callback("Upload complete, finalizing...", 100)
-            return cloud_url + f'/public/task/{task_id}/{view}/'
+            
+            # Set task to public
+            count = 0
+            view = 'map'
+            while count < 10:
+                try:
+                    res = session.patch(cloud_url + f'/api/projects/{project_id}/tasks/{task_id}/', data={
+                        'public': True
+                    })
+                    j = res.json()
+                    if j['public']:
+
+                        # If no map assets, use 3D view for display
+                        if 'orthophoto.tif' not in j['available_assets'] and \
+                           'dsm.tif' not in j['available_assets'] and \
+                           'dtm.tif' not in j['available_assets']:
+                           view = '3d'
+                           
+                        break
+                except Exception as e:
+                    logger.warning(f"Cannot set task to public: {str(e)}, retrying...")
+                    count += 1
+                    time.sleep(5)
+
+            return {'link': cloud_url + f'/public/task/{task_id}/{view}/'}
         else:
             raise Exception("Chunk upload failed: invalid response from server")
     
@@ -283,7 +310,7 @@ class ShareTask(TaskView):
             raise exceptions.ValidationError({"cloudUrl": "Missing parameter"})
         
         try: 
-            celery_task_id = run_function_async(share_task, task_name=task.name, project=project, cloud_token=cloud_token, cloud_url=cloud_url, resources=resources, resources_base_path=base_path, with_progress=True, with_cancel=True).task_id
+            celery_task_id = run_function_async(share_task, task_name=task.name, project_name=task.project.name, project=project, cloud_token=cloud_token, cloud_url=cloud_url, resources=resources, resources_base_path=base_path, with_progress=True, with_cancel=True).task_id
             return Response({'celery_task_id': celery_task_id}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_200_OK)

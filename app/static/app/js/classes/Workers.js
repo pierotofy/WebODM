@@ -43,7 +43,8 @@ export default {
             url: url
         }).done(result => {
             if (result.error) cb(result.error);
-            else if (result.output !== undefined) cb(null, result.output);
+            else if (result.output !== undefined) cb(null, result.output, result);
+            else if (result.link !== undefined) cb(null, result.link, result);
             else cb(new Error("Invalid response: " + JSON.stringify(result)));
         }).fail(cb);
     },

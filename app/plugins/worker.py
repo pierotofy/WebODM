@@ -33,8 +33,11 @@ def eval_async(self, source, funcname, *args, **kwargs):
         del kwargs['with_progress']
     
     if kwargs.get("with_cancel"):
+        task_id = self.request.id
+
         def should_cancel():
-            return self.state == "ABORTED"
+            result = app.AsyncResult(task_id)
+            return (not result.ready()) and result.state == "ABORTED"
 
         kwargs['should_cancel'] = should_cancel
         del kwargs['with_cancel']

@@ -73,6 +73,12 @@
             .toaster-share-pulse{
                 animation: toaster-share-pulse 1.5s ease-in-out infinite;
             }
+            .toaster-task-label-text{
+                max-width: 240px;
+                text-overflow: ellipsis;
+                overflow-x: hidden;
+                white-space: nowrap;
+            }
         }
     }
 

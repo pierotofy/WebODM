@@ -31,6 +31,9 @@ class CheckTask(APIView):
         else:
             result = res.get()
 
+            # TODO REMOVE
+            print(result)
+
             if result.get('error', None) is not None:
                 msg = self.on_error(result)
                 return Response({'ready': True, 'error': msg})
@@ -62,6 +65,7 @@ class GetTaskResult(APIView):
             result = res.get()
             file = result.get('file', None) # File path
             output = result.get('output', None) # String/object
+            link = result.get('link', None)
         else:
             return Response({'error': 'Task not ready'})
 
@@ -92,6 +96,8 @@ class GetTaskResult(APIView):
                 return Response({'error': str(e)})
 
             return Response({'output': output})
+        elif link is not None:
+            return Response({'link': link})
         else:
             return Response({'error': 'Invalid task output (cannot find valid key)'})
 

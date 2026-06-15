@@ -302,7 +302,7 @@ class ShareDialog extends React.Component {
                         onChange={(e) => this.setState({ selectedProject: e.target.value })}
                         value={this.state.selectedProject || ""}
                       >
-                        <option value="">{_("Add To New Project")} [+]</option>
+                        <option value="">{_("Add New Project")} [+]</option>
                         {this.state.projects.map(p => (
                           <option key={p.id} value={p.id}>{p.name}</option>
                         ))}

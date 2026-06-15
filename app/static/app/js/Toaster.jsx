@@ -27,6 +27,10 @@ const ACTION_ICONS = {
     'export': "glyphicon glyphicon-download"
 };
 
+const shouldCheck = (task) => {
+    return !task.ready && !task.canceled && !task.error;
+}
+
 class ToasterTask extends React.Component {
     static propTypes = {
         task: PropTypes.object.isRequired,
@@ -64,6 +68,8 @@ class ToasterTask extends React.Component {
         this.props.onUpdate(task);
     }
 
+    
+
     check = () => {
         if (!this.mounted) return;
 
@@ -73,7 +79,7 @@ class ToasterTask extends React.Component {
         let errorCount = 0;
         let url = checkUrl + task.workerId;
 
-        if (!task.output && !task.canceled && !task.error) {
+        if (shouldCheck(task)) {
             const doCheck = () => {
                 if (!this.mounted) return;
 
@@ -87,13 +93,14 @@ class ToasterTask extends React.Component {
                         task.error = result.error;
                         this.updateTask(task);
                     } else if (result.ready) {
-                        task.ready = true;
-                        this.updateTask(task);
-
-                        Workers.getOutput(task.workerId, (err, output) => {
+                        Workers.getOutput(task.workerId, (err, _, result) => {
                             if (err) task.error = err;
-                            else task.output = output;
-
+                            else{
+                                if (result.output) task.output = result.output;
+                                else if (result.link) task.link = result.link;
+                            }
+                            
+                            task.ready = true;
                             this.updateTask(task);
                         });
                     } else if (result.canceled){
@@ -131,22 +138,30 @@ class ToasterTask extends React.Component {
         this.mounted = false;
     }
 
+    handleTaskClick = (task) => {
+        return () => {
+            if (task.link){
+                location.href = task.link;
+            }
+        }
+    }
+
     render() {
         const { task } = this.props;
         let icon = ACTION_ICONS[task.action] || ACTION_ICONS['process'];
         if (task.canceled) icon = "fa fa-ban";
-        if (task.error) icon = "fa fa-exclamation-triangle";
         if (task.ready) icon = "fa fa-check";
+        if (task.error) icon = "fa fa-exclamation-triangle";
 
         let label = task.name;
         if (!task.ready && task.progress !== undefined && !task.canceled) label += ` (${task.progress.toFixed(0)}%)`;
-        if (task.error) label = task.error;
+        if (task.error) label = `${task.name} - ${task.error}`;
 
         return <div className="toaster-task theme-border-highlight-9">
-            <div className="toaster-task-label">
-                <i className={icon} title={task.error || task.name}></i> {task.name}
+            <div className="toaster-task-label" onClick={this.handleTaskClick(task)}>
+                <i className={icon} title={task.error || task.status || task.name}></i> <div title={label} className="task-toaster-label-text">{label}</div>
             </div>
-            <a href="javascript:void(0);" className="toaster-btn toaster-btn-close theme-background-highlight-8-hover" title={_("Cancel")} onClick={this.onRemove}><i className="fa fa-times"></i></a>
+            <a href="javascript:void(0);" className="toaster-btn toaster-btn-close theme-background-highlight-8-hover" onClick={this.onRemove}><i className="fa fa-times"></i></a>
         </div>;
     }
 }
@@ -209,7 +224,7 @@ class Toaster extends React.Component {
         t.action = t.action || "process";
 
         this.setState(update(this.state, {
-            tasks: { $push: [t] }
+            tasks: { $unshift: [t] }
         }));
     }
 
@@ -227,13 +242,25 @@ class Toaster extends React.Component {
     close = (e) => {
         e.stopPropagation();
         e.preventDefault();
-        this.setState({ expanded: false });
+
+        const { tasks } = this.state;
+        if (tasks.find(t => shouldCheck(t))){
+            if (window.confirm(_("Are you sure you want to cancel the tasks?"))){
+                tasks.forEach(t => {
+                    if (shouldCheck(t)) Workers.cancel(t.workerId);
+                });
+
+                // Don't wait for results / check for errors, just assume it worked.
+                this.setState({tasks: []});
+            }
+        }else{
+            this.setState({tasks: []});
+        }
     }
 
     handleTaskUpdate = (t) => {
         return (task) => {
             const { tasks } = this.state;
-            console.log(task);
             // Recreate array to trigger state update
             this.setState({ tasks: tasks.map(x => x.workerId === t.workerId ? {...task} : x ) });
         };
@@ -266,7 +293,7 @@ class Toaster extends React.Component {
                 </div>
 
                 <div className="toaster-controls">
-                    <a href="javascript:void(0);" className="toaster-btn toaster-btn-toggle theme-background-highlight-8-hover" title={_("Minimize")} onClick={this.toggleExpanded}><i className={expanded ? "fa fa-caret-down" : "fa fa-caret-up"}></i></a>
+                    <a href="javascript:void(0);" className="toaster-btn toaster-btn-toggle theme-background-highlight-8-hover" onClick={this.toggleExpanded}><i className={expanded ? "fa fa-caret-down" : "fa fa-caret-up"}></i></a>
                     <a href="javascript:void(0);" className="toaster-btn toaster-btn-close theme-background-highlight-8-hover" title={_("Close")} onClick={this.close}><i className="fa fa-times"></i></a>
                 </div>
 
