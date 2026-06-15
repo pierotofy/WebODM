@@ -342,13 +342,11 @@ class ShareDialog extends React.Component {
                   <div className="col-sm-12">
                       <div className="row" key="select-links">
                         <div className="col-sm-12 text-right">
-                          <a href="#" onClick={(e) => {
+                          <a href="javascript:void(0)" onClick={(e) => {
                             e.preventDefault();
                             this.setState({selectedCustomAssets: availableAssets.map(a => a.asset)});
                             this.updateSize();
-                          }}>{_("Select All")}</a>
-                          {" | "}
-                          <a href="#" onClick={(e) => {
+                          }}>{_("Select All")}</a> | <a href="javascript:void(0)" onClick={(e) => {
                             e.preventDefault();
                             this.setState({selectedCustomAssets: []});
                             this.updateSize();
