@@ -29,23 +29,23 @@ class CheckTask(APIView):
             
             return Response(out, status=status.HTTP_200_OK)
         else:
-            result = res.get()
+            try:
+                result = res.get()
 
-            # TODO REMOVE
-            print(result)
+                if result.get('error', None) is not None:
+                    msg = self.on_error(result)
+                    return Response({'ready': True, 'error': msg})
 
-            if result.get('error', None) is not None:
-                msg = self.on_error(result)
-                return Response({'ready': True, 'error': msg})
+                if self.error_check(result) is not None:
+                    msg = self.on_error(result)
+                    return Response({'ready': True, 'error': msg})
 
-            if self.error_check(result) is not None:
-                msg = self.on_error(result)
-                return Response({'ready': True, 'error': msg})
+                if isinstance(result.get('file'), str) and not os.path.isfile(result.get('file')):
+                    return Response({'ready': True, 'error': "Cannot generate file"})
 
-            if isinstance(result.get('file'), str) and not os.path.isfile(result.get('file')):
-                return Response({'ready': True, 'error': "Cannot generate file"})
-
-            return Response({'ready': True})
+                return Response({'ready': True})
+            except Exception as e:
+                return Response({'ready': True, 'error': str(e)})
 
     def on_error(self, result):
         return result['error']

@@ -130,7 +130,9 @@ def share_task(task_name, project_name, project, cloud_token, cloud_url, resourc
     if project is None:
         res = session.post(cloud_url + '/api/projects/', json={'name': project_name})
         if res.status_code != 201:
-            raise Exception("Failed to create remote project")
+            logger.info(res.content.decode("utf-8"))
+            return {'error': 'Failed to create Lightning project. Try again in a bit.'}
+        
         project = res.json().get('id')
 
         def cleanup():
@@ -160,7 +162,7 @@ def share_task(task_name, project_name, project, cloud_token, cloud_url, resourc
     progress_callback("Preparing files", 5)
 
     if total_length == 0:
-        raise Exception("No data to upload")
+        return {'error': 'No data to upload'}
 
     # Calculate total chunk count (ceiling division)
     total_chunks = (total_length + CHUNK_SIZE - 1) // CHUNK_SIZE
@@ -212,7 +214,7 @@ def share_task(task_name, project_name, project, cloud_token, cloud_url, resourc
                     time.sleep(retry)
                     continue
                 else:
-                    raise Exception(f"Cannot complete upload: {str(e)}")
+                    return {'error': f"Cannot complete upload: {str(e)}"}
             break
 
 
@@ -227,10 +229,10 @@ def share_task(task_name, project_name, project, cloud_token, cloud_url, resourc
         try:
             j = res.json()
         except ValueError:
-            raise Exception("Chunk upload failed: not a JSON response from server")
+            return {'error': "Upload failed: not a JSON response from server"}
 
         if res.status_code == 403:
-            raise Exception("Authentication expired. Please try sharing again.")
+            return {'error': "Authentication expired. Please try sharing again."}
 
         if j.get('uploaded'):
             continue # next chunk
@@ -280,9 +282,9 @@ def share_task(task_name, project_name, project, cloud_token, cloud_url, resourc
 
             return {'link': cloud_url + f'/public/task/{task_id}/{view}/'}
         else:
-            raise Exception("Chunk upload failed: invalid response from server")
+            return {'error': "Upload failed: invalid response from server"}
     
-    raise Exception("No data uploaded")
+    return {'error': "No data uploaded"}
 
 class ShareTask(TaskView):
     def post(self, request, pk):

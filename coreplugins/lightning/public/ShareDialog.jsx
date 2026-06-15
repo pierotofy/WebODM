@@ -239,7 +239,7 @@ class ShareDialog extends React.Component {
     }
 
     handleShare = (formData) => {
-      if (this.state.size <= 0) return; // nothing to do
+      if (this.state.size <= 0 || this.state.loadingSize) return; // nothing to do
 
       return $.ajax({
         type: 'POST',
@@ -326,6 +326,18 @@ class ShareDialog extends React.Component {
                   </div>
                 </div>,
 
+                <div className="row" key="size">
+                  <label className="col-sm-2 control-label">{_("Size")}</label>
+                  <div className="col-sm-10 lightning-upload-size">
+                    {loadingSize ? 
+                      <i className="fa fa-circle-notch fa-spin fa-fw"></i> : 
+                      <span>
+                        {Utils.bytesToSize(size)} 
+                        {profile.has_quota && (profile.quota - profile.used_quota) < size  / 1024 / 1024 ? <i style={{marginLeft: "8px"}} title={_("Size exceeds available storage quota")} className="fa fa-exclamation-triangle"></i> : ""}
+                      </span>}
+                  </div>
+                </div>,
+
                 this.state.selectedAssets === 'custom' ? <div className="row" key="custom">
                   <div className="col-sm-12">
                       {availableAssets.length > 0 ? <div className="row">
@@ -346,18 +358,6 @@ class ShareDialog extends React.Component {
                       </div> : ""}
                     </div>
                   </div> : "",
-
-                <div className="row" key="size">
-                  <label className="col-sm-2 control-label">{_("Size")}</label>
-                  <div className="col-sm-10 lightning-upload-size">
-                    {loadingSize ? 
-                      <i className="fa fa-circle-notch fa-spin fa-fw"></i> : 
-                      <span>
-                        {Utils.bytesToSize(size)} 
-                        {profile.has_quota && (profile.quota - profile.used_quota) < size  / 1024 / 1024 ? <i style={{marginLeft: "8px"}} title={_("Size exceeds available storage quota")} className="fa fa-exclamation-triangle"></i> : ""}
-                      </span>}
-                  </div>
-                </div>,
               ];
             }
           }

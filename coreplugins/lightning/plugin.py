@@ -15,8 +15,9 @@ from django.views.decorators.http import require_POST
 from nodeodm.models import ProcessingNode
 from app.api.processingnodes import ProcessingNodeSerializer
 from .api import GetTaskSize, ShareTask
+from webodm import settings
 
-API_BASE = "http://192.168.2.253:5000" # TODO: ADJUST!
+API_BASE = "http://192.168.2.253:5000" if (settings.DEV or settings.TESTING) else "https://webodm.net"
 ds = GlobalDataStore('lightning')
 
 def JsonResponse(dict):
@@ -43,16 +44,21 @@ class Plugin(PluginBase):
                 'api_base': API_BASE
             })
         
-        @login_required
         def main_js(request):
-            uds = self.get_user_data_store(request.user)
+            share_enabled = False
+            api_key = ""
 
+            if request.user.is_authenticated:
+                uds = self.get_user_data_store(request.user)
+                share_enabled = uds.get_bool("share_enabled")
+                api_key = uds.get_string("api_key")
+            
             return render(
                 request,
                 self.template_path("main.js"),
                 {
-                    "share_enabled": uds.get_bool("share_enabled"),
-                    "api_key": uds.get_string("api_key"),
+                    "share_enabled": share_enabled,
+                    "api_key": api_key,
                     "api_base": API_BASE
                 },
                 content_type="text/javascript",
