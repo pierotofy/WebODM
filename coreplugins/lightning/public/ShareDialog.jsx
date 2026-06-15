@@ -210,7 +210,7 @@ class ShareDialog extends React.Component {
       this.fetchProjectList();
     }
 
-    handleUploadChange = (e) => {
+    handleAssetsChange = (e) => {
       this.setState({selectedAssets: e.target.value});
       this.updateSize();
     }
@@ -304,7 +304,7 @@ class ShareDialog extends React.Component {
                         onChange={(e) => this.setState({ selectedProject: e.target.value })}
                         value={this.state.selectedProject || ""}
                       >
-                        <option value="">{_("Add New Project")} [+]</option>
+                        <option value="">{_("Create New")} [+]</option>
                         {this.state.projects.map(p => (
                           <option key={p.id} value={p.id}>{p.name}</option>
                         ))}
@@ -312,11 +312,11 @@ class ShareDialog extends React.Component {
                   </div>
                 </div>,
                 <div className="row" key="upload">
-                  <label className="col-sm-2 control-label">{_("Upload")}</label>
+                  <label className="col-sm-2 control-label">{_("Share")}</label>
                   <div className="col-sm-10">
                       <select 
                         className="form-control"
-                        onChange={this.handleUploadChange}
+                        onChange={this.handleAssetsChange}
                         value={this.state.selectedAssets}
                       >
                         <option value="all">{_("All Assets")}</option>
@@ -366,7 +366,7 @@ class ShareDialog extends React.Component {
 
       return (
           <FormDialog {...this.props}
-            title={_("Share to Lightning")}
+            title={_("Share with Lightning")}
             getFormData={this.getFormData}
             saveLabel={_("Share")}
             savingLabel={_("Sharing...")}
