@@ -157,7 +157,7 @@ def share_task(task_name, project_name, project, cloud_token, cloud_url, resourc
 
     if should_cancel():
         return cleanup()
-    progress_callback("Preparing files for upload", 5)
+    progress_callback("Preparing files", 5)
 
     if total_length == 0:
         raise Exception("No data to upload")
@@ -181,11 +181,6 @@ def share_task(task_name, project_name, project, cloud_token, cloud_url, resourc
             buffer += buf
         chunk = buffer[:CHUNK_SIZE]
         buffer = buffer[CHUNK_SIZE:]
-
-        # TODO REMOVE
-        time.sleep(6)
-
-        logger.info(f"Processing {chunk_index}")
 
         files = {'file': ('all.zip', chunk, 'application/zip')}
         data = {
@@ -227,7 +222,7 @@ def share_task(task_name, project_name, project, cloud_token, cloud_url, resourc
         pct = min(95, int((chunk_index / total_chunks) * 100))
         if should_cancel():
             return cleanup()
-        progress_callback("Uploading chunk {} of {}".format(chunk_index, total_chunks), pct)
+        progress_callback("Uploading part {} of {}".format(chunk_index + 1, total_chunks), pct)
 
         try:
             j = res.json()
@@ -258,7 +253,7 @@ def share_task(task_name, project_name, project, cloud_token, cloud_url, resourc
             if should_cancel():
                 return cleanup()
 
-            progress_callback("Upload complete, finalizing...", 100)
+            progress_callback("Finalizing", 100)
             
             # Set task to public
             count = 0

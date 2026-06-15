@@ -239,6 +239,8 @@ class ShareDialog extends React.Component {
     }
 
     handleShare = (formData) => {
+      if (this.state.size <= 0) return; // nothing to do
+
       return $.ajax({
         type: 'POST',
         url: `/api/plugins/lightning/task/${this.props.task.id}/share`,

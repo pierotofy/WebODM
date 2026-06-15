@@ -6,6 +6,7 @@ import PluginsAPI from './classes/plugins/API';
 import Storage from './classes/Storage';
 import update from 'immutability-helper';
 import Workers from './classes/Workers';
+import Css from './classes/Css';
 import $ from 'jquery';
 
 const ACTION_LABELS = {
@@ -43,7 +44,9 @@ class ToasterTask extends React.Component {
 
         this.state = {
             task: props.task
-        }
+        };
+
+        this.backgroundSuccessColor = Css.getValue('theme-background-success', 'backgroundColor');
     }
 
     onRemove = () => {
@@ -142,6 +145,7 @@ class ToasterTask extends React.Component {
         return () => {
             if (task.link){
                 location.href = task.link;
+                this.onRemove();
             }
         }
     }
@@ -154,10 +158,17 @@ class ToasterTask extends React.Component {
         if (task.error) icon = "fa fa-exclamation-triangle";
 
         let label = task.name;
-        if (!task.ready && task.progress !== undefined && !task.canceled) label += ` (${task.progress.toFixed(0)}%)`;
         if (task.error) label = `${task.name} - ${task.error}`;
 
-        return <div className="toaster-task theme-border-highlight-9">
+        let background = "";
+        if (task.progress !== undefined) {
+            if (shouldCheck(task)){
+                background = `linear-gradient(90deg, ${this.backgroundSuccessColor} ${task.progress}%, rgba(255, 255, 255, 0) ${task.progress}%)`;
+            }
+            if ((task.ready || task.canceled) && !task.error) background = '';
+        }
+
+        return <div className="toaster-task theme-border-highlight-9" style={{background}}>
             <div className="toaster-task-label" onClick={this.handleTaskClick(task)}>
                 <i className={icon} title={task.error || task.status || task.name}></i> <div title={label} className="task-toaster-label-text">{label}</div>
             </div>
