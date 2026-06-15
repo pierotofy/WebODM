@@ -340,8 +340,23 @@ class ShareDialog extends React.Component {
 
                 this.state.selectedAssets === 'custom' ? <div className="row" key="custom">
                   <div className="col-sm-12">
-                      {availableAssets.length > 0 ? <div className="row">
-                        {availableAssets.map(asset => (
+                      <div className="row" key="select-links">
+                        <div className="col-sm-12 text-right">
+                          <a href="#" onClick={(e) => {
+                            e.preventDefault();
+                            this.setState({selectedCustomAssets: availableAssets.map(a => a.asset)});
+                            this.updateSize();
+                          }}>{_("Select All")}</a>
+                          {" | "}
+                          <a href="#" onClick={(e) => {
+                            e.preventDefault();
+                            this.setState({selectedCustomAssets: []});
+                            this.updateSize();
+                          }}>{_("Deselect All")}</a>
+                        </div>
+                      </div>
+                      <div className="row">
+                        {availableAssets.length > 0 ? availableAssets.map(asset => (
                           <div className="col-sm-6" key={asset.asset}>
                             <div className="checkbox lightning-custom-asset-option">
                               <label>
@@ -354,8 +369,9 @@ class ShareDialog extends React.Component {
                               </label>
                             </div>
                           </div>
-                        ))}
-                      </div> : ""}
+                        )) : ""}
+                      </div>
+                      
                     </div>
                   </div> : "",
               ];
