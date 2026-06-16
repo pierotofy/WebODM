@@ -15,7 +15,7 @@ def get_resources(task, assets, custom_assets):
     if assets == "custom":
         INCLUDE_ALWAYS = ["cameras.json", "shots.geojson", "ground_control_points.geojson"]
         if not isinstance(custom_assets, list):
-            raise exceptions.ValidationError({"custom_assets": "Invalid"})
+            raise exceptions.ValidationError({"customAssets": "Invalid"})
         
         if len(custom_assets) > 0:
             custom_assets = list(set(custom_assets) | set(INCLUDE_ALWAYS))
@@ -32,7 +32,11 @@ def get_resources(task, assets, custom_assets):
         resources.append(base_path)
     elif assets == "custom":
         for asset in custom_assets:
-            file = task.get_asset_download_path(asset)
+            try:
+                file = task.get_asset_download_path(asset)
+            except FileNotFoundError:
+                raise exceptions.ValidationError({"customAssets": "Invalid"})
+
             if os.path.isfile(file):
                 resources.append(file)
             
@@ -224,7 +228,7 @@ def share_task(task_name, project_name, project, cloud_token, cloud_url, resourc
         pct = min(95, int((chunk_index / total_chunks) * 100))
         if should_cancel():
             return cleanup()
-        progress_callback("Uploading part {} of {}".format(chunk_index + 1, total_chunks), pct)
+        progress_callback("Uploading part {} of {}".format(chunk_index, total_chunks), pct)
 
         try:
             j = res.json()
@@ -242,7 +246,8 @@ def share_task(task_name, project_name, project, cloud_token, cloud_url, resourc
             project_id = j.get('project')
             count = 0
 
-            while j.get('pending_action') or count >= 360:
+            # Wait 30 minutes max
+            while j.get('pending_action') and count < 360:
                 time.sleep(5)
                 check_refresh_token()
                 try:

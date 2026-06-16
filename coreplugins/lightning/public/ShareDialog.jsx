@@ -37,7 +37,7 @@ class ShareDialog extends React.Component {
           selectedProject: "",
           projects: [],
           selectedAssets: this.getSavedAssets(),
-          custom: this.getSavedCustom(),
+          selectedCustomAssets: this.getSavedCustom(),
           profile: null,
           size: null,
           loadingSize: true
@@ -81,8 +81,9 @@ class ShareDialog extends React.Component {
       return assets.filter(a => savedCustom.includes(a));
     }
 
-    saveCustom = (selectedCustomAssets) => {
-      localStorage.setItem("lightning_last_custom_assets", JSON.stringify(selectedCustomAssets));
+    savePrefs = () => {
+      localStorage.setItem("lightning_last_assets", this.state.selectedAssets);
+      localStorage.setItem("lightning_last_custom_assets", JSON.stringify(this.state.selectedCustomAssets));
     }
 
     fetchProjectList = () => {
@@ -240,6 +241,8 @@ class ShareDialog extends React.Component {
 
     handleShare = (formData) => {
       if (this.state.size <= 0 || this.state.loadingSize) return; // nothing to do
+      
+      this.savePrefs();
 
       return $.ajax({
         type: 'POST',
@@ -269,7 +272,7 @@ class ShareDialog extends React.Component {
 
       if (checkingToken){
         formContent = (<div className="text-center">
-            <p>{_("Checking your credentials...")}</p>,
+            <p>{_("Checking your credentials...")}</p>
             <i className="fa fa-circle-notch fa-spin fa-fw"></i>
           </div>);
         showFooter = false;
@@ -278,7 +281,7 @@ class ShareDialog extends React.Component {
           if (fetchingProjects){
             showFooter = false;
             formContent = (<div className="text-center">
-              <p>{_("Retrieving your projects...")}</p>,
+              <p>{_("Retrieving your projects...")}</p>
               <i className="fa fa-circle-notch fa-spin fa-fw"></i>
             </div>);
           }else{

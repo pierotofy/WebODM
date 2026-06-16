@@ -6,7 +6,7 @@ import $ from 'jquery';
 import { _, interpolate } from 'webodm/classes/gettext';
 import { setCloudToken } from './CloudTokenStore';
 
-export default class Login extends React.Component {
+export default class CloudLogin extends React.Component {
   static defaultProps = {
     apiBase: "https://webodm.net"
   };
@@ -104,7 +104,7 @@ export default class Login extends React.Component {
         if (!error){
             if (cloudNotFound){
                 content = <div className="alert alert-info" dangerouslySetInnerHTML={{__html: interpolate(_("Your Lightning cloud platform account is not active yet. To activate it, visit %(link)s and make sure you can access the cloud platform, then try again."), {
-                        link: `<a href="https://webodm.net/cloud" target="_blank">webodm.net/cloud</a>`
+                        link: `<a href="${this.props.apiBase}/cloud" target="_blank">${this.props.apiBase.replace(/^https?:\/\//, "")}/cloud</a>`
                     })}}>
                 </div>;
             }else{

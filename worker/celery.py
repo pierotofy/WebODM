@@ -92,13 +92,10 @@ class MockAsyncResult:
         return self.result is not None
 
 class MockAsyncBackend:
-    def store_result(self, celery_task_id, result, state, *args, **kwargs):
+    def store_result(self, celery_task_id, result, *args, **kwargs):
         if result is not None:
             MockAsyncResult.results[celery_task_id] = result
         
-        if MockAsyncResult.results.get(celery_task_id) is not None:
-            MockAsyncResult.results[celery_task_id].state = state
-
 MockAsyncResult.results = {}
 MockAsyncResult.set = lambda cti, r: MockAsyncResult(cti, r)
 MockAsyncResult.backend = MockAsyncBackend()

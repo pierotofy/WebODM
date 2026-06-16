@@ -4,7 +4,6 @@ import Map from './components/Map';
 import $ from 'jquery';
 import PropTypes from 'prop-types';
 import { _, interpolate } from './classes/gettext';
-import ErrorMessage from './components/ErrorMessage';
 
 class MapView extends React.Component {
   static defaultProps = {

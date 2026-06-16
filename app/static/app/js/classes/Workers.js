@@ -54,8 +54,10 @@ export default {
         $.ajax(url, {
             type: 'POST',
         }).done(result => {
-            if (result.success) cb(null);
-            else cb(new Error("Cannot cancel task"));
+            if (typeof cb === 'function'){
+                if (result.success) cb(null);
+                else cb(new Error("Cannot cancel task"));
+            }
         }).fail(cb);
     }
 };
