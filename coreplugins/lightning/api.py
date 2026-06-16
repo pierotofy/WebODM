@@ -245,6 +245,7 @@ def share_task(task_name, project_name, project, cloud_token, cloud_url, resourc
             task_id = j.get('id')
             project_id = j.get('project')
             count = 0
+            view = 'map'
 
             # Wait 30 minutes max
             while j.get('pending_action') and count < 360:
@@ -256,35 +257,17 @@ def share_task(task_name, project_name, project, cloud_token, cloud_url, resourc
                 except Exception as e:
                     logger.warning(f"Cannot retrieve task information: {str(e)}, retrying...")
                 count += 1
+            
+            if 'orthophoto.tif' not in j['available_assets'] and \
+                'dsm.tif' not in j['available_assets'] and \
+                'dtm.tif' not in j['available_assets']:
+                view = '3d'
 
             if should_cancel():
                 return cleanup()
 
             progress_callback("Finalizing", 100)
             
-            # Set task to public
-            count = 0
-            view = 'map'
-            while count < 10:
-                try:
-                    res = session.patch(cloud_url + f'/api/projects/{project_id}/tasks/{task_id}/', data={
-                        'public': True
-                    })
-                    j = res.json()
-                    if j['public']:
-
-                        # If no map assets, use 3D view for display
-                        if 'orthophoto.tif' not in j['available_assets'] and \
-                           'dsm.tif' not in j['available_assets'] and \
-                           'dtm.tif' not in j['available_assets']:
-                           view = '3d'
-                           
-                        break
-                except Exception as e:
-                    logger.warning(f"Cannot set task to public: {str(e)}, retrying...")
-                    count += 1
-                    time.sleep(5)
-
             return {'link': cloud_url + f'/public/task/{task_id}/{view}/'}
         else:
             return {'error': "Upload failed: invalid response from server"}

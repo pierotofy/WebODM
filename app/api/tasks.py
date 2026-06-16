@@ -715,7 +715,7 @@ class TaskAssetsImport(APIView):
         files = flatten_files(request.FILES)
         import_url = request.data.get('url', None)
         task_name = request.data.get('name', _('Imported Task'))
-        public = request.data.get('public', False)
+        public = bool(serializers.BooleanField(default=False, allow_null=True).to_internal_value(request.data.get('public', '')))
 
         if not import_url and len(files) != 1:
             raise exceptions.ValidationError(detail=_("Cannot create task, you need to upload 1 file"))
