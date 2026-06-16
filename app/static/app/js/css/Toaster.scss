@@ -1,3 +1,12 @@
+.toaster-ripple-overlay {
+    position: fixed;
+    z-index: 1000;
+    border-width: 2px;
+    border-style: solid; 
+    pointer-events: none;
+    border-radius: 4px;
+}
+
 @keyframes toaster-share-pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }

@@ -205,7 +205,7 @@ class FormDialog extends React.Component {
                   {this.props.showFooter ? <div className="modal-footer">
                     <div className="pull-right">
                         <button type="button" className="btn btn-default" onClick={this.hide} disabled={this.state.saving}>{_("Cancel")}</button>
-                        <button type="button" className="btn btn-primary save" onClick={this.handleSave} disabled={this.state.saving}>
+                        <button type="button" className="btn btn-primary save" onClick={this.handleSave} disabled={this.state.saving} ref={(domNode) => this.saveButton = domNode}>
                             {this.state.saving ? 
                                 <span>
                                     <i className="fa fa-circle-notch fa-spin"></i> {this.props.savingLabel}{this.state.saveProgress !== null ? ` (${this.state.saveProgress.toFixed(0)}%)` : ""}
