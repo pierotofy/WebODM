@@ -39,7 +39,7 @@ class Plugin(PluginBase):
             uds = self.get_user_data_store(request.user)
 
             return render(request, self.template_path("index.html"), {
-                'title': _('Lightning'),
+                'title': 'Lightning',
                 'api_key': uds.get_string("api_key"),
                 'api_base': API_BASE
             })
