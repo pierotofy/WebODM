@@ -50,7 +50,7 @@ class Plugin(PluginBase):
 
             if request.user.is_authenticated:
                 uds = self.get_user_data_store(request.user)
-                share_enabled = uds.get_bool("share_enabled")
+                share_enabled = False #uds.get_bool("share_enabled")
                 api_key = uds.get_string("api_key")
             
             return render(
