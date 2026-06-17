@@ -9,7 +9,7 @@ import { getCloudToken } from './CloudTokenStore';
 import AssetDownloads from 'webodm/classes/AssetDownloads';
 import Utils from 'webodm/classes/Utils';
 import PluginsAPI from 'webodm/classes/plugins/API';
-import { showToasterRipple } from 'webodm/classes/Animations';
+import Animations from 'webodm/classes/Animations';
 import $ from 'jquery';
 
 class ShareDialog extends React.Component {
@@ -253,7 +253,7 @@ class ShareDialog extends React.Component {
         contentType: 'application/json'
       }).done((json) => {
           if (json.celery_task_id){
-            showToasterRipple(saveButton);
+            Animations.showToasterRipple(saveButton);
             PluginsAPI.Workers.addTask({
               workerId: json.celery_task_id,
               name: this.props.task.name || _("Task"),

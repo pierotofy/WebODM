@@ -17,8 +17,7 @@ module.exports = {
     Console: ['./app/static/app/js/Console.jsx'],
     Dashboard: ['./app/static/app/js/Dashboard.jsx'],
     MapView: ['./app/static/app/js/MapView.jsx'],
-    ModelView: ['./app/static/app/js/ModelView.jsx'],
-    Toaster: ['./app/static/app/js/Toaster.jsx']
+    ModelView: ['./app/static/app/js/ModelView.jsx']
   },
 
   output: {

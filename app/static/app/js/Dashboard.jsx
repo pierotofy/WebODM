@@ -5,6 +5,7 @@ import ProjectList from './components/ProjectList';
 import EditProjectDialog from './components/EditProjectDialog';
 import Storage from './classes/Storage';
 import Utils from './classes/Utils';
+import Toaster from './components/Toaster';
 import {
   BrowserRouter as Router,
   Route
@@ -69,7 +70,7 @@ class Dashboard extends React.Component {
     };
 
 
-    return (
+    return [
       <Router basename="/dashboard">
         <div>
           {this.props.permissions.indexOf("add_project") !== -1 ? 
@@ -88,8 +89,9 @@ class Dashboard extends React.Component {
             />
           <Route path="/" component={projectList} />
         </div>
-      </Router>
-    );
+      </Router>,
+      <Toaster />
+    ];
   }
 }
 

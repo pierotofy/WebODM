@@ -2,7 +2,9 @@ PluginsAPI.Dashboard.addNewTaskPanelItem([
     'lightning/build/CostEstimateItem.js',
     'lightning/build/CostEstimateItem.css',
 ],function(args, CostEstimateItem){
-    return React.createElement(CostEstimateItem, {apiBase: "{{ api_base }}"});
+    return function(props){
+        return React.createElement(CostEstimateItem, Object.assign({}, props, { apiBase: "{{ api_base }}"}));
+    }
 });
 
 {% if share_enabled %}

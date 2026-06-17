@@ -4,7 +4,7 @@ function showToasterRipple(sourceElement) {
     const sourceRect = sourceElement.getBoundingClientRect();
 
     const getToasterEl = () => {
-        return document.querySelector('.global-toaster');
+        return document.getElementById('global-toaster');
     };
 
     let toasterEl = getToasterEl();
@@ -73,6 +73,6 @@ function showToasterRippleAnimation(sourceRect, toasterEl) {
 }
 
 
-module.exports = {
+export default {
     showToasterRipple
 }

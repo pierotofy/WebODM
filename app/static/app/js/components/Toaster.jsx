@@ -1,12 +1,12 @@
-import './css/Toaster.scss';
+import '../css/Toaster.scss';
 import React from 'react';
 import PropTypes from 'prop-types';
-import { _, interpolate } from './classes/gettext';
-import PluginsAPI from './classes/plugins/API';
-import Storage from './classes/Storage';
+import { _, interpolate } from '../classes/gettext';
+import PluginsAPI from '../classes/plugins/API';
+import Storage from '../classes/Storage';
 import update from 'immutability-helper';
-import Workers from './classes/Workers';
-import Css from './classes/Css';
+import Workers from '../classes/Workers';
+import Css from '../classes/Css';
 import $ from 'jquery';
 
 const ACTION_LABELS = {
@@ -303,7 +303,7 @@ class Toaster extends React.Component {
 
         if (!visible) return null;
 
-        return <div className="global-toaster theme-secondary  theme-border-highlight-8">
+        return <div id="global-toaster" className="theme-secondary  theme-border-highlight-8">
             <div className="toaster-header theme-background-highlight theme-background-highlight-hover" onClick={this.toggleExpanded}>
                 <div className="toaster-title">
                     {verb} ({tasks.length})
@@ -323,12 +323,5 @@ class Toaster extends React.Component {
         </div>;
     }
 }
-
-$(function () {
-    const $el = $("#global-toaster");
-    const props = $el.data();
-    delete (props.toaster);
-    window.ReactDOM.render(<Toaster {...props} />, $el.get(0));
-});
 
 export default Toaster;

@@ -29,19 +29,27 @@ export default class CostEstimateItem extends React.Component {
     this.imageHeight = null;
   }
 
+  checkEstimateCredits = () => {
+    if (this.props.taskInfo && this.props.taskInfo.selectedNode && this.props.taskInfo.selectedNode.key !== "auto"){
+        $.get(`/plugins/lightning/is_lightning_node?id=${this.props.taskInfo.selectedNode.key}`)
+            .done(json => {
+            if (json.result !== undefined){
+                this.setState({show: json.result});
+                if (json.result) this.estimateCredits();
+            }
+        });
+    }
+  }
+
+  componentDidMount(){
+    this.checkEstimateCredits();
+  }
+
   componentDidUpdate(prevProps){
     if (prevProps.taskInfo.selectedNode &&
         this.props.taskInfo.selectedNode && 
         prevProps.taskInfo.selectedNode.key !== this.props.taskInfo.selectedNode.key){
-        if (this.props.taskInfo.selectedNode.key !== "auto"){
-            $.get(`/plugins/lightning/is_lightning_node?id=${this.props.taskInfo.selectedNode.key}`)
-             .done(json => {
-                if (json.result !== undefined){
-                    this.setState({show: json.result});
-                    if (json.result) this.estimateCredits();
-                }
-             });
-        }
+        this.checkEstimateCredits();
     }
 
     if (this.state.show){

@@ -12,8 +12,8 @@
     50% { opacity: 0.5; }
 }
 
-.global-toaster{
-    z-index: 2;
+#global-toaster{
+    z-index: 3;
     width: 300px;
     position: fixed;    
     bottom: 0px;
