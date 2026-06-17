@@ -16,8 +16,6 @@ import 'leaflet-fullscreen/dist/leaflet.fullscreen.css';
 import '../vendor/leaflet/Leaflet.Autolayers/css/leaflet.auto-layers.css';
 import '../vendor/leaflet/Leaflet.Autolayers/leaflet-autolayers';
 
-console.log("ABBBBBBB", L.Control.AutoLayers);
-
 class MapPreview extends React.Component {
   static defaultProps = {
     getFiles: null,
