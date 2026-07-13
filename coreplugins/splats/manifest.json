@@ -1,0 +1,13 @@
+{
+	"name": "Splats",
+	"webodmMinVersion": "3.2.6",
+	"description": "Export tasks in COLMAP format for use with Gaussian Splatting programs",
+	"version": "1.0.0",
+	"author": "Piero Toffanin",
+	"email": "pt@masseranolabs.com",
+	"repository": "https://github.com/WebODM/WebODM",
+	"tags": ["colmap", "splats", "gaussian splatting", "export"],
+	"homepage": "https://github.com/WebODM/WebODM",
+	"experimental": false,
+	"deprecated": false
+}

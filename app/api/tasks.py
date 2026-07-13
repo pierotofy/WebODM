@@ -28,7 +28,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db.models import Q
 
-from app import models, pending_actions, colmap
+from app import models, pending_actions
 from nodeodm import status_codes
 from nodeodm.models import ProcessingNode
 from worker import tasks as worker_tasks
@@ -701,44 +701,6 @@ class TaskBackup(TaskNestedView):
         download_filename = request.GET.get('filename', get_asset_download_filename(task, "backup.zip"))
 
         return download_file_stream(request, asset_fs, 'attachment', download_filename=download_filename)
-
-"""
-Task COLMAP export endpoint
-"""
-class TaskColmapExport(TaskNestedView):
-    def get(self, request, pk=None, project_pk=None):
-        """
-        Generates a COLMAP export (binary format) of a task,
-        including images, camera poses and a sparse point cloud
-        """
-        task = self.get_and_check_task(request, pk)
-
-        try:
-            image_size = int(request.GET.get('image_size', '0'))
-        except ValueError:
-            raise exceptions.ValidationError(detail=_("Invalid image_size parameter"))
-        if not (image_size == 0 or image_size >= 16):
-            raise exceptions.ValidationError(detail=_("Invalid image_size parameter"))
-
-        try:
-            sample = float(request.GET.get('sample', '1'))
-        except ValueError:
-            raise exceptions.ValidationError(detail=_("Invalid sample parameter"))
-        if not (0 <= sample <= 100000):
-            raise exceptions.ValidationError(detail=_("Invalid sample parameter"))
-
-        try:
-            stream = colmap.export_stream(task, image_size=image_size, sample=sample)
-        except FileNotFoundError:
-            raise exceptions.NotFound(_("Asset does not exist"))
-        except colmap.ColmapExportError as e:
-            raise exceptions.ValidationError(detail=str(e))
-
-        download_filename = request.GET.get('filename', get_asset_download_filename(task, "colmap.zip"))
-
-        response = StreamingHttpResponse(stream, content_type="application/zip")
-        response['Content-Disposition'] = "attachment; filename={}".format(download_filename)
-        return response
 
 """
 Task assets import
