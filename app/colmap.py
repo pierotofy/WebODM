@@ -20,6 +20,7 @@ All output coordinates are relative to the UTM offset stored on the second
 line of odm_georeferencing/coords.txt.
 """
 
+import binascii
 import io
 import json
 import logging
@@ -30,11 +31,10 @@ import shutil
 import struct
 import subprocess
 import tempfile
-import zipfile
+import time
 
 import numpy as np
 from PIL import Image
-from zipstream.ng import ZipStream
 
 logger = logging.getLogger('app.logger')
 
@@ -267,40 +267,139 @@ def file_stream(path, chunk_size=512 * 1024):
             yield chunk
 
 
-def image_stream(path, camera):
+def _dos_datetime():
+    t = time.localtime()
+    return (max(0, t.tm_year - 1980) << 9 | t.tm_mon << 5 | t.tm_mday,
+            t.tm_hour << 11 | t.tm_min << 5 | t.tm_sec // 2)
+
+
+class StoredZipStream:
     """
-    Stream an image file, resizing it to the camera's output dimensions if needed
+    Minimal streaming zip writer for maximum reader compatibility: entries
+    are always stored (no compression) and sizes/CRCs are written in the
+    local file headers (no data descriptors), which allows programs to read
+    the archive as a stream. Entry data is materialized by invoking its
+    provider right before the entry is written, so the archive itself can
+    still be generated on the fly.
+
+    A provider is a callable returning (size, crc, iterable of bytes).
     """
-    if camera['out_width'] == camera['width'] and camera['out_height'] == camera['height']:
-        yield from file_stream(path)
-        return
+    def __init__(self, comment=b''):
+        self.comment = comment
+        self.entries = []
 
-    try:
-        im = Image.open(path)
-        fmt = im.format or 'JPEG'
-        resample = Image.Resampling.LANCZOS if hasattr(Image, 'Resampling') else Image.LANCZOS
-        im = im.resize((camera['out_width'], camera['out_height']), resample)
-        if fmt == 'JPEG' and im.mode not in ('RGB', 'L'):
-            im = im.convert('RGB')
+    def add(self, arcname, provider):
+        self.entries.append((arcname, provider))
 
-        buf = io.BytesIO()
-        im.save(buf, format=fmt, **({'quality': 95} if fmt == 'JPEG' else {}))
-        im.close()
-        buf.seek(0)
-    except Exception as e:
-        logger.warning("Cannot resize %s (%s), copying original" % (path, str(e)))
-        yield from file_stream(path)
-        return
+    def __iter__(self):
+        offset = 0
+        central = []
+        dos_date, dos_time = _dos_datetime()
 
-    yield from file_stream_from(buf)
+        for arcname, provider in self.entries:
+            size, crc, chunks = provider()
+            try:
+                name = arcname.encode('ascii')
+                flags = 0
+            except UnicodeEncodeError:
+                name = arcname.encode('utf-8')
+                flags = 0x800  # UTF-8 filename
+
+            # Zip64 is required only for 4GB+ entries
+            zip64 = size >= 0xFFFFFFFF
+            extra = struct.pack('<HHQQ', 0x0001, 16, size, size) if zip64 else b''
+            size32 = 0xFFFFFFFF if zip64 else size
+            version = 45 if zip64 else 20
+
+            header = struct.pack('<IHHHHHIIIHH', 0x04034b50, version, flags, 0,
+                                 dos_time, dos_date, crc, size32, size32,
+                                 len(name), len(extra)) + name + extra
+            central.append((name, flags, crc, size, offset))
+            yield header
+            offset += len(header)
+
+            written = 0
+            for chunk in chunks:
+                written += len(chunk)
+                yield chunk
+            if written != size:
+                raise ColmapExportError("Size mismatch for %s (expected %d, got %d)" % (arcname, size, written))
+            offset += written
+
+        cd_offset = offset
+        for name, flags, crc, size, hdr_offset in central:
+            fields = []
+            if size >= 0xFFFFFFFF:
+                fields += [size, size]
+            if hdr_offset >= 0xFFFFFFFF:
+                fields.append(hdr_offset)
+            extra = struct.pack('<HH%dQ' % len(fields), 0x0001, 8 * len(fields), *fields) if fields else b''
+            version = 45 if fields else 20
+
+            yield struct.pack('<IHHHHHHIIIHHHHHII', 0x02014b50,
+                              (3 << 8) | version, version, flags, 0,
+                              dos_time, dos_date, crc,
+                              min(size, 0xFFFFFFFF), min(size, 0xFFFFFFFF),
+                              len(name), len(extra), 0, 0, 0,
+                              0o644 << 16, min(hdr_offset, 0xFFFFFFFF)) + name + extra
+            offset += 46 + len(name) + len(extra)
+
+        cd_size = offset - cd_offset
+        count = len(central)
+        if count > 0xFFFF or cd_size >= 0xFFFFFFFF or cd_offset >= 0xFFFFFFFF:
+            yield struct.pack('<IQHHIIQQQQ', 0x06064b50, 44, (3 << 8) | 45, 45,
+                              0, 0, count, count, cd_size, cd_offset)
+            yield struct.pack('<IIQI', 0x07064b50, 0, offset, 1)
+        yield struct.pack('<IHHHHIIH', 0x06054b50, 0, 0,
+                          min(count, 0xFFFF), min(count, 0xFFFF),
+                          min(cd_size, 0xFFFFFFFF), min(cd_offset, 0xFFFFFFFF),
+                          len(self.comment)) + self.comment
 
 
-def file_stream_from(buf, chunk_size=512 * 1024):
-    while True:
-        chunk = buf.read(chunk_size)
-        if not chunk:
-            break
-        yield chunk
+def bytes_provider(data):
+    def provider():
+        return len(data), binascii.crc32(data), iter((data, ))
+    return provider
+
+
+def file_provider(path):
+    def provider():
+        size = 0
+        crc = 0
+        with open(path, 'rb') as f:
+            for chunk in iter(lambda: f.read(512 * 1024), b''):
+                crc = binascii.crc32(chunk, crc)
+                size += len(chunk)
+        return size, crc, file_stream(path)
+    return provider
+
+
+def image_provider(path, camera):
+    """
+    An image file, resized to the camera's output dimensions if needed
+    """
+    def provider():
+        if camera['out_width'] == camera['width'] and camera['out_height'] == camera['height']:
+            return file_provider(path)()
+
+        try:
+            im = Image.open(path)
+            fmt = im.format or 'JPEG'
+            resample = Image.Resampling.LANCZOS if hasattr(Image, 'Resampling') else Image.LANCZOS
+            im = im.resize((camera['out_width'], camera['out_height']), resample)
+            if fmt == 'JPEG' and im.mode not in ('RGB', 'L'):
+                im = im.convert('RGB')
+
+            buf = io.BytesIO()
+            im.save(buf, format=fmt, **({'quality': 95} if fmt == 'JPEG' else {}))
+            im.close()
+            data = buf.getvalue()
+        except Exception as e:
+            logger.warning("Cannot resize %s (%s), copying original" % (path, str(e)))
+            return file_provider(path)()
+
+        return len(data), binascii.crc32(data), iter((data, ))
+    return provider
 
 
 def write_pdal_pipeline(pipeline_file, laz_file, ply_file, sample, color_dims=True):
@@ -326,20 +425,33 @@ def write_pdal_pipeline(pipeline_file, laz_file, ply_file, sample, color_dims=Tr
         f.write(json.dumps(pipeline))
 
 
-def points3d_entry(proc, tmpdir, laz_file, ply_file, sample, offset_x, offset_y):
+def points3d_provider(proc, tmpdir, laz_file, ply_file, sample, offset_x, offset_y):
     """
-    Wait for the PDAL sampling process to complete, then stream points3D.bin
+    Wait for the PDAL sampling process to complete, then spool points3D.bin
+    to disk to compute its size and CRC
     """
-    if proc.wait() != 0 or not os.path.isfile(ply_file):
-        # The point cloud might not have color information, try again without it
-        logger.warning("PDAL pipeline failed on %s, retrying without color dimensions" % laz_file)
-        pipeline_file = os.path.join(tmpdir, 'pipeline_nocolor.json')
-        write_pdal_pipeline(pipeline_file, laz_file, ply_file, sample, color_dims=False)
-        p = subprocess.run(['pdal', 'pipeline', pipeline_file], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
-        if p.returncode != 0 or not os.path.isfile(ply_file):
-            raise ColmapExportError("PDAL pipeline failed: %s" % p.stderr.decode('utf-8', 'ignore')[-512:])
+    def provider():
+        if proc.wait() != 0 or not os.path.isfile(ply_file):
+            # The point cloud might not have color information, try again without it
+            logger.warning("PDAL pipeline failed on %s, retrying without color dimensions" % laz_file)
+            pipeline_file = os.path.join(tmpdir, 'pipeline_nocolor.json')
+            write_pdal_pipeline(pipeline_file, laz_file, ply_file, sample, color_dims=False)
+            p = subprocess.run(['pdal', 'pipeline', pipeline_file], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+            if p.returncode != 0 or not os.path.isfile(ply_file):
+                raise ColmapExportError("PDAL pipeline failed: %s" % p.stderr.decode('utf-8', 'ignore')[-512:])
 
-    yield from points3d_stream(ply_file, offset_x, offset_y)
+        bin_file = os.path.join(tmpdir, 'points3D.bin')
+        size = 0
+        crc = 0
+        with open(bin_file, 'wb') as f:
+            for chunk in points3d_stream(ply_file, offset_x, offset_y):
+                f.write(chunk)
+                crc = binascii.crc32(chunk, crc)
+                size += len(chunk)
+
+        os.unlink(ply_file)
+        return size, crc, file_stream(bin_file)
+    return provider
 
 
 def export_stream(task, image_size=0, sample=1.0):
@@ -421,10 +533,9 @@ def export_stream(task, image_size=0, sample=1.0):
     proc = subprocess.Popen(['pdal', 'pipeline', pipeline_file],
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-    zs = ZipStream()
-    zs.comment = "Generated by WebODM"
-    zs.add(write_cameras_bin(cameras), 'sparse/0/cameras.bin', compress_type=zipfile.ZIP_DEFLATED)
-    zs.add(write_images_bin(shots), 'sparse/0/images.bin', compress_type=zipfile.ZIP_DEFLATED)
+    zs = StoredZipStream(comment=b"Generated by WebODM")
+    zs.add('sparse/0/cameras.bin', bytes_provider(write_cameras_bin(cameras)))
+    zs.add('sparse/0/images.bin', bytes_provider(write_images_bin(shots)))
 
     for shot in shots:
         try:
@@ -432,10 +543,10 @@ def export_stream(task, image_size=0, sample=1.0):
         except Exception:
             continue
         if os.path.isfile(image_file):
-            zs.add(image_stream(image_file, shot['camera']), 'images/' + shot['filename'])
+            zs.add('images/' + shot['filename'], image_provider(image_file, shot['camera']))
 
-    zs.add(points3d_entry(proc, tmpdir, laz_file, ply_file, sample, offset_x, offset_y),
-           'sparse/0/points3D.bin', compress_type=zipfile.ZIP_DEFLATED)
+    zs.add('sparse/0/points3D.bin',
+           points3d_provider(proc, tmpdir, laz_file, ply_file, sample, offset_x, offset_y))
 
     def stream():
         try:
