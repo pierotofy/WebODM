@@ -1,12 +1,12 @@
 # syntax=docker/dockerfile:1
-FROM ubuntu:22.04 AS common
+FROM ubuntu:24.04 AS common
 LABEL maintainer="Piero Toffanin <pt@masseranolabs.com>"
 
 # Build-time variables
 ARG DEBIAN_FRONTEND=noninteractive
 ARG NODE_MAJOR=20
 ARG PYTHON_VERSION=3.9
-ARG RELEASE_CODENAME=jammy
+ARG RELEASE_CODENAME=noble
 ARG WORKDIR=/webodm
 
 # Run-time variables
@@ -60,7 +60,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     python$PYTHON_VERSION -m venv $WORKDIR/venv
     # Build entwine
     mkdir /staging && cd /staging
-    git clone -b 290 https://github.com/OpenDroneMap/entwine && cd entwine
+    git clone -b 370 https://github.com/WebODM/entwine && cd entwine
     mkdir build && cd build && cmake .. -DWITH_TESTS=OFF -DWITH_ZSTD=OFF -DCMAKE_INSTALL_PREFIX=/staging/entwine/build/install && make -j6 && make install
     cd /webodm
 EOT
