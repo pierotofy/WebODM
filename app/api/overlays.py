@@ -73,28 +73,6 @@ def feature_layer_name(feature):
 class TaskOverlays(TaskNestedView):
     parser_classes = (parsers.MultiPartParser, parsers.FormParser)
 
-    def get(self, request, pk=None, project_pk=None):
-        """
-        List stored overlays (metadata only)
-        """
-        task = self.get_and_check_task(request, pk)
-
-        res = []
-        d = overlays_dir(task)
-        if os.path.isdir(d):
-            for f in sorted(os.listdir(d)):
-                if not f.endswith(".json"):
-                    continue
-                try:
-                    with open(os.path.join(d, f), 'r', encoding='utf-8') as fp:
-                        sidecar = json.load(fp)
-                    sidecar['uuid'] = f[:-len(".json")]
-                    res.append(sidecar)
-                except (IOError, json.JSONDecodeError):
-                    continue
-
-        return Response(res, status=status.HTTP_200_OK)
-
     def post(self, request, pk=None, project_pk=None):
         """
         Store an overlay (GeoJSON file + metadata)

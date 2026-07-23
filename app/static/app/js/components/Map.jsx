@@ -1186,7 +1186,9 @@ _('Example:'),
   overlayMeta = entry => {
     return {
       opacity: entry.opacity,
-      colors: entry.children.reduce((obj, c) => { obj[c.name] = c.colorKey; return obj; }, {})
+      visible: entry.visible !== false,
+      colors: entry.children.reduce((obj, c) => { obj[c.name] = c.colorKey; return obj; }, {}),
+      hidden: entry.children.filter(c => c.visible === false).map(c => c.name)
     };
   }
 
@@ -1242,33 +1244,73 @@ _('Example:'),
   }
 
   loadStoredOverlays = () => {
-    const tasks = {};
-    this.props.tiles.forEach(t => { tasks[t.meta.task.id] = t.meta.task; });
+    const seen = {};
 
-    Object.keys(tasks).forEach(taskId => {
-      const task = tasks[taskId];
-      const baseUrl = `/api/projects/${task.project}/tasks/${task.id}/overlays`;
+    this.props.tiles.forEach(tile => {
+      const task = tile.meta.task;
+      if (seen[task.id]) return;
+      seen[task.id] = true;
 
-      $.getJSON(baseUrl).done(list => {
-        list.forEach(item => {
-          $.getJSON(`${baseUrl}/${item.uuid}`).done(geojson => {
-            if (!geojson || geojson.type !== "FeatureCollection") return;
+      (task.overlays || []).forEach(item => {
+        const placeholder = {
+          id: `overlay-load-${item.uuid}`,
+          name: item.name || _("Overlay"),
+          loading: true,
+          progress: 0,
+          converting: false,
+          opacity: 100,
+          bounds: null,
+          children: []
+        };
+        this.assignOverlayTask(placeholder, task);
+        this.setState(update(this.state, {
+          tempOverlays: {$push: [placeholder]}
+        }));
 
-            const meta = item.meta || {};
-            const entry = buildOverlay(geojson, item.name || _("Overlay"), {
-              colors: meta.colors || {},
-              opacity: meta.opacity
-            });
-            entry.uuid = item.uuid;
-            entry.stored = true;
-            this.assignOverlayTask(entry, task);
-            this.setOverlaySync(entry);
-            entry.children.forEach(c => c.layer.addTo(this.map));
-            this.setState(update(this.state, {
-              tempOverlays: {$push: [entry]}
-            }));
+        const removePlaceholder = () => {
+          this.setState({tempOverlays: this.state.tempOverlays.filter(o => o !== placeholder)});
+        };
+
+        $.ajax({
+          url: `/api/projects/${task.project}/tasks/${task.id}/overlays/${item.uuid}`,
+          dataType: 'json',
+          xhr: () => {
+            const xhr = $.ajaxSettings.xhr();
+            xhr.addEventListener('progress', e => {
+              if (e.lengthComputable){
+                placeholder.progress = e.loaded / e.total * 100;
+                this.setState({tempOverlays: this.state.tempOverlays.slice()});
+              }
+            }, false);
+            return xhr;
+          }
+        }).done(geojson => {
+          const idx = this.state.tempOverlays.indexOf(placeholder);
+          if (idx === -1) return; // Removed in the meantime
+
+          if (!geojson || geojson.type !== "FeatureCollection"){
+            removePlaceholder();
+            return;
+          }
+
+          const meta = item.meta || {};
+          const entry = buildOverlay(geojson, item.name || _("Overlay"), {
+            colors: meta.colors || {},
+            opacity: meta.opacity,
+            visible: meta.visible,
+            hidden: meta.hidden
           });
-        });
+          entry.uuid = item.uuid;
+          entry.stored = true;
+          this.assignOverlayTask(entry, task);
+          this.setOverlaySync(entry);
+          if (entry.visible){
+            entry.children.forEach(c => { if (c.visible) c.layer.addTo(this.map); });
+          }
+          this.setState(update(this.state, {
+            tempOverlays: {$splice: [[idx, 1, entry]]}
+          }));
+        }).fail(removePlaceholder);
       });
     });
   }

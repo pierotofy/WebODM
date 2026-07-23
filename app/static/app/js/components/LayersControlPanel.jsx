@@ -94,15 +94,15 @@ export default class LayersControlPanel extends React.Component {
       const getGroupContent = group => {
         return (<div>
 
-          {group.tempOverlays.length ?
-            <div className="temp-overlays theme-border-primary">
-              <LayersControlOverlays map={this.props.map} overlays={group.tempOverlays} onRemove={this.props.onOverlayRemove} />
-            </div>
-          : ""}
-
           {group.annotations.length ?
             <div className="annotations theme-border-primary">
                <LayersControlAnnotations layers={group.annotations} />
+            </div>
+          : ""}
+
+          {group.tempOverlays.length ?
+            <div className="temp-overlays theme-border-primary">
+              <LayersControlOverlays map={this.props.map} overlays={group.tempOverlays} onRemove={this.props.onOverlayRemove} />
             </div>
           : ""}
 

@@ -62,6 +62,7 @@ export function buildOverlay(geojson, filename, opts = {}) {
     progress: 0,
     converting: false,
     opacity: opts.opacity !== undefined ? opts.opacity : 100,
+    visible: opts.visible !== false,
     bounds: null,
     children: []
   };
@@ -81,12 +82,14 @@ export function buildOverlay(geojson, filename, opts = {}) {
     groups[entry.name] = null;
   }
 
+  const hidden = opts.hidden || [];
   Object.keys(groups).sort().forEach(layerName => {
     const savedColor = opts.colors !== undefined ? opts.colors[layerName] : undefined;
     const child = {
       name: layerName,
       displayName: layerDisplayName(layerName),
       colorKey: colors[savedColor] !== undefined ? savedColor : nextColorKey(),
+      visible: hidden.indexOf(layerName) === -1,
       parent: entry
     };
     const childGeojson = groups[layerName] !== null ? { type: "FeatureCollection", features: groups[layerName] } : geojson;

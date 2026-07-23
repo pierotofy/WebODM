@@ -1162,6 +1162,8 @@ class Task(models.Model):
         if isinstance(self.media, list) and len(self.media) > 0:
              media = '/api/projects/{}/tasks/{}/media.geojson'.format(self.project.id, self.id)
 
+        overlays = self.get_overlays()
+
         return {
             'tiles': [{'url': self.get_tile_base_url(t), 'type': t} for t in types],
             'meta': {
@@ -1180,10 +1182,30 @@ class Task(models.Model):
                     'crop': self.crop is not None,
                     'extent': self.get_extent(),
                     'media': media,
+                    'overlays': overlays,
                     'tiles': types,
                 }
             }
         }
+
+    def get_overlays(self):
+        """
+        List of overlays metadata stored with this task
+        """
+        res = []
+        d = self.assets_path("overlays")
+        if os.path.isdir(d):
+            for f in sorted(os.listdir(d)):
+                if not f.endswith(".json"):
+                    continue
+                try:
+                    with open(os.path.join(d, f), 'r', encoding='utf-8') as fp:
+                        overlay = json.load(fp)
+                    overlay['uuid'] = f[:-len(".json")]
+                    res.append(overlay)
+                except (IOError, json.JSONDecodeError):
+                    continue
+        return res
 
     def get_projected_crop(self):
         if self.crop is None or (self.epsg is None and self.wkt is None):

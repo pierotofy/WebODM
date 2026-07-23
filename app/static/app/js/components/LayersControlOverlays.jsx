@@ -79,13 +79,19 @@ class OverlayLayer extends React.Component{
     super(props);
 
     this.state = {
-      visible: true
+      visible: props.child.visible !== false
     }
   }
 
   componentDidUpdate(prevProps, prevState){
-    if (prevState.visible !== this.state.visible && this.props.parent.visibleOnMap()){
-      this.setLayerVisibility(this.state.visible);
+    if (prevState.visible !== this.state.visible){
+      this.props.child.visible = this.state.visible;
+      if (this.props.parent.visibleOnMap()){
+        this.setLayerVisibility(this.state.visible);
+      }
+
+      const entry = this.props.child.parent;
+      if (entry.onSync) entry.onSync(entry);
     }
   }
 
@@ -131,8 +137,11 @@ class OverlayEntry extends React.Component{
     super(props);
 
     this.state = {
-      visible: true,
-      expanded: true
+      visible: props.entry.visible !== false,
+
+      // Overlays restored from server storage start collapsed,
+      // freshly dropped ones expanded
+      expanded: !props.entry.stored
     };
 
     this.childRefs = [];
@@ -143,8 +152,12 @@ class OverlayEntry extends React.Component{
   visibleOnMap = () => this.sectionVisible() && this.state.visible;
 
   componentDidUpdate(prevProps, prevState){
-    if (prevState.visible !== this.state.visible && this.sectionVisible()){
-      this.applyVisibility(true);
+    if (prevState.visible !== this.state.visible){
+      this.props.entry.visible = this.state.visible;
+      if (this.sectionVisible()){
+        this.applyVisibility(true);
+      }
+      if (this.props.entry.onSync) this.props.entry.onSync(this.props.entry);
     }
   }
 
@@ -194,7 +207,7 @@ class OverlayEntry extends React.Component{
         <div className="layer-control-title">
           <div className="paddingSpace"></div>
           <i className="loading-icon fa fa-circle-notch fa-spin fa-fw"></i>
-          <div className="layer-title loading-title">{entry.name} <span className="progress-info">{entry.converting ? _("Converting…") : `${Math.min(99, entry.progress).toFixed(0)}%`}</span></div>
+          <div className="layer-title loading-title">{entry.name} <span className="progress-info">{entry.converting ? _("Converting…") : (entry.progress > 0 ? `${Math.min(99, entry.progress).toFixed(0)}%` : "")}</span></div>
         </div>
       </div>);
     }
