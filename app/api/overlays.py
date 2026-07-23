@@ -3,7 +3,6 @@ import re
 import json
 import gzip
 import time
-import uuid as uuid_lib
 import shutil
 import subprocess
 import tempfile
@@ -19,7 +18,16 @@ from webodm import settings
 
 MAX_OVERLAY_FILE_SIZE = 100 * 1024 * 1024  # 100 MB
 
-OVERLAY_UUID_RE = re.compile(r'^[0-9a-f-]{8,40}$')
+OVERLAY_ID_RE = re.compile(r'^[0-9a-zA-Z-_]+$')
+OVERLAY_RESERVED_IDS = ('convert', )
+
+
+def sanitize_overlay_id(name):
+    overlay_id = re.sub(r'[^0-9a-zA-Z-_]+', '', str(name).replace(' ', '-'))
+    overlay_id = re.sub(r'-[-]+', '-', overlay_id)[:64]
+    if overlay_id == '' or overlay_id.lower() in OVERLAY_RESERVED_IDS:
+        overlay_id += '-overlay' if overlay_id != '' else 'overlay'
+    return overlay_id
 
 
 def check_overlay_write_perms(request, task):
@@ -32,11 +40,11 @@ def overlays_dir(task):
     return task.assets_path("overlays")
 
 
-def overlay_paths(task, uuid):
-    if uuid is None or not OVERLAY_UUID_RE.match(uuid):
+def overlay_paths(task, overlay_id):
+    if overlay_id is None or not OVERLAY_ID_RE.match(overlay_id) or overlay_id.lower() in OVERLAY_RESERVED_IDS:
         raise exceptions.ValidationError(detail=_("Invalid overlay ID"))
     d = overlays_dir(task)
-    return os.path.join(d, uuid + ".json"), os.path.join(d, uuid + ".geojson.gz")
+    return os.path.join(d, overlay_id + ".json"), os.path.join(d, overlay_id + ".geojson.gz")
 
 
 def write_overlay_geojson(path, geojson):
@@ -102,24 +110,34 @@ class TaskOverlays(TaskNestedView):
         except (ValueError, json.JSONDecodeError):
             raise exceptions.ValidationError(detail=_("Invalid GeoJSON"))
 
-        uuid = request.data.get('uuid') or uuid_lib.uuid4().hex
+        overlay_id = request.data.get('id')
+        if not overlay_id:
+            # Derive from name; add a numeric suffix if taken
+            overlay_id = sanitize_overlay_id(name)
+            candidate = overlay_id
+            counter = 2
+            while os.path.isfile(overlay_paths(task, candidate)[0]):
+                candidate = "{}-{}".format(overlay_id, counter)
+                counter += 1
+            overlay_id = candidate
+
         stamp = int(time.time() * 1000)
 
-        sidecar_path, geojson_path = overlay_paths(task, uuid)
+        sidecar_path, geojson_path = overlay_paths(task, overlay_id)
         os.makedirs(overlays_dir(task), exist_ok=True)
         write_overlay_geojson(geojson_path, geojson)
         atomic_write(sidecar_path, json.dumps({'name': name, 'stamp': stamp, 'meta': meta}))
 
-        return Response({'uuid': uuid, 'stamp': stamp}, status=status.HTTP_200_OK)
+        return Response({'id': overlay_id, 'stamp': stamp}, status=status.HTTP_200_OK)
 
 
 class TaskOverlay(TaskNestedView):
-    def get(self, request, pk=None, project_pk=None, uuid=None):
+    def get(self, request, pk=None, project_pk=None, overlay_id=None):
         """
         Download an overlay's GeoJSON
         """
         task = self.get_and_check_task(request, pk)
-        _unused, geojson_path = overlay_paths(task, uuid)
+        _unused, geojson_path = overlay_paths(task, overlay_id)
         if not os.path.isfile(geojson_path):
             raise exceptions.NotFound()
 
@@ -132,14 +150,14 @@ class TaskOverlay(TaskNestedView):
             with open(geojson_path, 'rb') as f:
                 return HttpResponse(gzip.decompress(f.read()), content_type='application/json')
 
-    def patch(self, request, pk=None, project_pk=None, uuid=None):
+    def patch(self, request, pk=None, project_pk=None, overlay_id=None):
         """
         Update an overlay's metadata and optionally remove one of its sublayers
         """
         task = self.get_and_check_task(request, pk)
         check_overlay_write_perms(request, task)
 
-        sidecar_path, geojson_path = overlay_paths(task, uuid)
+        sidecar_path, geojson_path = overlay_paths(task, overlay_id)
         if not os.path.isfile(sidecar_path):
             raise exceptions.NotFound()
 
@@ -179,14 +197,14 @@ class TaskOverlay(TaskNestedView):
 
         return Response({'updated': True, 'stamp': stamp}, status=status.HTTP_200_OK)
 
-    def delete(self, request, pk=None, project_pk=None, uuid=None):
+    def delete(self, request, pk=None, project_pk=None, overlay_id=None):
         """
         Delete an overlay
         """
         task = self.get_and_check_task(request, pk)
         check_overlay_write_perms(request, task)
 
-        sidecar_path, geojson_path = overlay_paths(task, uuid)
+        sidecar_path, geojson_path = overlay_paths(task, overlay_id)
         found = False
         for p in (sidecar_path, geojson_path):
             if os.path.isfile(p):
@@ -194,6 +212,14 @@ class TaskOverlay(TaskNestedView):
                 found = True
         if not found:
             raise exceptions.NotFound()
+
+        # Don't leave empty folders behind
+        d = overlays_dir(task)
+        if os.path.isdir(d) and len(os.listdir(d)) == 0:
+            try:
+                os.rmdir(d)
+            except OSError:
+                pass
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 

@@ -1192,8 +1192,8 @@ _('Example:'),
     };
   }
 
-  overlayUrl = (entry, uuid = "") => {
-    return `/api/projects/${entry.task.project}/tasks/${entry.task.id}/overlays${uuid ? "/" + uuid : ""}`;
+  overlayUrl = (entry, overlayId = "") => {
+    return `/api/projects/${entry.task.project}/tasks/${entry.task.id}/overlays${overlayId ? "/" + overlayId : ""}`;
   }
 
   storeOverlay = (entry, geojson) => {
@@ -1211,7 +1211,7 @@ _('Example:'),
       processData: false,
       contentType: false
     }).done(res => {
-      entry.uuid = res.uuid;
+      entry.storageId = res.id;
       entry.stored = true;
       this.setOverlaySync(entry);
     }).fail(() => {
@@ -1227,10 +1227,10 @@ _('Example:'),
   }
 
   patchOverlay = (entry, extra = {}) => {
-    if (!entry.uuid || !entry.task || !this.canEditTask()) return;
+    if (!entry.storageId || !entry.task || !this.canEditTask()) return;
 
     $.ajax({
-      url: this.overlayUrl(entry, entry.uuid),
+      url: this.overlayUrl(entry, entry.storageId),
       type: 'PATCH',
       contentType: 'application/json',
       data: JSON.stringify(Object.assign({
@@ -1253,7 +1253,7 @@ _('Example:'),
 
       (task.overlays || []).forEach(item => {
         const placeholder = {
-          id: `overlay-load-${item.uuid}`,
+          id: `overlay-load-${item.id}`,
           name: item.name || _("Overlay"),
           loading: true,
           progress: 0,
@@ -1272,7 +1272,7 @@ _('Example:'),
         };
 
         $.ajax({
-          url: `/api/projects/${task.project}/tasks/${task.id}/overlays/${item.uuid}`,
+          url: `/api/projects/${task.project}/tasks/${task.id}/overlays/${item.id}`,
           dataType: 'json',
           xhr: () => {
             const xhr = $.ajaxSettings.xhr();
@@ -1300,7 +1300,7 @@ _('Example:'),
             visible: meta.visible,
             hidden: meta.hidden
           });
-          entry.uuid = item.uuid;
+          entry.storageId = item.id;
           entry.stored = true;
           this.assignOverlayTask(entry, task);
           this.setOverlaySync(entry);
@@ -1435,15 +1435,15 @@ _('Example:'),
       entry.children = entry.children.filter(c => c !== child);
       recomputeOverlayBounds(entry);
       this.setState({tempOverlays: this.state.tempOverlays.slice()});
-      if (entry.uuid) this.patchOverlay(entry, {removeLayer: child.name});
+      if (entry.storageId) this.patchOverlay(entry, {removeLayer: child.name});
       return;
     }
 
     entry.children.forEach(c => this.map.removeLayer(c.layer));
     this.setState({tempOverlays: this.state.tempOverlays.filter(o => o !== entry)});
-    if (entry.uuid && entry.task && this.canEditTask()){
+    if (entry.storageId && entry.task && this.canEditTask()){
       $.ajax({
-        url: this.overlayUrl(entry, entry.uuid),
+        url: this.overlayUrl(entry, entry.storageId),
         type: 'DELETE'
       });
     }

@@ -1201,7 +1201,7 @@ class Task(models.Model):
                 try:
                     with open(os.path.join(d, f), 'r', encoding='utf-8') as fp:
                         overlay = json.load(fp)
-                    overlay['uuid'] = f[:-len(".json")]
+                    overlay['id'] = f[:-len(".json")]
                     res.append(overlay)
                 except (IOError, json.JSONDecodeError):
                     continue

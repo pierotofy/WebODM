@@ -118,7 +118,7 @@ class OverlayLayer extends React.Component{
       <div className="layer-control-title">
         <Checkbox bind={[this, 'visible']}/>
         <ColorDot child={child} />
-        <a className="layer-label" title={child.name} href="javascript:void(0)" onClick={this.handleFocus}><div className="layer-title">{child.displayName || child.name}</div></a>
+        <a className="layer-label" title={child.name} href="javascript:void(0)" onClick={this.handleFocus}><div className="layer-title" title={child.name}>{child.displayName || child.name}</div></a>
         <a className="layer-action" href="javascript:void(0)" onClick={this.handleDelete} title={_("Delete")}><i className="fa fa-trash"></i></a>
       </div>
     </div>);
@@ -207,7 +207,7 @@ class OverlayEntry extends React.Component{
         <div className="layer-control-title">
           <div className="paddingSpace"></div>
           <i className="loading-icon fa fa-circle-notch fa-spin fa-fw"></i>
-          <div className="layer-title loading-title">{entry.name} <span className="progress-info">{entry.converting ? _("Converting…") : (entry.progress > 0 ? `${Math.min(99, entry.progress).toFixed(0)}%` : "")}</span></div>
+          <div className="layer-title loading-title" title={entry.name}>{entry.name} <span className="progress-info">{entry.converting ? _("Converting...") : (entry.progress > 0 ? `${Math.min(99, entry.progress).toFixed(0)}%` : "")}</span></div>
         </div>
       </div>);
     }
@@ -226,7 +226,7 @@ class OverlayEntry extends React.Component{
           <div className="paddingSpace"></div>
           <Checkbox bind={[this, 'visible']}/>
           <ColorDot child={entry.children[0]} />
-          <a className="layer-label" href="javascript:void(0)" onClick={this.handleFocus}><div className="layer-title">{entry.name}</div></a>
+          <a className="layer-label" title={entry.name} href="javascript:void(0)" onClick={this.handleFocus}><div className="layer-title" title={entry.name}>{entry.name}</div></a>
           {opacitySlider}
           {deleteButton}
         </div>
@@ -237,7 +237,7 @@ class OverlayEntry extends React.Component{
       <div className="layer-control-title">
         <ExpandButton bind={[this, 'expanded']} />
         <Checkbox bind={[this, 'visible']}/>
-        <a className="layer-label" href="javascript:void(0)" onClick={this.handleFocus}><div className="layer-title">{entry.name}</div></a>
+        <a className="layer-label" title={entry.name} href="javascript:void(0)" onClick={this.handleFocus}><div className="layer-title" title={entry.name}>{entry.name}</div></a>
         {opacitySlider}
         {deleteButton}
       </div>
