@@ -835,7 +835,7 @@ _('Example:'),
           }
 
           this.setState({showLoading: true});
-          addTempLayer(file, (err, entry) => {
+          addTempLayer(file, (err, entry, geojson) => {
             if (!err){
               this.assignOverlayTask(entry, this.getNearestTask());
               entry.children.forEach(c => c.layer.addTo(this.map));
@@ -845,6 +845,7 @@ _('Example:'),
               if (this.layersControl) this.layersControl.openPanel();
               //zoom to all features
               if (entry.bounds.isValid()) this.map.fitBounds(entry.bounds);
+              this.storeOverlay(entry, geojson);
             }else{
               this.setState({ error: err.message || JSON.stringify(err) });
             }
@@ -979,6 +980,7 @@ _('Example:'),
     this.loadImageryLayers(true).then(() => {
         this.setState({showLoading: false});
         this.map.fitBounds(this.mapBounds);
+        this.loadStoredOverlays();
 
         this.map.on('click', e => {
           if (PluginsAPI.Map.handleClick(e)) return;
@@ -1177,6 +1179,100 @@ _('Example:'),
     }
   }
 
+  canEditTask = () => {
+    return this.props.permissions.indexOf("change") !== -1 || (this.props.public && this.props.publicEdit);
+  }
+
+  overlayMeta = entry => {
+    return {
+      opacity: entry.opacity,
+      colors: entry.children.reduce((obj, c) => { obj[c.name] = c.colorKey; return obj; }, {})
+    };
+  }
+
+  overlayUrl = (entry, uuid = "") => {
+    return `/api/projects/${entry.task.project}/tasks/${entry.task.id}/overlays${uuid ? "/" + uuid : ""}`;
+  }
+
+  storeOverlay = (entry, geojson) => {
+    if (!this.canEditTask() || !entry.task) return;
+
+    const formData = new FormData();
+    formData.append("file", new Blob([JSON.stringify(geojson)], {type: "application/json"}), entry.name + ".geojson");
+    formData.append("name", entry.name);
+    formData.append("meta", JSON.stringify(this.overlayMeta(entry)));
+
+    $.ajax({
+      url: this.overlayUrl(entry),
+      type: 'POST',
+      data: formData,
+      processData: false,
+      contentType: false
+    }).done(res => {
+      entry.uuid = res.uuid;
+      entry.stored = true;
+      this.setOverlaySync(entry);
+    }).fail(() => {
+      this.setState({error: interpolate(_("Cannot save overlay %(name)s"), {name: entry.name})});
+    });
+  }
+
+  setOverlaySync = entry => {
+    entry.onSync = e => {
+      if (e._syncTimeout) clearTimeout(e._syncTimeout);
+      e._syncTimeout = setTimeout(() => this.patchOverlay(e), 500);
+    };
+  }
+
+  patchOverlay = (entry, extra = {}) => {
+    if (!entry.uuid || !entry.task || !this.canEditTask()) return;
+
+    $.ajax({
+      url: this.overlayUrl(entry, entry.uuid),
+      type: 'PATCH',
+      contentType: 'application/json',
+      data: JSON.stringify(Object.assign({
+        stamp: new Date().getTime(),
+        name: entry.name,
+        meta: this.overlayMeta(entry)
+      }, extra))
+    }).fail(() => {
+      this.setState({error: interpolate(_("Cannot save overlay %(name)s"), {name: entry.name})});
+    });
+  }
+
+  loadStoredOverlays = () => {
+    const tasks = {};
+    this.props.tiles.forEach(t => { tasks[t.meta.task.id] = t.meta.task; });
+
+    Object.keys(tasks).forEach(taskId => {
+      const task = tasks[taskId];
+      const baseUrl = `/api/projects/${task.project}/tasks/${task.id}/overlays`;
+
+      $.getJSON(baseUrl).done(list => {
+        list.forEach(item => {
+          $.getJSON(`${baseUrl}/${item.uuid}`).done(geojson => {
+            if (!geojson || geojson.type !== "FeatureCollection") return;
+
+            const meta = item.meta || {};
+            const entry = buildOverlay(geojson, item.name || _("Overlay"), {
+              colors: meta.colors || {},
+              opacity: meta.opacity
+            });
+            entry.uuid = item.uuid;
+            entry.stored = true;
+            this.assignOverlayTask(entry, task);
+            this.setOverlaySync(entry);
+            entry.children.forEach(c => c.layer.addTo(this.map));
+            this.setState(update(this.state, {
+              tempOverlays: {$push: [entry]}
+            }));
+          });
+        });
+      });
+    });
+  }
+
   handleDxfDrop = file => {
     if (!this.checkOverlayTask()) return;
 
@@ -1265,7 +1361,7 @@ _('Example:'),
         if (idx === -1) return; // Removed in the meantime
 
         if (geojson && geojson.type === "FeatureCollection"){
-          const newEntry = buildOverlay(geojson, file.name, {splitByLayer: /\.dxf$/i.test(file.name)});
+          const newEntry = buildOverlay(geojson, file.name);
           newEntry.task = entry.task;
           newEntry.group = entry.group;
           newEntry.children.forEach(c => c.layer.addTo(this.map));
@@ -1273,6 +1369,7 @@ _('Example:'),
             tempOverlays: {$splice: [[idx, 1, newEntry]]}
           }));
           if (newEntry.bounds && newEntry.bounds.isValid()) this.map.fitBounds(newEntry.bounds);
+          this.storeOverlay(newEntry, geojson);
         }else{
           this.setState({tempOverlays: this.state.tempOverlays.filter(o => o !== entry),
                          error: interpolate(_("Cannot convert %(file)s"), {file: file.name})});
@@ -1296,11 +1393,18 @@ _('Example:'),
       entry.children = entry.children.filter(c => c !== child);
       recomputeOverlayBounds(entry);
       this.setState({tempOverlays: this.state.tempOverlays.slice()});
+      if (entry.uuid) this.patchOverlay(entry, {removeLayer: child.name});
       return;
     }
 
     entry.children.forEach(c => this.map.removeLayer(c.layer));
     this.setState({tempOverlays: this.state.tempOverlays.filter(o => o !== entry)});
+    if (entry.uuid && entry.task && this.canEditTask()){
+      $.ajax({
+        url: this.overlayUrl(entry, entry.uuid),
+        type: 'DELETE'
+      });
+    }
   }
 
   layerVisibilityCheck = () => {

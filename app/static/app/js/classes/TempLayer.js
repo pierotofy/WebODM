@@ -32,7 +32,7 @@ export function addTempLayer(file, cb) {
   }
 
   let addLayer = (_geojson) => {
-    cb(null, buildOverlay(_geojson, file.name));
+    cb(null, buildOverlay(_geojson, file.name), _geojson);
   }
 }
 
@@ -61,29 +61,32 @@ export function buildOverlay(geojson, filename, opts = {}) {
     loading: false,
     progress: 0,
     converting: false,
-    opacity: 100,
+    opacity: opts.opacity !== undefined ? opts.opacity : 100,
     bounds: null,
     children: []
   };
 
-  // Group features by their CAD "Layer" property (DXF conversions),
+  // Group features by their CAD "Layer" property (e.g. DXF conversions),
   // otherwise create a single sublayer with all features
+  const features = geojson.features || [];
+  const hasLayerProp = features.some(f => f.properties && f.properties.Layer !== undefined && f.properties.Layer !== null);
+
   let groups = {};
-  if (opts.splitByLayer) {
-    (geojson.features || []).forEach(f => {
+  if (hasLayerProp) {
+    features.forEach(f => {
       const layerName = (f.properties && f.properties.Layer !== undefined && f.properties.Layer !== null) ? String(f.properties.Layer) : "0";
       (groups[layerName] = groups[layerName] || []).push(f);
     });
-    if (Object.keys(groups).length === 0) groups[entry.name] = [];
   } else {
     groups[entry.name] = null;
   }
 
   Object.keys(groups).sort().forEach(layerName => {
+    const savedColor = opts.colors !== undefined ? opts.colors[layerName] : undefined;
     const child = {
       name: layerName,
       displayName: layerDisplayName(layerName),
-      colorKey: nextColorKey(),
+      colorKey: colors[savedColor] !== undefined ? savedColor : nextColorKey(),
       parent: entry
     };
     const childGeojson = groups[layerName] !== null ? { type: "FeatureCollection", features: groups[layerName] } : geojson;
@@ -132,6 +135,7 @@ export function updateOverlayColor(child, colorKey) {
   const color = colors[colorKey].color;
   child.layer.setStyle({ color, fillColor: color });
   child.layer.fire('overlay:stylechanged');
+  if (child.parent.onSync) child.parent.onSync(child.parent);
 }
 
 export function updateOverlayOpacity(entry, opacity) {
@@ -140,4 +144,5 @@ export function updateOverlayOpacity(entry, opacity) {
     child.layer.setStyle({ opacity: opacity / 100, fillOpacity: (opacity / 100) * 0.2 });
     child.layer.fire('overlay:stylechanged');
   });
+  if (entry.onSync) entry.onSync(entry);
 }

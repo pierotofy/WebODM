@@ -1,10 +1,15 @@
 import os
+import re
 import json
+import gzip
+import time
+import uuid as uuid_lib
 import shutil
 import subprocess
 import tempfile
 
 from django.core.files.uploadedfile import InMemoryUploadedFile
+from django.http import FileResponse, HttpResponse
 from django.utils.translation import gettext_lazy as _
 from rest_framework import status, exceptions, parsers
 from rest_framework.response import Response
@@ -13,6 +18,206 @@ from app.api.tasks import flatten_files, TaskNestedView
 from webodm import settings
 
 MAX_OVERLAY_FILE_SIZE = 100 * 1024 * 1024  # 100 MB
+
+OVERLAY_UUID_RE = re.compile(r'^[0-9a-f-]{8,40}$')
+
+
+def check_overlay_write_perms(request, task):
+    if task.check_public_edit():
+        if not request.user.has_perm("app.change_project", task.project):
+            raise exceptions.PermissionDenied()
+
+
+def overlays_dir(task):
+    return task.assets_path("overlays")
+
+
+def overlay_paths(task, uuid):
+    if uuid is None or not OVERLAY_UUID_RE.match(uuid):
+        raise exceptions.ValidationError(detail=_("Invalid overlay ID"))
+    d = overlays_dir(task)
+    return os.path.join(d, uuid + ".json"), os.path.join(d, uuid + ".geojson.gz")
+
+
+def write_overlay_geojson(path, geojson):
+    atomic_write(path, gzip.compress(json.dumps(geojson).encode('utf-8')))
+
+
+def read_overlay_geojson(path):
+    with gzip.open(path, 'rt', encoding='utf-8') as f:
+        return json.load(f)
+
+
+def atomic_write(path, data):
+    # Atomic replace via rename, so that concurrent reads never see
+    # partial content and hard-linked duplicates are left untouched
+    if isinstance(data, str):
+        data = data.encode('utf-8')
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path))
+    try:
+        with os.fdopen(fd, 'wb') as f:
+            f.write(data)
+        os.rename(tmp, path)
+    except Exception:
+        if os.path.isfile(tmp):
+            os.unlink(tmp)
+        raise
+
+
+def feature_layer_name(feature):
+    props = feature.get('properties') or {}
+    layer = props.get('Layer')
+    return str(layer) if layer is not None else "0"
+
+
+class TaskOverlays(TaskNestedView):
+    parser_classes = (parsers.MultiPartParser, parsers.FormParser)
+
+    def get(self, request, pk=None, project_pk=None):
+        """
+        List stored overlays (metadata only)
+        """
+        task = self.get_and_check_task(request, pk)
+
+        res = []
+        d = overlays_dir(task)
+        if os.path.isdir(d):
+            for f in sorted(os.listdir(d)):
+                if not f.endswith(".json"):
+                    continue
+                try:
+                    with open(os.path.join(d, f), 'r', encoding='utf-8') as fp:
+                        sidecar = json.load(fp)
+                    sidecar['uuid'] = f[:-len(".json")]
+                    res.append(sidecar)
+                except (IOError, json.JSONDecodeError):
+                    continue
+
+        return Response(res, status=status.HTTP_200_OK)
+
+    def post(self, request, pk=None, project_pk=None):
+        """
+        Store an overlay (GeoJSON file + metadata)
+        """
+        task = self.get_and_check_task(request, pk)
+        check_overlay_write_perms(request, task)
+
+        files = flatten_files(request.FILES)
+        if len(files) != 1:
+            raise exceptions.ValidationError(detail=_("Missing file"))
+        file = files[0]
+        if file.size > MAX_OVERLAY_FILE_SIZE:
+            raise exceptions.ValidationError(detail=_("%(file)s is bigger than 100 MB.") % {'file': file.name})
+
+        name = request.data.get('name', '')
+        try:
+            meta = json.loads(request.data.get('meta', '{}'))
+            if not isinstance(meta, dict):
+                raise ValueError()
+        except (ValueError, json.JSONDecodeError):
+            raise exceptions.ValidationError(detail=_("Invalid overlay metadata"))
+
+        try:
+            geojson = json.load(file)
+            if not isinstance(geojson, dict) or geojson.get('type') != 'FeatureCollection':
+                raise ValueError()
+        except (ValueError, json.JSONDecodeError):
+            raise exceptions.ValidationError(detail=_("Invalid GeoJSON"))
+
+        uuid = request.data.get('uuid') or uuid_lib.uuid4().hex
+        stamp = int(time.time() * 1000)
+
+        sidecar_path, geojson_path = overlay_paths(task, uuid)
+        os.makedirs(overlays_dir(task), exist_ok=True)
+        write_overlay_geojson(geojson_path, geojson)
+        atomic_write(sidecar_path, json.dumps({'name': name, 'stamp': stamp, 'meta': meta}))
+
+        return Response({'uuid': uuid, 'stamp': stamp}, status=status.HTTP_200_OK)
+
+
+class TaskOverlay(TaskNestedView):
+    def get(self, request, pk=None, project_pk=None, uuid=None):
+        """
+        Download an overlay's GeoJSON
+        """
+        task = self.get_and_check_task(request, pk)
+        _unused, geojson_path = overlay_paths(task, uuid)
+        if not os.path.isfile(geojson_path):
+            raise exceptions.NotFound()
+
+        # Stored gzipped; serve the compressed bytes directly when possible
+        if 'gzip' in request.META.get('HTTP_ACCEPT_ENCODING', ''):
+            response = FileResponse(open(geojson_path, 'rb'), content_type='application/json')
+            response['Content-Encoding'] = 'gzip'
+            return response
+        else:
+            with open(geojson_path, 'rb') as f:
+                return HttpResponse(gzip.decompress(f.read()), content_type='application/json')
+
+    def patch(self, request, pk=None, project_pk=None, uuid=None):
+        """
+        Update an overlay's metadata and optionally remove one of its sublayers
+        """
+        task = self.get_and_check_task(request, pk)
+        check_overlay_write_perms(request, task)
+
+        sidecar_path, geojson_path = overlay_paths(task, uuid)
+        if not os.path.isfile(sidecar_path):
+            raise exceptions.NotFound()
+
+        body = request.data
+
+        try:
+            with open(sidecar_path, 'r', encoding='utf-8') as f:
+                sidecar = json.load(f)
+        except (IOError, json.JSONDecodeError):
+            sidecar = {'name': '', 'stamp': 0, 'meta': {}}
+
+        try:
+            stamp = int(body.get('stamp', int(time.time() * 1000)))
+        except (TypeError, ValueError):
+            raise exceptions.ValidationError(detail=_("Invalid overlay metadata"))
+
+        # Last write wins
+        if sidecar.get('stamp', 0) > stamp:
+            return Response({'updated': False}, status=status.HTTP_200_OK)
+
+        if 'name' in body:
+            sidecar['name'] = str(body['name'])
+        if 'meta' in body and isinstance(body['meta'], dict):
+            sidecar['meta'] = body['meta']
+        sidecar['stamp'] = stamp
+
+        remove_layer = body.get('removeLayer')
+        if remove_layer is not None and os.path.isfile(geojson_path):
+            try:
+                geojson = read_overlay_geojson(geojson_path)
+            except (IOError, OSError, json.JSONDecodeError):
+                raise exceptions.ValidationError(detail=_("Invalid GeoJSON"))
+            geojson['features'] = [f for f in geojson.get('features', []) if feature_layer_name(f) != str(remove_layer)]
+            write_overlay_geojson(geojson_path, geojson)
+
+        atomic_write(sidecar_path, json.dumps(sidecar))
+
+        return Response({'updated': True, 'stamp': stamp}, status=status.HTTP_200_OK)
+
+    def delete(self, request, pk=None, project_pk=None, uuid=None):
+        """
+        Delete an overlay
+        """
+        task = self.get_and_check_task(request, pk)
+        check_overlay_write_perms(request, task)
+
+        sidecar_path, geojson_path = overlay_paths(task, uuid)
+        found = False
+        for p in (sidecar_path, geojson_path):
+            if os.path.isfile(p):
+                os.unlink(p)
+                found = True
+        if not found:
+            raise exceptions.NotFound()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class TaskOverlayConvert(TaskNestedView):
@@ -38,7 +243,7 @@ class TaskOverlayConvert(TaskNestedView):
         if not is_dxf and not is_zip:
             raise exceptions.ValidationError(detail=_("Not a DXF or zipped shapefile: %(file)s") % {'file': file.name})
         if file.size > MAX_OVERLAY_FILE_SIZE:
-            raise exceptions.ValidationError(detail=_("%(file)s is bigger than 5 MB.") % {'file': file.name})
+            raise exceptions.ValidationError(detail=_("%(file)s is bigger than 100 MB.") % {'file': file.name})
 
         epsg = request.data.get('epsg')
         if epsg is None and is_dxf:

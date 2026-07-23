@@ -6,7 +6,7 @@ from .projects import ProjectViewSet
 from .tasks import TaskViewSet, TaskDownloads, TaskThumbnail, TaskAssets, TaskBackup, \
   TaskAssetsImport, TaskExternalImportInit, TaskExternalImportUpload, TaskExternalImportCommit, TaskSafeTexturedModel
 from .media import TaskMediaUpload, TaskMediaManage, TaskMediaDownload, TaskMediaThumbnail, TaskMediaList, TaskMediaGeoJSON, TaskVideoFlightPath
-from .overlays import TaskOverlayConvert
+from .overlays import TaskOverlayConvert, TaskOverlays, TaskOverlay
 from .panorama import TaskPanoramaTiles
 from .imageuploads import Thumbnail, ImageDownload
 from .processingnodes import ProcessingNodeViewSet, ProcessingNodeOptionsView
@@ -59,6 +59,8 @@ urlpatterns = [
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/backup$', TaskBackup.as_view()),
 
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/overlays/convert$', TaskOverlayConvert.as_view()),
+    url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/overlays/(?P<uuid>[^/]+)$', TaskOverlay.as_view()),
+    url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/overlays/?$', TaskOverlays.as_view()),
 
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/media.geojson$', TaskMediaGeoJSON.as_view()),
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/media/$', TaskMediaList.as_view()),
