@@ -82,6 +82,7 @@ class Map extends React.Component {
     this.mapBounds = null;
     this.overlayUploadCount = 0;
     this.pendingDxfFile = null;
+    this.pendingDxfTask = null;
     this.autolayers = null;
     this.taskCount = 1;
     this.addedCameraShots = {};
@@ -829,13 +830,14 @@ _('Example:'),
           // Zipped shapefiles are converted server-side
           if (/\.zip$/i.test(file.name)){
             mapTempLayerDrop.removeFile(file);
-            if (this.checkOverlayTask()) this.uploadOverlay(file, null);
+            if (this.checkOverlayTask()) this.uploadOverlay(file, null, this.getNearestTask());
             return;
           }
 
           this.setState({showLoading: true});
           addTempLayer(file, (err, entry) => {
             if (!err){
+              this.assignOverlayTask(entry, this.getNearestTask());
               entry.children.forEach(c => c.layer.addTo(this.map));
               this.setState(update(this.state, {
                  tempOverlays: {$push: [entry]}
@@ -1132,6 +1134,49 @@ _('Example:'),
     return true;
   }
 
+  // Find the task closest to the current map center
+  // by looking at the bounds of the tasks' imagery layers
+  getNearestTask = () => {
+    if (!this.props.tiles.length) return null;
+    if (this.taskCount === 1) return this.props.tiles[0].meta.task;
+
+    let candidates = this.state.imageryLayers.filter(l => {
+      const meta = l[Symbol.for("meta")] || {};
+      return meta.task && l.options.bounds;
+    });
+    if (!candidates.length) return this.props.tiles[0].meta.task;
+
+    const visible = candidates.filter(l => l._map && !l.isHidden());
+    if (visible.length) candidates = visible;
+
+    const center = this.map.getCenter();
+    const zIndexOf = l => (l[Symbol.for("meta")].zIndexGroup || 1);
+
+    // Topmost layer containing the center
+    const containing = candidates.filter(l => l.options.bounds.contains(center));
+    if (containing.length){
+      return containing.sort((a, b) => zIndexOf(b) - zIndexOf(a))[0][Symbol.for("meta")].task;
+    }
+
+    // Otherwise, nearest bounds
+    const distanceTo = l => {
+      const bounds = l.options.bounds;
+      const closest = L.latLng(
+        Math.min(Math.max(center.lat, bounds.getSouth()), bounds.getNorth()),
+        Math.min(Math.max(center.lng, bounds.getWest()), bounds.getEast())
+      );
+      return center.distanceTo(closest);
+    };
+    return candidates.sort((a, b) => (distanceTo(a) - distanceTo(b)) || (zIndexOf(b) - zIndexOf(a)))[0][Symbol.for("meta")].task;
+  }
+
+  assignOverlayTask = (entry, task) => {
+    entry.task = task;
+    if (this.taskCount > 1 && task){
+      entry.group = {id: task.id, name: task.name};
+    }
+  }
+
   handleDxfDrop = file => {
     if (!this.checkOverlayTask()) return;
 
@@ -1139,12 +1184,13 @@ _('Example:'),
     if (this.pendingDxfFile) return;
 
     this.pendingDxfFile = file;
+    this.pendingDxfTask = this.getNearestTask();
     if (this.dxfDialog) this.dxfDialog.show();
   }
 
   handleDxfDialogShow = () => {
     if (this.dxfEpsgInput){
-      const task = this.props.tiles.length ? this.props.tiles[0].meta.task : null;
+      const task = this.pendingDxfTask;
       this.dxfEpsgInput.value = (task && task.epsg) ? task.epsg : "";
       this.dxfEpsgInput.focus();
     }
@@ -1152,11 +1198,13 @@ _('Example:'),
 
   handleDxfDialogHide = () => {
     this.pendingDxfFile = null;
+    this.pendingDxfTask = null;
   }
 
   handleDxfImport = formData => {
     const file = this.pendingDxfFile;
-    if (!file) return null;
+    const task = this.pendingDxfTask;
+    if (!file || !task) return null;
 
     const epsg = parseInt(formData.epsg);
     if (isNaN(epsg)){
@@ -1164,12 +1212,12 @@ _('Example:'),
     }
 
     this.pendingDxfFile = null;
-    this.uploadOverlay(file, epsg);
+    this.pendingDxfTask = null;
+    this.uploadOverlay(file, epsg, task);
     return null;
   }
 
-  uploadOverlay = (file, epsg) => {
-    const task = this.props.tiles[0].meta.task;
+  uploadOverlay = (file, epsg, task) => {
     const entry = {
       id: `overlay-upload-${++this.overlayUploadCount}`,
       name: file.name.replace(/\.[^/.]+$/, ""),
@@ -1180,6 +1228,7 @@ _('Example:'),
       bounds: null,
       children: []
     };
+    this.assignOverlayTask(entry, task);
 
     this.setState(update(this.state, {
       tempOverlays: {$push: [entry]}
@@ -1217,6 +1266,8 @@ _('Example:'),
 
         if (geojson && geojson.type === "FeatureCollection"){
           const newEntry = buildOverlay(geojson, file.name, {splitByLayer: /\.dxf$/i.test(file.name)});
+          newEntry.task = entry.task;
+          newEntry.group = entry.group;
           newEntry.children.forEach(c => c.layer.addTo(this.map));
           this.setState(update(this.state, {
             tempOverlays: {$splice: [[idx, 1, newEntry]]}

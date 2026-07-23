@@ -7,11 +7,11 @@ import OverlayFeaturePopup from '../components/OverlayFeaturePopup';
 let overlayId = 0;
 
 export function addTempLayer(file, cb) {
-  let maxSize = 5242880;
+  let maxSize = 100 * 1024 * 1024;
 
   if (file && file.size > maxSize) {
     let err = {};
-    err.message = interpolate(_("%(file)s is bigger than 5 MB."), { file: file.name });
+    err.message = interpolate(_("%(file)s is bigger than 100 MB."), { file: file.name });
     cb(err);
   } else {
     //get just the first file
@@ -50,7 +50,7 @@ const childStyle = (child) => {
     color,
     fillColor: color,
     opacity: opacity,
-    fillOpacity: opacity * 0.7
+    fillOpacity: opacity * 0.2
   };
 };
 
@@ -137,7 +137,7 @@ export function updateOverlayColor(child, colorKey) {
 export function updateOverlayOpacity(entry, opacity) {
   entry.opacity = opacity;
   entry.children.forEach(child => {
-    child.layer.setStyle({ opacity: opacity / 100, fillOpacity: (opacity / 100) * 0.7 });
+    child.layer.setStyle({ opacity: opacity / 100, fillOpacity: (opacity / 100) * 0.2 });
     child.layer.fire('overlay:stylechanged');
   });
 }

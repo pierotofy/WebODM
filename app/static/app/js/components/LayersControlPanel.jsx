@@ -46,7 +46,8 @@ export default class LayersControlPanel extends React.Component {
       const main = {
         overlays: [],
         layers: [],
-        annotations: []
+        annotations: [],
+        tempOverlays: []
       };
       const zIndexGroupMap = {};
 
@@ -61,6 +62,7 @@ export default class LayersControlPanel extends React.Component {
               overlays: [],
               layers: [],
               annotations: [],
+              tempOverlays: [],
               name: group.name
             };
             groups[group.id][destination].push(l);
@@ -73,12 +75,28 @@ export default class LayersControlPanel extends React.Component {
       this.props.layers.forEach(scanGroup('layers'));
       this.props.annotations.forEach(scanGroup('annotations'));
 
-      const getGroupContent = (group, isMain) => {
+      // Temp overlays are plain objects (not Leaflet layers), group is a property
+      this.props.tempOverlays.forEach(entry => {
+        if (entry.group){
+          groups[entry.group.id] = groups[entry.group.id] || {
+            overlays: [],
+            layers: [],
+            annotations: [],
+            tempOverlays: [],
+            name: entry.group.name
+          };
+          groups[entry.group.id].tempOverlays.push(entry);
+        }else{
+          main.tempOverlays.push(entry);
+        }
+      });
+
+      const getGroupContent = group => {
         return (<div>
 
-          {isMain && this.props.tempOverlays.length ?
+          {group.tempOverlays.length ?
             <div className="temp-overlays theme-border-primary">
-              <LayersControlOverlays map={this.props.map} overlays={this.props.tempOverlays} onRemove={this.props.onOverlayRemove} />
+              <LayersControlOverlays map={this.props.map} overlays={group.tempOverlays} onRemove={this.props.onOverlayRemove} />
             </div>
           : ""}
 
@@ -108,7 +126,7 @@ export default class LayersControlPanel extends React.Component {
       };
 
       content = (<div>
-        {getGroupContent(main, true)}
+        {getGroupContent(main)}
         {Object.keys(groups).sort((a, b) => {
           const za = zIndexGroupMap[a] || 1;
           const zb = zIndexGroupMap[b] || 1;

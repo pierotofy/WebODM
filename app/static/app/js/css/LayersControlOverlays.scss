@@ -56,6 +56,11 @@
 .layers-control-overlay-child{
     .layer-control-title{
         margin-left: 42px;
+
+        .toggle, .overlay-color-dot{
+            position: relative;
+            top: 1px;
+        }
     }
 }
 
