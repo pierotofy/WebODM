@@ -1561,7 +1561,7 @@ _('Example:'),
             onShow={this.handleDxfDialogShow}
             onHide={this.handleDxfDialogHide}>
           <div className="form-group">
-            <label className="col-sm-3 control-label">{_("EPSG code")}</label>
+            <label className="col-sm-3 control-label">EPSG:</label>
             <div className="col-sm-9">
               <input type="number" className="form-control" ref={(domNode) => { this.dxfEpsgInput = domNode; }} placeholder="32617" />
             </div>
