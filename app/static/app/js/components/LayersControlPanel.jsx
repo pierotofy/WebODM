@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import '../css/LayersControlPanel.scss';
 import LayersControlLayer from './LayersControlLayer';
 import LayersControlAnnotations from './LayersControlAnnotations';
+import LayersControlOverlays from './LayersControlOverlays';
 import { _ } from '../classes/gettext';
 import L from 'leaflet';
 
@@ -11,12 +12,15 @@ export default class LayersControlPanel extends React.Component {
       layers: [],
       overlays: [],
       annotations: [],
+      tempOverlays: [],
   };
   static propTypes = {
     onClose: PropTypes.func.isRequired,
     layers: PropTypes.array.isRequired,
     overlays: PropTypes.array,
     annotations: PropTypes.array,
+    tempOverlays: PropTypes.array,
+    onOverlayRemove: PropTypes.func,
     map: PropTypes.object.isRequired
   }
 
@@ -69,10 +73,16 @@ export default class LayersControlPanel extends React.Component {
       this.props.layers.forEach(scanGroup('layers'));
       this.props.annotations.forEach(scanGroup('annotations'));
 
-      const getGroupContent = group => {
+      const getGroupContent = (group, isMain) => {
         return (<div>
 
-          {group.annotations.length ? 
+          {isMain && this.props.tempOverlays.length ?
+            <div className="temp-overlays theme-border-primary">
+              <LayersControlOverlays map={this.props.map} overlays={this.props.tempOverlays} onRemove={this.props.onOverlayRemove} />
+            </div>
+          : ""}
+
+          {group.annotations.length ?
             <div className="annotations theme-border-primary">
                <LayersControlAnnotations layers={group.annotations} />
             </div>
@@ -97,7 +107,8 @@ export default class LayersControlPanel extends React.Component {
         </div>);
       };
 
-      content = (<div>{getGroupContent(main)}
+      content = (<div>
+        {getGroupContent(main, true)}
         {Object.keys(groups).sort((a, b) => {
           const za = zIndexGroupMap[a] || 1;
           const zb = zIndexGroupMap[b] || 1;

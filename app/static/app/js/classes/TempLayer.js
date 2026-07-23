@@ -1,13 +1,13 @@
-import shp from 'shpjs';
+import React from 'react';
+import ReactDOM from 'ReactDOM';
 import { _, interpolate } from './gettext';
+import { colors, nextColorKey } from './OverlayColors';
+import OverlayFeaturePopup from '../components/OverlayFeaturePopup';
+
+let overlayId = 0;
 
 export function addTempLayer(file, cb) {
   let maxSize = 5242880;
-
-  //random color for each feature
-  let getColor = () => {
-    return 'rgb(' + (Math.floor(Math.random() * 256)) + ',' + (Math.floor(Math.random() * 256)) + ',' + (Math.floor(Math.random() * 256)) + ')';
-  }
 
   if (file && file.size > maxSize) {
     let err = {};
@@ -17,71 +17,127 @@ export function addTempLayer(file, cb) {
     //get just the first file
     //file = file[0];
     let reader = new FileReader();
-    let isZipFile = file.name.slice(-3) === 'zip';
-    if (isZipFile) {
-      //zipped shapefile
-      reader.onload = function () {
-        if (reader.readyState != 2 || reader.error) {
-          return;
-        } else {
-          shp(reader.result).then(function (geojson) {
-            addLayer(geojson);
-          }).catch(function (err) {
-            err.message = interpolate(_("Not a proper zipped shapefile: %(file)s"), { file: file.name });
-            cb(err);
-          })
-        }
+
+    //geojson file
+    reader.onload = function () {
+      try {
+        let geojson = JSON.parse(reader.result);
+        addLayer(geojson);
+      } catch (err) {
+        err.message = interpolate(_("Not a proper JSON file: %(file)s"), { file: file.name });
+        cb(err);
       }
-      reader.readAsArrayBuffer(file);
-    } else {
-      //geojson file
-      reader.onload = function () {
-        try {
-          let geojson = JSON.parse(reader.result);
-          addLayer(geojson);
-        } catch (err) {
-          err.message = interpolate(_("Not a proper JSON file: %(file)s"), { file: file.name });
-          cb(err);
-        }
-      }
-      reader.readAsText(file);
     }
+    reader.readAsText(file);
   }
 
   let addLayer = (_geojson) => {
-    let tempLayer =
-      L.geoJson(_geojson, {
-        style: function (feature) {
-          return {
-            opacity: 1,
-            fillOpacity: 0.7,
-            color: getColor()
-          }
-        },
-        //for point layers
-        pointToLayer: function (feature, latlng) {
-          return L.circleMarker(latlng, {
-            radius: 6,
-            color: getColor(),
-            opacity: 1,
-            fillOpacity: 0.7
-          });
-        },
-        //
-        onEachFeature: function (feature, layer) {
-          if (feature.properties) {
-            if (feature.properties) {
-              layer.bindPopup(Object.keys(feature.properties).map(function (k) {
-                return "<strong>" + k + ":</strong> " + feature.properties[k];
-              }).join("<br />"), {
-                  maxHeight: 200
-                });
-            }
-          }
-        }
-      });
-    tempLayer.options.bounds = tempLayer.getBounds();
-    
-    cb(null, tempLayer, file.name);
+    cb(null, buildOverlay(_geojson, file.name));
   }
+}
+
+// Layers bound from AutoCAD external references are named
+// XrefName$N$LayerName; display just the layer name part
+const layerDisplayName = (name) => {
+  const m = name.match(/^.+\$\d+\$(.+)$/);
+  return m ? m[1] : name;
+};
+
+const childStyle = (child) => {
+  const color = colors[child.colorKey].color;
+  const opacity = child.parent.opacity / 100;
+  return {
+    color,
+    fillColor: color,
+    opacity: opacity,
+    fillOpacity: opacity * 0.7
+  };
+};
+
+export function buildOverlay(geojson, filename, opts = {}) {
+  const entry = {
+    id: ++overlayId,
+    name: filename.replace(/\.[^/.]+$/, ""),
+    loading: false,
+    progress: 0,
+    converting: false,
+    opacity: 100,
+    bounds: null,
+    children: []
+  };
+
+  // Group features by their CAD "Layer" property (DXF conversions),
+  // otherwise create a single sublayer with all features
+  let groups = {};
+  if (opts.splitByLayer) {
+    (geojson.features || []).forEach(f => {
+      const layerName = (f.properties && f.properties.Layer !== undefined && f.properties.Layer !== null) ? String(f.properties.Layer) : "0";
+      (groups[layerName] = groups[layerName] || []).push(f);
+    });
+    if (Object.keys(groups).length === 0) groups[entry.name] = [];
+  } else {
+    groups[entry.name] = null;
+  }
+
+  Object.keys(groups).sort().forEach(layerName => {
+    const child = {
+      name: layerName,
+      displayName: layerDisplayName(layerName),
+      colorKey: nextColorKey(),
+      parent: entry
+    };
+    const childGeojson = groups[layerName] !== null ? { type: "FeatureCollection", features: groups[layerName] } : geojson;
+
+    child.layer = L.geoJson(childGeojson, {
+      style: () => childStyle(child),
+      //for point layers
+      pointToLayer: (feature, latlng) => {
+        return L.circleMarker(latlng, Object.assign({ radius: 6 }, childStyle(child)));
+      },
+      onEachFeature: (feature, layer) => {
+        let root = null;
+        const lazyrender = () => {
+          if (!root) root = document.createElement("div");
+          ReactDOM.render(<OverlayFeaturePopup child={child}
+            feature={feature}
+            onColorChange={colorKey => updateOverlayColor(child, colorKey)} />, root);
+          return root;
+        };
+        layer.bindPopup(L.popup({
+          lazyrender,
+          maxHeight: 300,
+          minWidth: 220
+        }));
+      }
+    });
+    child.layer.options.bounds = child.layer.getBounds();
+    entry.children.push(child);
+  });
+
+  recomputeOverlayBounds(entry);
+
+  return entry;
+}
+
+export function recomputeOverlayBounds(entry) {
+  const bounds = L.latLngBounds();
+  entry.children.forEach(c => {
+    if (c.layer.options.bounds.isValid()) bounds.extend(c.layer.options.bounds);
+  });
+  entry.bounds = bounds;
+}
+
+export function updateOverlayColor(child, colorKey) {
+  child.colorKey = colorKey;
+  const color = colors[colorKey].color;
+  child.layer.setStyle({ color, fillColor: color });
+  child.layer.fire('overlay:stylechanged');
+}
+
+export function updateOverlayOpacity(entry, opacity) {
+  entry.opacity = opacity;
+  entry.children.forEach(child => {
+    child.layer.setStyle({ opacity: opacity / 100, fillOpacity: (opacity / 100) * 0.7 });
+    child.layer.fire('overlay:stylechanged');
+  });
 }

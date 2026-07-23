@@ -15,7 +15,8 @@ import GCPPopup from './GCPPopup';
 import MediaView from './MediaView';
 import SwitchModeButton from './SwitchModeButton';
 import ShareButton from './ShareButton';
-import {addTempLayer} from '../classes/TempLayer';
+import {addTempLayer, buildOverlay, recomputeOverlayBounds} from '../classes/TempLayer';
+import FormDialog from './FormDialog';
 import PropTypes from 'prop-types';
 import PluginsAPI from '../classes/plugins/API';
 
@@ -30,7 +31,7 @@ import '../vendor/leaflet/Leaflet.Ajax';
 import 'rbush';
 import '../vendor/leaflet/leaflet-markers-canvas';
 import '../vendor/leaflet/Leaflet.SideBySide/leaflet-side-by-side';
-import { _ } from '../classes/gettext';
+import { _, interpolate } from '../classes/gettext';
 import UnitSelector from './UnitSelector';
 import { unitSystem, toMetric } from '../classes/Units';
 
@@ -73,11 +74,14 @@ class Map extends React.Component {
       imageryLayers: [],
       overlays: [],
       annotations: [],
+      tempOverlays: [],
       rightLayers: []
     };
 
     this.basemaps = {};
     this.mapBounds = null;
+    this.overlayUploadCount = 0;
+    this.pendingDxfFile = null;
     this.autolayers = null;
     this.taskCount = 1;
     this.addedCameraShots = {};
@@ -802,7 +806,8 @@ _('Example:'),
     this.layersControl = new LayersControl({
         layers: this.state.imageryLayers,
         overlays: this.state.overlays,
-        annotations: this.state.annotations
+        annotations: this.state.annotations,
+        onOverlayRemove: this.removeTempOverlay
     }).addTo(this.map);
 
     this.autolayers = Leaflet.control.autolayers({
@@ -815,20 +820,33 @@ _('Example:'),
     const addDnDZone = (container, opts) => {
         const mapTempLayerDrop = new Dropzone(container, opts);
         mapTempLayerDrop.on("addedfile", (file) => {
+          if (/\.dxf$/i.test(file.name)){
+            mapTempLayerDrop.removeFile(file);
+            this.handleDxfDrop(file);
+            return;
+          }
+
+          // Zipped shapefiles are converted server-side
+          if (/\.zip$/i.test(file.name)){
+            mapTempLayerDrop.removeFile(file);
+            if (this.checkOverlayTask()) this.uploadOverlay(file, null);
+            return;
+          }
+
           this.setState({showLoading: true});
-          addTempLayer(file, (err, tempLayer, filename) => {
+          addTempLayer(file, (err, entry) => {
             if (!err){
-              tempLayer.addTo(this.map);
-              tempLayer[Symbol.for("meta")] = {name: filename};
+              entry.children.forEach(c => c.layer.addTo(this.map));
               this.setState(update(this.state, {
-                 overlays: {$push: [tempLayer]}
+                 tempOverlays: {$push: [entry]}
               }));
+              if (this.layersControl) this.layersControl.openPanel();
               //zoom to all features
-              this.map.fitBounds(tempLayer.getBounds());
+              if (entry.bounds.isValid()) this.map.fitBounds(entry.bounds);
             }else{
               this.setState({ error: err.message || JSON.stringify(err) });
             }
-    
+
             this.setState({showLoading: false});
           });
         });
@@ -848,7 +866,7 @@ _('Example:'),
             this.container = Leaflet.DomUtil.create('div', 'leaflet-control-add-overlay leaflet-bar leaflet-control');
             Leaflet.DomEvent.disableClickPropagation(this.container);
             const btn = Leaflet.DomUtil.create('a', 'leaflet-control-add-overlay-button');
-            btn.setAttribute("title", _("Add a temporary GeoJSON (.json) or ShapeFile (.zip) overlay"));
+            btn.setAttribute("title", _("Add a temporary GeoJSON (.json), ShapeFile (.zip) or AutoCAD (.dxf) overlay"));
             
             this.container.append(btn);
             addDnDZone(btn, {url: "/", clickable: true});
@@ -1106,6 +1124,134 @@ _('Example:'),
     }
   }
 
+  checkOverlayTask = () => {
+    if (!this.props.tiles.length){
+      this.setState({error: _("Cannot import overlay: no task is loaded.")});
+      return false;
+    }
+    return true;
+  }
+
+  handleDxfDrop = file => {
+    if (!this.checkOverlayTask()) return;
+
+    // One DXF import at a time
+    if (this.pendingDxfFile) return;
+
+    this.pendingDxfFile = file;
+    if (this.dxfDialog) this.dxfDialog.show();
+  }
+
+  handleDxfDialogShow = () => {
+    if (this.dxfEpsgInput){
+      const task = this.props.tiles.length ? this.props.tiles[0].meta.task : null;
+      this.dxfEpsgInput.value = (task && task.epsg) ? task.epsg : "";
+      this.dxfEpsgInput.focus();
+    }
+  }
+
+  handleDxfDialogHide = () => {
+    this.pendingDxfFile = null;
+  }
+
+  handleDxfImport = formData => {
+    const file = this.pendingDxfFile;
+    if (!file) return null;
+
+    const epsg = parseInt(formData.epsg);
+    if (isNaN(epsg)){
+      return $.Deferred().reject({message: _("Invalid EPSG code")}).promise();
+    }
+
+    this.pendingDxfFile = null;
+    this.uploadOverlay(file, epsg);
+    return null;
+  }
+
+  uploadOverlay = (file, epsg) => {
+    const task = this.props.tiles[0].meta.task;
+    const entry = {
+      id: `overlay-upload-${++this.overlayUploadCount}`,
+      name: file.name.replace(/\.[^/.]+$/, ""),
+      loading: true,
+      progress: 0,
+      converting: false,
+      opacity: 100,
+      bounds: null,
+      children: []
+    };
+
+    this.setState(update(this.state, {
+      tempOverlays: {$push: [entry]}
+    }));
+
+    // Show the upload progress in the layer list
+    if (this.layersControl) this.layersControl.openPanel();
+
+    const formData = new FormData();
+    formData.append("file", file);
+    if (epsg !== null && epsg !== undefined) formData.append("epsg", epsg);
+
+    $.ajax({
+        url: `/api/projects/${task.project}/tasks/${task.id}/overlays/convert`,
+        contentType: false,
+        processData: false,
+        data: formData,
+        type: 'POST',
+        xhr: () => {
+          const xhr = $.ajaxSettings.xhr();
+          if (xhr.upload){
+            xhr.upload.addEventListener('progress', e => {
+              if (e.lengthComputable){
+                entry.progress = e.loaded / e.total * 100;
+                if (entry.progress >= 100) entry.converting = true;
+                this.setState({tempOverlays: this.state.tempOverlays.slice()});
+              }
+            }, false);
+          }
+          return xhr;
+        }
+    }).done(geojson => {
+        const idx = this.state.tempOverlays.indexOf(entry);
+        if (idx === -1) return; // Removed in the meantime
+
+        if (geojson && geojson.type === "FeatureCollection"){
+          const newEntry = buildOverlay(geojson, file.name, {splitByLayer: /\.dxf$/i.test(file.name)});
+          newEntry.children.forEach(c => c.layer.addTo(this.map));
+          this.setState(update(this.state, {
+            tempOverlays: {$splice: [[idx, 1, newEntry]]}
+          }));
+          if (newEntry.bounds && newEntry.bounds.isValid()) this.map.fitBounds(newEntry.bounds);
+        }else{
+          this.setState({tempOverlays: this.state.tempOverlays.filter(o => o !== entry),
+                         error: interpolate(_("Cannot convert %(file)s"), {file: file.name})});
+        }
+    }).fail(xhr => {
+        let error;
+        const rj = xhr.responseJSON;
+        if (rj){
+          if (Array.isArray(rj)) error = rj.join(" ");
+          else error = rj.error || rj.detail;
+        }
+        if (!error) error = interpolate(_("Cannot convert %(file)s"), {file: file.name});
+        this.setState({tempOverlays: this.state.tempOverlays.filter(o => o !== entry), error});
+    });
+  }
+
+  removeTempOverlay = (entry, child) => {
+    // Remove a single sublayer, unless it's the last one
+    if (child && entry.children.length > 1){
+      this.map.removeLayer(child.layer);
+      entry.children = entry.children.filter(c => c !== child);
+      recomputeOverlayBounds(entry);
+      this.setState({tempOverlays: this.state.tempOverlays.slice()});
+      return;
+    }
+
+    entry.children.forEach(c => this.map.removeLayer(c.layer));
+    this.setState({tempOverlays: this.state.tempOverlays.filter(o => o !== entry)});
+  }
+
   layerVisibilityCheck = () => {
     // Check if imageryLayers are invisible and remove them to prevent tiles from loading
     this.state.imageryLayers.forEach(layer => {
@@ -1125,13 +1271,14 @@ _('Example:'),
 
     if (this.layersControl && (prevState.imageryLayers !== this.state.imageryLayers ||
                             prevState.overlays !== this.state.overlays ||
-                            prevState.annotations !== this.state.annotations)){
+                            prevState.annotations !== this.state.annotations ||
+                            prevState.tempOverlays !== this.state.tempOverlays)){
       this.updateLayersControl();
     }
   }
 
   updateLayersControl = () => {
-    this.layersControl.update(this.state.imageryLayers, this.state.overlays, this.state.annotations);
+    this.layersControl.update(this.state.imageryLayers, this.state.overlays, this.state.annotations, this.state.tempOverlays);
   }
 
   componentWillUnmount() {
@@ -1347,10 +1494,28 @@ _('Example:'),
             <div className="opacity-slider-label" title={_("Opacity")}><i className="fa fa-adjust"></i></div> <input type="range" className="opacity" step="1" value={this.state.opacity} onChange={this.updateOpacity} />
         </div>
 
-        <Standby 
+        <Standby
             message={_("Loading...")}
             show={this.state.showLoading}
             />
+
+        <FormDialog
+            ref={(domNode) => { this.dxfDialog = domNode; }}
+            title={_("Import DXF")}
+            saveLabel={_("Import")}
+            savingLabel={_("Importing…")}
+            saveIcon="fa fa-file-import"
+            getFormData={() => ({epsg: this.dxfEpsgInput ? this.dxfEpsgInput.value : ""})}
+            saveAction={this.handleDxfImport}
+            onShow={this.handleDxfDialogShow}
+            onHide={this.handleDxfDialogHide}>
+          <div className="form-group">
+            <label className="col-sm-3 control-label">{_("EPSG code")}</label>
+            <div className="col-sm-9">
+              <input type="number" className="form-control" ref={(domNode) => { this.dxfEpsgInput = domNode; }} placeholder="32617" />
+            </div>
+          </div>
+        </FormDialog>
             
         <div 
           style={{height: "100%"}}
