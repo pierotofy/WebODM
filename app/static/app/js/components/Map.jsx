@@ -869,7 +869,7 @@ _('Example:'),
             this.container = Leaflet.DomUtil.create('div', 'leaflet-control-add-overlay leaflet-bar leaflet-control');
             Leaflet.DomEvent.disableClickPropagation(this.container);
             const btn = Leaflet.DomUtil.create('a', 'leaflet-control-add-overlay-button');
-            btn.setAttribute("title", _("Add a temporary GeoJSON (.json), ShapeFile (.zip) or AutoCAD (.dxf) overlay"));
+            btn.setAttribute("title", _("Add a GeoJSON (.json), ShapeFile (.zip) or AutoCAD (.dxf) overlay"));
             
             this.container.append(btn);
             addDnDZone(btn, {url: "/", clickable: true});
