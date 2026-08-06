@@ -19,8 +19,6 @@ from webodm import settings
 
 MAX_OVERLAY_FILE_SIZE = 100 * 1024 * 1024  # 100 MB
 
-OVERLAY_ID_RE = re.compile(r'^[0-9a-zA-Z-_]+$')
-
 def sanitize_overlay_id(name):
     overlay_id = re.sub(r'[^0-9a-zA-Z-_]+', '', str(name).replace(' ', '-'))
     overlay_id = re.sub(r'-[-]+', '-', overlay_id)[:64]
@@ -35,8 +33,8 @@ def check_overlay_write_perms(request, task):
             raise exceptions.PermissionDenied()
 
 
-def overlay_paths(task, overlay_id):
-    if overlay_id is None or not OVERLAY_ID_RE.match(overlay_id):
+def overlay_files(task, overlay_id):
+    if overlay_id is None or not re.match(r'^[0-9a-zA-Z-_]+$', overlay_id):
         raise exceptions.ValidationError(detail=_("Invalid overlay ID"))
     return task.overlays_path(overlay_id + ".json"), task.overlays_path(overlay_id + ".geojson.gz")
 
@@ -51,7 +49,7 @@ def read_overlay_geojson(path):
 
 
 def atomic_write(path, data):
-    # Atomic replace via rename
+    # Atomic write via rename
     if isinstance(data, str):
         data = data.encode('utf-8')
     fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path))
@@ -66,8 +64,7 @@ def atomic_write(path, data):
 
 def feature_layer_name(feature):
     props = feature.get('properties') or {}
-    layer = props.get('Layer')
-    return str(layer) if layer is not None else "0"
+    return str(props.get('Layer', "0"))
 
 
 class TaskOverlaysSync(TaskNestedView):
@@ -108,21 +105,22 @@ class TaskOverlaysSync(TaskNestedView):
 
         overlay_id = request.data.get('id')
         if not overlay_id:
-            # Derive from name; add a numeric suffix if taken
             overlay_id = sanitize_overlay_id(name)
-            candidate = overlay_id
+            candidate_id = overlay_id
             i = 2
-            while os.path.isfile(overlay_paths(task, candidate)[0]):
-                candidate = "{}-{}".format(overlay_id, i)
+            while os.path.isfile(overlay_files(task, candidate_id)[0]):
+                candidate_id = "{}-{}".format(overlay_id, i)
                 i += 1
-            overlay_id = candidate
+            overlay_id = candidate_id
 
         stamp = int(time.time() * 1000)
 
-        sidecar_path, geojson_path = overlay_paths(task, overlay_id)
+        sidecar_path, geojson_path = overlay_files(task, overlay_id)
         os.makedirs(task.overlays_path(), exist_ok=True)
         write_overlay_geojson(geojson_path, geojson)
         atomic_write(sidecar_path, json.dumps({'name': name, 'stamp': stamp, 'meta': meta}))
+
+        task.update_size(commit=True)
 
         return Response({'id': overlay_id, 'stamp': stamp}, status=status.HTTP_200_OK)
 
@@ -133,7 +131,7 @@ class TaskOverlay(TaskNestedView):
         Download an overlay's GeoJSON
         """
         task = self.get_and_check_task(request, pk)
-        _unused, geojson_path = overlay_paths(task, overlay_id)
+        _, geojson_path = overlay_files(task, overlay_id)
         if not os.path.isfile(geojson_path):
             raise exceptions.NotFound()
 
@@ -153,7 +151,7 @@ class TaskOverlay(TaskNestedView):
         task = self.get_and_check_task(request, pk)
         check_overlay_write_perms(request, task)
 
-        sidecar_path, geojson_path = overlay_paths(task, overlay_id)
+        sidecar_path, geojson_path = overlay_files(task, overlay_id)
         if not os.path.isfile(sidecar_path):
             raise exceptions.NotFound()
 
@@ -188,6 +186,7 @@ class TaskOverlay(TaskNestedView):
                 raise exceptions.ValidationError(detail=_("Invalid GeoJSON"))
             geojson['features'] = [f for f in geojson.get('features', []) if feature_layer_name(f) != str(remove_layer)]
             write_overlay_geojson(geojson_path, geojson)
+            task.update_size(commit=True)
 
         atomic_write(sidecar_path, json.dumps(sidecar))
 
@@ -200,7 +199,7 @@ class TaskOverlay(TaskNestedView):
         task = self.get_and_check_task(request, pk)
         check_overlay_write_perms(request, task)
 
-        sidecar_path, geojson_path = overlay_paths(task, overlay_id)
+        sidecar_path, geojson_path = overlay_files(task, overlay_id)
         found = False
         for p in (sidecar_path, geojson_path):
             if os.path.isfile(p):
@@ -217,6 +216,8 @@ class TaskOverlay(TaskNestedView):
             except OSError:
                 pass
 
+        task.update_size(commit=True)
+
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -225,11 +226,7 @@ class TaskOverlayConvert(TaskNestedView):
 
     def post(self, request, pk=None, project_pk=None):
         """
-        Convert an uploaded DXF file or zipped shapefile to GeoJSON (EPSG:4326)
-        using ogr2ogr. For DXF files (which carry no CRS) the source SRS is taken
-        from the EPSG parameter (defaults to the task's EPSG). For zipped shapefiles
-        the embedded .prj is used, unless an EPSG parameter is explicitly provided.
-        The conversion is stateless (nothing is stored with the task).
+        Convert an uploaded DXF file or zipped shapefile to GeoJSON
         """
         task = self.get_and_check_task(request, pk)
 
