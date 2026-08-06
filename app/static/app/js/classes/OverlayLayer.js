@@ -6,7 +6,7 @@ import OverlayFeaturePopup from '../components/OverlayFeaturePopup';
 
 let overlayId = 0;
 
-export function addTempLayer(file, cb) {
+export function addOverlayLayer(file, cb) {
   let maxSize = 100 * 1024 * 1024;
 
   if (file && file.size > maxSize) {

@@ -30,7 +30,7 @@ def sanitize_overlay_id(name):
 def check_overlay_write_perms(request, task):
     if task.check_public_edit():
         if not request.user.has_perm("app.change_project", task.project):
-            raise exceptions.PermissionDenied()
+            raise exceptions.NotFound()
 
 
 def overlay_files(task, overlay_id):
@@ -135,7 +135,7 @@ class TaskOverlay(TaskNestedView):
         if not os.path.isfile(geojson_path):
             raise exceptions.NotFound()
 
-        # Stored gzipped; serve the compressed bytes directly when possible
+        # Stored gzipped; serve the compressed bytes directly
         if 'gzip' in request.META.get('HTTP_ACCEPT_ENCODING', ''):
             response = FileResponse(open(geojson_path, 'rb'), content_type='application/json')
             response['Content-Encoding'] = 'gzip'
@@ -146,7 +146,7 @@ class TaskOverlay(TaskNestedView):
 
     def patch(self, request, pk=None, project_pk=None, overlay_id=None):
         """
-        Update an overlay's metadata and optionally remove one of its sublayers
+        Update an overlay's metadata
         """
         task = self.get_and_check_task(request, pk)
         check_overlay_write_perms(request, task)
@@ -168,7 +168,6 @@ class TaskOverlay(TaskNestedView):
         except (TypeError, ValueError):
             raise exceptions.ValidationError(detail=_("Invalid overlay metadata"))
 
-        # Last write wins
         if sidecar.get('stamp', 0) >= stamp:
             return Response({'updated': False}, status=status.HTTP_200_OK)
 
@@ -293,5 +292,5 @@ class TaskOverlayConvert(TaskNestedView):
             shutil.rmtree(tmpdir, ignore_errors=True)
 
 
-def stamp(request, **kwargs):
-    return HttpResponse(json.dumps({'stamp': int(math.floor(time.time() * 1000))}), content_type="application/json")
+def overlayStamp(request, **kwargs):
+    return HttpResponse(json.dumps({'stamp': int(time.time() * 1000)}), content_type="application/json")

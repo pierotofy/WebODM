@@ -15,7 +15,7 @@ import GCPPopup from './GCPPopup';
 import MediaView from './MediaView';
 import SwitchModeButton from './SwitchModeButton';
 import ShareButton from './ShareButton';
-import {addTempLayer, buildOverlay, recomputeOverlayBounds} from '../classes/TempLayer';
+import {addOverlayLayer, buildOverlay, recomputeOverlayBounds} from '../classes/OverlayLayer';
 import FormDialog from './FormDialog';
 import PropTypes from 'prop-types';
 import PluginsAPI from '../classes/plugins/API';
@@ -837,7 +837,7 @@ _('Example:'),
           }
 
           this.setState({showLoading: true});
-          addTempLayer(file, (err, entry, geojson) => {
+          addOverlayLayer(file, (err, entry, geojson) => {
             if (!err){
               this.assignOverlayTask(entry, this.getNearestTask());
               entry.children.forEach(c => c.layer.addTo(this.map));

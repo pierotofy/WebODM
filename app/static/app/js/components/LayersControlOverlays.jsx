@@ -4,7 +4,7 @@ import '../css/LayersControlOverlays.scss';
 import { Checkbox, ExpandButton } from './Toggle';
 import { ColorSwatches } from './ColorPicker';
 import { colors } from '../classes/OverlayColors';
-import { updateOverlayColor, updateOverlayOpacity } from '../classes/TempLayer';
+import { updateOverlayColor, updateOverlayOpacity } from '../classes/OverlayLayer';
 import { _ } from '../classes/gettext';
 
 class ColorDot extends React.Component{
