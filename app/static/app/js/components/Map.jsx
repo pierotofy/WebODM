@@ -83,6 +83,8 @@ class Map extends React.Component {
     this.overlayUploadCount = 0;
     this.pendingDxfFile = null;
     this.pendingDxfTask = null;
+    this._serverStamp = null;
+    this._clientStamp = null;
     this.autolayers = null;
     this.taskCount = 1;
     this.addedCameraShots = {};
@@ -1193,7 +1195,7 @@ _('Example:'),
   }
 
   overlayUrl = (entry, overlayId = "") => {
-    return `/api/projects/${entry.task.project}/tasks/${entry.task.id}/overlays${overlayId ? "/" + overlayId : ""}`;
+    return `/api/projects/${entry.task.project}/tasks/${entry.task.id}/overlays/${overlayId ? overlayId + ".geojson" : "sync"}`;
   }
 
   storeOverlay = (entry, geojson) => {
@@ -1203,6 +1205,9 @@ _('Example:'),
     formData.append("file", new Blob([JSON.stringify(geojson)], {type: "application/json"}), entry.name + ".geojson");
     formData.append("name", entry.name);
     formData.append("meta", JSON.stringify(this.overlayMeta(entry)));
+
+    entry.syncing = true;
+    this.setState({tempOverlays: this.state.tempOverlays.slice()});
 
     $.ajax({
       url: this.overlayUrl(entry),
@@ -1216,6 +1221,9 @@ _('Example:'),
       this.setOverlaySync(entry);
     }).fail(() => {
       this.setState({error: interpolate(_("Cannot save overlay %(name)s"), {name: entry.name})});
+    }).always(() => {
+      entry.syncing = false;
+      this.setState({tempOverlays: this.state.tempOverlays.slice()});
     });
   }
 
@@ -1229,15 +1237,39 @@ _('Example:'),
   patchOverlay = (entry, extra = {}) => {
     if (!entry.storageId || !entry.task || !this.canEditTask()) return;
 
+    // Stamps are in the server's clock domain: fetch server time once,
+    // then derive subsequent stamps from the elapsed client time
+    if (!this._serverStamp){
+      $.ajax({
+        type: 'GET',
+        url: `/api/projects/${entry.task.project}/tasks/${entry.task.id}/overlays/stamp`,
+        contentType: "application/json"
+      }).done(result => {
+        if (result.stamp){
+          this._serverStamp = result.stamp;
+          this._clientStamp = new Date().getTime();
+          this.patchOverlay(entry, extra); // Resume
+        }else{
+          console.warn(result);
+        }
+      }).fail(() => {
+        this.setState({error: interpolate(_("Cannot save overlay %(name)s"), {name: entry.name})});
+      });
+
+      return;
+    }
+
     $.ajax({
       url: this.overlayUrl(entry, entry.storageId),
       type: 'PATCH',
       contentType: 'application/json',
       data: JSON.stringify(Object.assign({
-        stamp: new Date().getTime(),
+        stamp: this._serverStamp + (new Date().getTime() - this._clientStamp),
         name: entry.name,
         meta: this.overlayMeta(entry)
       }, extra))
+    }).done(result => {
+      if (!result.updated) console.warn(result);
     }).fail(() => {
       this.setState({error: interpolate(_("Cannot save overlay %(name)s"), {name: entry.name})});
     });
@@ -1272,7 +1304,7 @@ _('Example:'),
         };
 
         $.ajax({
-          url: `/api/projects/${task.project}/tasks/${task.id}/overlays/${item.id}`,
+          url: `/api/projects/${task.project}/tasks/${task.id}/overlays/${item.id}.geojson`,
           dataType: 'json',
           xhr: () => {
             const xhr = $.ajaxSettings.xhr();

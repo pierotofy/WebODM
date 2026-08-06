@@ -2,6 +2,7 @@ import os
 import re
 import json
 import gzip
+import math
 import time
 import shutil
 import subprocess
@@ -19,14 +20,12 @@ from webodm import settings
 MAX_OVERLAY_FILE_SIZE = 100 * 1024 * 1024  # 100 MB
 
 OVERLAY_ID_RE = re.compile(r'^[0-9a-zA-Z-_]+$')
-OVERLAY_RESERVED_IDS = ('convert', )
-
 
 def sanitize_overlay_id(name):
     overlay_id = re.sub(r'[^0-9a-zA-Z-_]+', '', str(name).replace(' ', '-'))
     overlay_id = re.sub(r'-[-]+', '-', overlay_id)[:64]
-    if overlay_id == '' or overlay_id.lower() in OVERLAY_RESERVED_IDS:
-        overlay_id += '-overlay' if overlay_id != '' else 'overlay'
+    if overlay_id == '':
+        overlay_id = 'overlay'
     return overlay_id
 
 
@@ -36,15 +35,10 @@ def check_overlay_write_perms(request, task):
             raise exceptions.PermissionDenied()
 
 
-def overlays_dir(task):
-    return task.assets_path("overlays")
-
-
 def overlay_paths(task, overlay_id):
-    if overlay_id is None or not OVERLAY_ID_RE.match(overlay_id) or overlay_id.lower() in OVERLAY_RESERVED_IDS:
+    if overlay_id is None or not OVERLAY_ID_RE.match(overlay_id):
         raise exceptions.ValidationError(detail=_("Invalid overlay ID"))
-    d = overlays_dir(task)
-    return os.path.join(d, overlay_id + ".json"), os.path.join(d, overlay_id + ".geojson.gz")
+    return task.overlays_path(overlay_id + ".json"), task.overlays_path(overlay_id + ".geojson.gz")
 
 
 def write_overlay_geojson(path, geojson):
@@ -57,8 +51,7 @@ def read_overlay_geojson(path):
 
 
 def atomic_write(path, data):
-    # Atomic replace via rename, so that concurrent reads never see
-    # partial content and hard-linked duplicates are left untouched
+    # Atomic replace via rename
     if isinstance(data, str):
         data = data.encode('utf-8')
     fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path))
@@ -66,10 +59,9 @@ def atomic_write(path, data):
         with os.fdopen(fd, 'wb') as f:
             f.write(data)
         os.rename(tmp, path)
-    except Exception:
+    finally:
         if os.path.isfile(tmp):
             os.unlink(tmp)
-        raise
 
 
 def feature_layer_name(feature):
@@ -78,7 +70,7 @@ def feature_layer_name(feature):
     return str(layer) if layer is not None else "0"
 
 
-class TaskOverlays(TaskNestedView):
+class TaskOverlaysSync(TaskNestedView):
     parser_classes = (parsers.MultiPartParser, parsers.FormParser)
 
     def post(self, request, pk=None, project_pk=None):
@@ -93,7 +85,7 @@ class TaskOverlays(TaskNestedView):
             raise exceptions.ValidationError(detail=_("Missing file"))
         file = files[0]
         if file.size > MAX_OVERLAY_FILE_SIZE:
-            raise exceptions.ValidationError(detail=_("%(file)s is bigger than 100 MB.") % {'file': file.name})
+            raise exceptions.ValidationError(detail=_("%(file)s is bigger than %(size)s MB.") % {'file': file.name, 'size': int(MAX_OVERLAY_FILE_SIZE / 1024 / 1024)})
 
         name = request.data.get('name', '')
         try:
@@ -104,7 +96,11 @@ class TaskOverlays(TaskNestedView):
             raise exceptions.ValidationError(detail=_("Invalid overlay metadata"))
 
         try:
-            geojson = json.load(file)
+            if isinstance(file, InMemoryUploadedFile):
+                geojson = json.load(file)
+            else:
+                with open(file.temporary_file_path(), 'r', encoding='utf-8') as f:
+                    geojson = json.load(f)
             if not isinstance(geojson, dict) or geojson.get('type') != 'FeatureCollection':
                 raise ValueError()
         except (ValueError, json.JSONDecodeError):
@@ -115,16 +111,16 @@ class TaskOverlays(TaskNestedView):
             # Derive from name; add a numeric suffix if taken
             overlay_id = sanitize_overlay_id(name)
             candidate = overlay_id
-            counter = 2
+            i = 2
             while os.path.isfile(overlay_paths(task, candidate)[0]):
-                candidate = "{}-{}".format(overlay_id, counter)
-                counter += 1
+                candidate = "{}-{}".format(overlay_id, i)
+                i += 1
             overlay_id = candidate
 
         stamp = int(time.time() * 1000)
 
         sidecar_path, geojson_path = overlay_paths(task, overlay_id)
-        os.makedirs(overlays_dir(task), exist_ok=True)
+        os.makedirs(task.overlays_path(), exist_ok=True)
         write_overlay_geojson(geojson_path, geojson)
         atomic_write(sidecar_path, json.dumps({'name': name, 'stamp': stamp, 'meta': meta}))
 
@@ -175,7 +171,7 @@ class TaskOverlay(TaskNestedView):
             raise exceptions.ValidationError(detail=_("Invalid overlay metadata"))
 
         # Last write wins
-        if sidecar.get('stamp', 0) > stamp:
+        if sidecar.get('stamp', 0) >= stamp:
             return Response({'updated': False}, status=status.HTTP_200_OK)
 
         if 'name' in body:
@@ -214,7 +210,7 @@ class TaskOverlay(TaskNestedView):
             raise exceptions.NotFound()
 
         # Don't leave empty folders behind
-        d = overlays_dir(task)
+        d = task.overlays_path()
         if os.path.isdir(d) and len(os.listdir(d)) == 0:
             try:
                 os.rmdir(d)
@@ -247,7 +243,7 @@ class TaskOverlayConvert(TaskNestedView):
         if not is_dxf and not is_zip:
             raise exceptions.ValidationError(detail=_("Not a DXF or zipped shapefile: %(file)s") % {'file': file.name})
         if file.size > MAX_OVERLAY_FILE_SIZE:
-            raise exceptions.ValidationError(detail=_("%(file)s is bigger than 100 MB.") % {'file': file.name})
+            raise exceptions.ValidationError(detail=_("%(file)s is bigger than %(size) MB.") % {'file': file.name, 'size': int(MAX_OVERLAY_FILE_SIZE / 1024 / 1024)})
 
         epsg = request.data.get('epsg')
         if epsg is None and is_dxf:
@@ -298,3 +294,7 @@ class TaskOverlayConvert(TaskNestedView):
             return Response(geojson, status=status.HTTP_200_OK)
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def stamp(request, **kwargs):
+    return HttpResponse(json.dumps({'stamp': int(math.floor(time.time() * 1000))}), content_type="application/json")

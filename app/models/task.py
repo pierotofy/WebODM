@@ -398,6 +398,12 @@ class Task(models.Model):
         """
         return self.assets_path("media", *args)
 
+    def overlays_path(self, *args):
+        """
+        Get a path relative to the directory where overlays are stored
+        """
+        return self.assets_path("overlays", *args)
+
     def data_path(self, *args):
         """
         Path to task data that does not fit in database fields (e.g. console output)
@@ -1193,7 +1199,7 @@ class Task(models.Model):
         List of overlays metadata stored with this task
         """
         res = []
-        d = self.assets_path("overlays")
+        d = self.overlays_path()
         if os.path.isdir(d):
             for f in sorted(os.listdir(d)):
                 if not f.endswith(".json"):

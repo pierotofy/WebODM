@@ -218,7 +218,9 @@ class OverlayEntry extends React.Component{
                               value={entry.opacity}
                               onChange={this.handleOpacityChange}
                               title={_("Opacity")} />);
-    const deleteButton = (<a className="layer-action" href="javascript:void(0)" onClick={this.handleDelete} title={_("Delete")}><i className="fa fa-trash"></i></a>);
+    const deleteButton = entry.syncing ?
+                          (<span className="layer-action" title={_("Syncing…")}><i className="fa fa-circle-notch fa-spin"></i></span>)
+                        : (<a className="layer-action" href="javascript:void(0)" onClick={this.handleDelete} title={_("Delete")}><i className="fa fa-trash"></i></a>);
 
     if (entry.children.length === 1){
       return (<div className="layers-control-layer layers-control-overlay">
