@@ -11,14 +11,10 @@ export function addOverlayLayer(file, cb) {
 
   if (file && file.size > maxSize) {
     let err = {};
-    err.message = interpolate(_("%(file)s is bigger than 100 MB."), { file: file.name });
+    err.message = interpolate(_("%(file)s is bigger than %(size)s MB."), { file: file.name, size: parseInt(maxSize / 1024 / 1024) });
     cb(err);
   } else {
-    //get just the first file
-    //file = file[0];
     let reader = new FileReader();
-
-    //geojson file
     reader.onload = function () {
       try {
         let geojson = JSON.parse(reader.result);

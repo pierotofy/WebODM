@@ -74,7 +74,7 @@ class Map extends React.Component {
       imageryLayers: [],
       overlays: [],
       annotations: [],
-      tempOverlays: [],
+      userOverlays: [],
       rightLayers: []
     };
 
@@ -810,7 +810,7 @@ _('Example:'),
         layers: this.state.imageryLayers,
         overlays: this.state.overlays,
         annotations: this.state.annotations,
-        onOverlayRemove: this.removeTempOverlay
+        onUserOverlayRemove: this.removeUserOverlay
     }).addTo(this.map);
 
     this.autolayers = Leaflet.control.autolayers({
@@ -842,7 +842,7 @@ _('Example:'),
               this.assignOverlayTask(entry, this.getNearestTask());
               entry.children.forEach(c => c.layer.addTo(this.map));
               this.setState(update(this.state, {
-                 tempOverlays: {$push: [entry]}
+                 userOverlays: {$push: [entry]}
               }));
               if (this.layersControl) this.layersControl.openPanel();
               //zoom to all features
@@ -1207,7 +1207,7 @@ _('Example:'),
     formData.append("meta", JSON.stringify(this.overlayMeta(entry)));
 
     entry.syncing = true;
-    this.setState({tempOverlays: this.state.tempOverlays.slice()});
+    this.setState({userOverlays: this.state.userOverlays.slice()});
 
     $.ajax({
       url: this.overlayUrl(entry),
@@ -1223,7 +1223,7 @@ _('Example:'),
       this.setState({error: interpolate(_("Cannot save overlay %(name)s"), {name: entry.name})});
     }).always(() => {
       entry.syncing = false;
-      this.setState({tempOverlays: this.state.tempOverlays.slice()});
+      this.setState({userOverlays: this.state.userOverlays.slice()});
     });
   }
 
@@ -1296,11 +1296,11 @@ _('Example:'),
         };
         this.assignOverlayTask(placeholder, task);
         this.setState(update(this.state, {
-          tempOverlays: {$push: [placeholder]}
+          userOverlays: {$push: [placeholder]}
         }));
 
         const removePlaceholder = () => {
-          this.setState({tempOverlays: this.state.tempOverlays.filter(o => o !== placeholder)});
+          this.setState({userOverlays: this.state.userOverlays.filter(o => o !== placeholder)});
         };
 
         $.ajax({
@@ -1311,13 +1311,13 @@ _('Example:'),
             xhr.addEventListener('progress', e => {
               if (e.lengthComputable){
                 placeholder.progress = e.loaded / e.total * 100;
-                this.setState({tempOverlays: this.state.tempOverlays.slice()});
+                this.setState({userOverlays: this.state.userOverlays.slice()});
               }
             }, false);
             return xhr;
           }
         }).done(geojson => {
-          const idx = this.state.tempOverlays.indexOf(placeholder);
+          const idx = this.state.userOverlays.indexOf(placeholder);
           if (idx === -1) return; // Removed in the meantime
 
           if (!geojson || geojson.type !== "FeatureCollection"){
@@ -1340,7 +1340,7 @@ _('Example:'),
             entry.children.forEach(c => { if (c.visible) c.layer.addTo(this.map); });
           }
           this.setState(update(this.state, {
-            tempOverlays: {$splice: [[idx, 1, entry]]}
+            userOverlays: {$splice: [[idx, 1, entry]]}
           }));
         }).fail(removePlaceholder);
       });
@@ -1401,7 +1401,7 @@ _('Example:'),
     this.assignOverlayTask(entry, task);
 
     this.setState(update(this.state, {
-      tempOverlays: {$push: [entry]}
+      userOverlays: {$push: [entry]}
     }));
 
     // Show the upload progress in the layer list
@@ -1424,14 +1424,14 @@ _('Example:'),
               if (e.lengthComputable){
                 entry.progress = e.loaded / e.total * 100;
                 if (entry.progress >= 100) entry.converting = true;
-                this.setState({tempOverlays: this.state.tempOverlays.slice()});
+                this.setState({userOverlays: this.state.userOverlays.slice()});
               }
             }, false);
           }
           return xhr;
         }
     }).done(geojson => {
-        const idx = this.state.tempOverlays.indexOf(entry);
+        const idx = this.state.userOverlays.indexOf(entry);
         if (idx === -1) return; // Removed in the meantime
 
         if (geojson && geojson.type === "FeatureCollection"){
@@ -1440,12 +1440,12 @@ _('Example:'),
           newEntry.group = entry.group;
           newEntry.children.forEach(c => c.layer.addTo(this.map));
           this.setState(update(this.state, {
-            tempOverlays: {$splice: [[idx, 1, newEntry]]}
+            userOverlays: {$splice: [[idx, 1, newEntry]]}
           }));
           if (newEntry.bounds && newEntry.bounds.isValid()) this.map.fitBounds(newEntry.bounds);
           this.storeOverlay(newEntry, geojson);
         }else{
-          this.setState({tempOverlays: this.state.tempOverlays.filter(o => o !== entry),
+          this.setState({userOverlays: this.state.userOverlays.filter(o => o !== entry),
                          error: interpolate(_("Cannot convert %(file)s"), {file: file.name})});
         }
     }).fail(xhr => {
@@ -1456,23 +1456,23 @@ _('Example:'),
           else error = rj.error || rj.detail;
         }
         if (!error) error = interpolate(_("Cannot convert %(file)s"), {file: file.name});
-        this.setState({tempOverlays: this.state.tempOverlays.filter(o => o !== entry), error});
+        this.setState({userOverlays: this.state.userOverlays.filter(o => o !== entry), error});
     });
   }
 
-  removeTempOverlay = (entry, child) => {
+  removeUserOverlay = (entry, child) => {
     // Remove a single sublayer, unless it's the last one
     if (child && entry.children.length > 1){
       this.map.removeLayer(child.layer);
       entry.children = entry.children.filter(c => c !== child);
       recomputeOverlayBounds(entry);
-      this.setState({tempOverlays: this.state.tempOverlays.slice()});
+      this.setState({userOverlays: this.state.userOverlays.slice()});
       if (entry.storageId) this.patchOverlay(entry, {removeLayer: child.name});
       return;
     }
 
     entry.children.forEach(c => this.map.removeLayer(c.layer));
-    this.setState({tempOverlays: this.state.tempOverlays.filter(o => o !== entry)});
+    this.setState({userOverlays: this.state.userOverlays.filter(o => o !== entry)});
     if (entry.storageId && entry.task && this.canEditTask()){
       $.ajax({
         url: this.overlayUrl(entry, entry.storageId),
@@ -1501,13 +1501,13 @@ _('Example:'),
     if (this.layersControl && (prevState.imageryLayers !== this.state.imageryLayers ||
                             prevState.overlays !== this.state.overlays ||
                             prevState.annotations !== this.state.annotations ||
-                            prevState.tempOverlays !== this.state.tempOverlays)){
+                            prevState.userOverlays !== this.state.userOverlays)){
       this.updateLayersControl();
     }
   }
 
   updateLayersControl = () => {
-    this.layersControl.update(this.state.imageryLayers, this.state.overlays, this.state.annotations, this.state.tempOverlays);
+    this.layersControl.update(this.state.imageryLayers, this.state.overlays, this.state.annotations, this.state.userOverlays);
   }
 
   componentWillUnmount() {

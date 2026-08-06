@@ -12,15 +12,15 @@ export default class LayersControlPanel extends React.Component {
       layers: [],
       overlays: [],
       annotations: [],
-      tempOverlays: [],
+      userOverlays: [],
   };
   static propTypes = {
     onClose: PropTypes.func.isRequired,
     layers: PropTypes.array.isRequired,
     overlays: PropTypes.array,
     annotations: PropTypes.array,
-    tempOverlays: PropTypes.array,
-    onOverlayRemove: PropTypes.func,
+    userOverlays: PropTypes.array,
+    onUserOverlayRemove: PropTypes.func,
     map: PropTypes.object.isRequired
   }
 
@@ -47,7 +47,7 @@ export default class LayersControlPanel extends React.Component {
         overlays: [],
         layers: [],
         annotations: [],
-        tempOverlays: []
+        userOverlays: []
       };
       const zIndexGroupMap = {};
 
@@ -62,7 +62,7 @@ export default class LayersControlPanel extends React.Component {
               overlays: [],
               layers: [],
               annotations: [],
-              tempOverlays: [],
+              userOverlays: [],
               name: group.name
             };
             groups[group.id][destination].push(l);
@@ -75,19 +75,19 @@ export default class LayersControlPanel extends React.Component {
       this.props.layers.forEach(scanGroup('layers'));
       this.props.annotations.forEach(scanGroup('annotations'));
 
-      // Temp overlays are plain objects (not Leaflet layers), group is a property
-      this.props.tempOverlays.forEach(entry => {
+      // User overlays are plain objects (not Leaflet layers), group is a property
+      this.props.userOverlays.forEach(entry => {
         if (entry.group){
           groups[entry.group.id] = groups[entry.group.id] || {
             overlays: [],
             layers: [],
             annotations: [],
-            tempOverlays: [],
+            userOverlays: [],
             name: entry.group.name
           };
-          groups[entry.group.id].tempOverlays.push(entry);
+          groups[entry.group.id].userOverlays.push(entry);
         }else{
-          main.tempOverlays.push(entry);
+          main.userOverlays.push(entry);
         }
       });
 
@@ -100,9 +100,9 @@ export default class LayersControlPanel extends React.Component {
             </div>
           : ""}
 
-          {group.tempOverlays.length ?
-            <div className="temp-overlays theme-border-primary">
-              <LayersControlOverlays map={this.props.map} overlays={group.tempOverlays} onRemove={this.props.onOverlayRemove} />
+          {group.userOverlays.length ?
+            <div className="user-overlays theme-border-primary">
+              <LayersControlOverlays map={this.props.map} overlays={group.userOverlays} onRemove={this.props.onUserOverlayRemove} />
             </div>
           : ""}
 
