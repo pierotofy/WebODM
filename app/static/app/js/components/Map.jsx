@@ -27,7 +27,6 @@ import CropButton from './CropButton';
 import update from 'immutability-helper';
 import ColorMaps from '../classes/ColorMaps';
 import Utils from '../classes/Utils';
-import '../vendor/leaflet/Leaflet.Ajax';
 import 'rbush';
 import '../vendor/leaflet/leaflet-markers-canvas';
 import '../vendor/leaflet/Leaflet.SideBySide/leaflet-side-by-side';
