@@ -75,7 +75,7 @@ export default class LayersControlPanel extends React.Component {
       this.props.layers.forEach(scanGroup('layers'));
       this.props.annotations.forEach(scanGroup('annotations'));
 
-      // User overlays are plain objects (not Leaflet layers), group is a property
+      // user overlays don't have meta.task so we use a different scanGroup implementation
       this.props.userOverlays.forEach(entry => {
         if (entry.group){
           groups[entry.group.id] = groups[entry.group.id] || {

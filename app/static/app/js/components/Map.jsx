@@ -83,8 +83,8 @@ class Map extends React.Component {
     this.overlayUploadCount = 0;
     this.pendingDxfFile = null;
     this.pendingDxfTask = null;
-    this._serverStamp = null;
-    this._clientStamp = null;
+    this.serverStamp = null;
+    this.clientStamp = null;
     this.autolayers = null;
     this.taskCount = 1;
     this.addedCameraShots = {};
@@ -821,17 +821,17 @@ _('Example:'),
 
     // Drag & Drop overlays
     const addDnDZone = (container, opts) => {
-        const mapTempLayerDrop = new Dropzone(container, opts);
-        mapTempLayerDrop.on("addedfile", (file) => {
+        const mapOverlayLayerDrop = new Dropzone(container, opts);
+        mapOverlayLayerDrop.on("addedfile", (file) => {
           if (/\.dxf$/i.test(file.name)){
-            mapTempLayerDrop.removeFile(file);
+            mapOverlayLayerDrop.removeFile(file);
             this.handleDxfDrop(file);
             return;
           }
 
           // Zipped shapefiles are converted server-side
           if (/\.zip$/i.test(file.name)){
-            mapTempLayerDrop.removeFile(file);
+            mapOverlayLayerDrop.removeFile(file);
             if (this.checkOverlayTask()) this.uploadOverlay(file, null, this.getNearestTask());
             return;
           }
@@ -855,8 +855,8 @@ _('Example:'),
             this.setState({showLoading: false});
           });
         });
-        mapTempLayerDrop.on("error", (file) => {
-          mapTempLayerDrop.removeFile(file);
+        mapOverlayLayerDrop.on("error", (file) => {
+          mapOverlayLayerDrop.removeFile(file);
         });
     };
 
@@ -1239,15 +1239,15 @@ _('Example:'),
 
     // Stamps are in the server's clock domain: fetch server time once,
     // then derive subsequent stamps from the elapsed client time
-    if (!this._serverStamp){
+    if (!this.serverStamp){
       $.ajax({
         type: 'GET',
         url: `/api/projects/${entry.task.project}/tasks/${entry.task.id}/overlays/stamp`,
         contentType: "application/json"
       }).done(result => {
         if (result.stamp){
-          this._serverStamp = result.stamp;
-          this._clientStamp = new Date().getTime();
+          this.serverStamp = result.stamp;
+          this.clientStamp = new Date().getTime();
           this.patchOverlay(entry, extra); // Resume
         }else{
           console.warn(result);
@@ -1264,7 +1264,7 @@ _('Example:'),
       type: 'PATCH',
       contentType: 'application/json',
       data: JSON.stringify(Object.assign({
-        stamp: this._serverStamp + (new Date().getTime() - this._clientStamp),
+        stamp: this.serverStamp + (new Date().getTime() - this.clientStamp),
         name: entry.name,
         meta: this.overlayMeta(entry)
       }, extra))
@@ -1732,7 +1732,7 @@ _('Example:'),
             ref={(domNode) => { this.dxfDialog = domNode; }}
             title={_("Import DXF")}
             saveLabel={_("Import")}
-            savingLabel={_("Importing…")}
+            savingLabel={_("Importing...")}
             saveIcon="fa fa-file-import"
             getFormData={() => ({epsg: this.dxfEpsgInput ? this.dxfEpsgInput.value : ""})}
             saveAction={this.handleDxfImport}

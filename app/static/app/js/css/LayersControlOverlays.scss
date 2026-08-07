@@ -1,29 +1,29 @@
-.overlays-toggle{
-    margin-left: 3px;
-}
-
 .layers-control-overlays{
+    .overlays-toggle{
+        margin-left: 3px;
+    }
+
     .layer-action.placeholder{
         visibility: hidden;
     }
 }
 
-.layers-control-overlay, .layers-control-overlay-child{
-    .layer-control-title{
-        align-items: baseline;
+.layers-control-overlay{
+    &, &-child{
+        .layer-control-title{
+            align-items: baseline;
 
-        .toggle, .paddingSpace, .overlay-color-dot, .overlay-opacity, .layer-action{
-            flex-shrink: 0;
+            .toggle, .paddingSpace, .overlay-color-dot, .overlay-opacity, .layer-action{
+                flex-shrink: 0;
+            }
+        }
+
+        .layer-label{
+            padding-left: 6px;
+            min-width: 0;
         }
     }
 
-    .layer-label{
-        padding-left: 6px;
-        min-width: 0;
-    }
-}
-
-.layers-control-overlay{
     .layer-control-title{
         margin-left: 8px;
     }
@@ -51,10 +51,8 @@
         padding: 0 !important;
         align-self: center;
     }
-}
 
-.layers-control-overlay-child{
-    .layer-control-title{
+    &-child .layer-control-title{
         margin-left: 42px;
 
         .toggle, .overlay-color-dot{

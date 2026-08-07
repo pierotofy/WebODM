@@ -21,13 +21,12 @@ class ColorDot extends React.Component{
   }
 
   componentDidMount(){
-    // Capture phase, as the layers control stops propagation of mouse events
-    document.addEventListener('mousedown', this.handleDocMouseDown, true);
+    document.addEventListener('mousedown', this.handleMouseDown, true);
     this.props.child.layer.on('overlay:stylechanged', this.handleStyleChanged);
   }
 
   componentWillUnmount(){
-    document.removeEventListener('mousedown', this.handleDocMouseDown, true);
+    document.removeEventListener('mousedown', this.handleMouseDown, true);
     this.props.child.layer.off('overlay:stylechanged', this.handleStyleChanged);
   }
 
@@ -35,7 +34,7 @@ class ColorDot extends React.Component{
     this.forceUpdate();
   }
 
-  handleDocMouseDown = e => {
+  handleMouseDown = e => {
     if (this.state.pickerOpen && this.domNode && !this.domNode.contains(e.target)){
       this.setState({pickerOpen: false});
     }
@@ -138,9 +137,6 @@ class OverlayEntry extends React.Component{
 
     this.state = {
       visible: props.entry.visible !== false,
-
-      // Overlays restored from server storage start collapsed,
-      // freshly dropped ones expanded
       expanded: !props.entry.stored
     };
 
@@ -155,21 +151,21 @@ class OverlayEntry extends React.Component{
     if (prevState.visible !== this.state.visible){
       this.props.entry.visible = this.state.visible;
       if (this.sectionVisible()){
-        this.applyVisibility(true);
+        this.updateVisibility(true);
       }
       if (this.props.entry.onSync) this.props.entry.onSync(this.props.entry);
     }
   }
 
-  applyVisibility = parentVisible => {
+  updateVisibility = parentVisible => {
     const { entry } = this.props;
-    const effective = parentVisible && this.state.visible;
+    const isVisible = parentVisible && this.state.visible;
 
     if (entry.children.length === 1){
-      this.setLayer(entry.children[0].layer, effective);
+      this.setLayer(entry.children[0].layer, isVisible);
     }else{
       this.childRefs.forEach(c => {
-        if (c) c.setLayerVisibility(effective && c.state.visible);
+        if (c) c.setLayerVisibility(isVisible && c.state.visible);
       });
     }
   }
@@ -280,7 +276,7 @@ export default class LayersControlOverlays extends React.Component {
   componentDidUpdate(prevProps, prevState){
     if (prevState.visible !== this.state.visible){
       this.entryRefs.forEach(entry => {
-        if (entry) entry.applyVisibility(this.state.visible);
+        if (entry) entry.updateVisibility(this.state.visible);
       });
     }
   }
