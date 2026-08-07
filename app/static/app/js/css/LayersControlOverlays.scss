@@ -1,0 +1,103 @@
+.layers-control-overlays{
+    .overlays-toggle{
+        margin-left: 3px;
+    }
+
+    .layer-action.placeholder{
+        visibility: hidden;
+    }
+}
+
+.layers-control-overlay{
+    &, &-child{
+        .layer-control-title{
+            align-items: baseline;
+
+            .toggle, .paddingSpace, .overlay-color-dot, .overlay-opacity, .layer-action{
+                flex-shrink: 0;
+            }
+        }
+
+        .layer-label{
+            padding-left: 6px;
+            min-width: 0;
+        }
+    }
+
+    .layer-control-title{
+        margin-left: 8px;
+    }
+
+    .loading-icon{
+        margin-left: 4px;
+        margin-right: 8px;
+        align-self: center;
+        position: relative;
+        top: -2px;
+        left: 2px;
+    }
+
+    .loading-title{
+        align-self: center;
+    }
+
+    .progress-info{
+        opacity: 0.7;
+    }
+
+    .overlay-opacity{
+        width: 60px;
+        margin: 0 4px;
+        padding: 0 !important;
+        align-self: center;
+    }
+
+    &-child .layer-control-title{
+        margin-left: 42px;
+
+        .toggle, .overlay-color-dot{
+            position: relative;
+            top: 1px;
+        }
+    }
+}
+
+.overlay-color-dot{
+    position: relative;
+    display: inline-block;
+
+    .btn-color-dot{
+        display: block;
+        width: 14px !important;
+        height: 14px !important;
+        box-sizing: border-box;
+        border-radius: 50%;
+        border: 1px solid rgba(0, 0, 0, 0.3);
+        margin-left: 2px;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .overlay-color-popup{
+        position: absolute;
+        left: 100%;
+        top: 50%;
+        transform: translateY(-50%);
+        margin-left: 6px;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        white-space: nowrap;
+        background: #fff;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
+        padding: 4px 6px;
+
+        .btn-color{
+            width: 16px;
+            height: 16px;
+            margin-right: 6px;
+        }
+    }
+}

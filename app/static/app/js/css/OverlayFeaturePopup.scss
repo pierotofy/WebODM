@@ -1,0 +1,52 @@
+.overlay-feature-popup{
+    min-width: 250px;
+    .title{
+        min-height: 16px;
+        font-weight: bold;
+        margin-bottom: 8px;
+        padding-right: 16px;
+    }
+
+    .line{
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+
+        &.align-baseline{
+            align-items: baseline;
+        }
+    }
+
+    .popup-label{
+        font-weight: bold;
+        margin-right: 8px;
+
+        &.measure{
+            width: 33%;
+            flex-shrink: 0;
+            word-break: break-word;
+        }
+    }
+
+    .measurement{
+        font-size: 14px;
+        word-break: break-word;
+    }
+
+    .properties{
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .btn-color{
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+
+        &.selected{
+            box-shadow: 0 0 1px 2px #333;
+        }
+
+        margin-right: 8px;
+    }
+}
