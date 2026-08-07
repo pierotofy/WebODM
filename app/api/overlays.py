@@ -239,7 +239,7 @@ class TaskOverlayConvert(TaskNestedView):
         if not is_dxf and not is_zip:
             raise exceptions.ValidationError(detail=_("Not a DXF or zipped shapefile: %(file)s") % {'file': file.name})
         if file.size > MAX_OVERLAY_FILE_SIZE:
-            raise exceptions.ValidationError(detail=_("%(file)s is bigger than %(size) MB.") % {'file': file.name, 'size': int(MAX_OVERLAY_FILE_SIZE / 1024 / 1024)})
+            raise exceptions.ValidationError(detail=_("%(file)s is bigger than %(size)s MB.") % {'file': file.name, 'size': int(MAX_OVERLAY_FILE_SIZE / 1024 / 1024)})
 
         epsg = request.data.get('epsg')
         if epsg is None and is_dxf:
