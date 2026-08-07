@@ -88,8 +88,7 @@ RUN --mount=type=cache,target=/root/.npm \
     <<EOT
     npm install --quiet
     # Install webpack, webpack CLI
-    npm install --quiet -g webpack@5.89.0
-    npm install --quiet -g webpack-cli@5.1.4
+    npm install --quiet -g webpack@5.89.0 webpack-cli@5.1.4
 EOT
 
 # Copy remaining files
@@ -152,8 +151,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         python$PYTHON_VERSION python$PYTHON_VERSION-distutils gdal-bin pdal \
         nginx certbot logrotate gettext-base cron postgresql-client gettext tzdata git exiftool
     # Install webpack, webpack CLI
-    npm install --quiet -g webpack@5.89.0
-    npm install --quiet -g webpack-cli@5.1.4
+    npm install --quiet -g webpack@5.89.0 webpack-cli@5.1.4
     # Cleanup of build requirements
     apt-get autoremove -y
     apt-get clean
