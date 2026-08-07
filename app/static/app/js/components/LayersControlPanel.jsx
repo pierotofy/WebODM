@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import '../css/LayersControlPanel.scss';
 import LayersControlLayer from './LayersControlLayer';
 import LayersControlAnnotations from './LayersControlAnnotations';
+import LayersControlOverlays from './LayersControlOverlays';
 import { _ } from '../classes/gettext';
 import L from 'leaflet';
 
@@ -11,12 +12,15 @@ export default class LayersControlPanel extends React.Component {
       layers: [],
       overlays: [],
       annotations: [],
+      userOverlays: [],
   };
   static propTypes = {
     onClose: PropTypes.func.isRequired,
     layers: PropTypes.array.isRequired,
     overlays: PropTypes.array,
     annotations: PropTypes.array,
+    userOverlays: PropTypes.array,
+    onUserOverlayRemove: PropTypes.func,
     map: PropTypes.object.isRequired
   }
 
@@ -42,7 +46,8 @@ export default class LayersControlPanel extends React.Component {
       const main = {
         overlays: [],
         layers: [],
-        annotations: []
+        annotations: [],
+        userOverlays: []
       };
       const zIndexGroupMap = {};
 
@@ -57,6 +62,7 @@ export default class LayersControlPanel extends React.Component {
               overlays: [],
               layers: [],
               annotations: [],
+              userOverlays: [],
               name: group.name
             };
             groups[group.id][destination].push(l);
@@ -69,12 +75,34 @@ export default class LayersControlPanel extends React.Component {
       this.props.layers.forEach(scanGroup('layers'));
       this.props.annotations.forEach(scanGroup('annotations'));
 
+      // user overlays don't have meta.task so we use a different scanGroup implementation
+      this.props.userOverlays.forEach(entry => {
+        if (entry.group){
+          groups[entry.group.id] = groups[entry.group.id] || {
+            overlays: [],
+            layers: [],
+            annotations: [],
+            userOverlays: [],
+            name: entry.group.name
+          };
+          groups[entry.group.id].userOverlays.push(entry);
+        }else{
+          main.userOverlays.push(entry);
+        }
+      });
+
       const getGroupContent = group => {
         return (<div>
 
-          {group.annotations.length ? 
+          {group.annotations.length ?
             <div className="annotations theme-border-primary">
                <LayersControlAnnotations layers={group.annotations} />
+            </div>
+          : ""}
+
+          {group.userOverlays.length ?
+            <div className="user-overlays theme-border-primary">
+              <LayersControlOverlays map={this.props.map} overlays={group.userOverlays} onRemove={this.props.onUserOverlayRemove} />
             </div>
           : ""}
 
@@ -97,7 +125,8 @@ export default class LayersControlPanel extends React.Component {
         </div>);
       };
 
-      content = (<div>{getGroupContent(main)}
+      content = (<div>
+        {getGroupContent(main)}
         {Object.keys(groups).sort((a, b) => {
           const za = zIndexGroupMap[a] || 1;
           const zb = zIndexGroupMap[b] || 1;
