@@ -1,32 +1,10 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import '../css/ColorPicker.scss';
-import { colors, getColorsList } from '../classes/OverlayColors';
+import OverlayColors from '../classes/OverlayColors';
+import ColorSwatches from './ColorSwatches';
 
-class ColorSwatches extends React.Component {
-    static propTypes = {
-        colorKey: PropTypes.string.isRequired,
-        onClick: PropTypes.func.isRequired
-    }
-
-    handleClick = key => {
-        return () => {
-            this.props.onClick(key);
-        }
-    }
-
-    render(){
-        return (<div className="color-swatches">
-            {getColorsList().map(c => <div key={c.key}
-                onClick={this.handleClick(c.key)}
-                className={"btn-color " + (this.props.colorKey === c.key ? "selected" : "")}
-                title={c.label}
-                style={{backgroundColor: c.color}}></div>)}
-        </div>);
-    }
-}
-
-class ColorPicker extends React.Component {
+export default class ColorPicker extends React.Component {
     static propTypes = {
         colorKey: PropTypes.string.isRequired,
         onChange: PropTypes.func.isRequired
@@ -51,7 +29,7 @@ class ColorPicker extends React.Component {
 
     render(){
         const { colorKey } = this.props;
-        const selected = colors[colorKey];
+        const selected = OverlayColors.colors[colorKey];
 
         return (<div className="color-picker">
             {this.state.editing ?
@@ -63,9 +41,3 @@ class ColorPicker extends React.Component {
         </div>);
     }
 }
-
-export {
-    ColorPicker,
-    ColorSwatches
-}
-export default ColorPicker;

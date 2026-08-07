@@ -15,7 +15,7 @@ import GCPPopup from './GCPPopup';
 import MediaView from './MediaView';
 import SwitchModeButton from './SwitchModeButton';
 import ShareButton from './ShareButton';
-import {addOverlayLayer, buildOverlay, recomputeOverlayBounds} from '../classes/OverlayLayer';
+import OverlayLayer from '../classes/OverlayLayer';
 import FormDialog from './FormDialog';
 import PropTypes from 'prop-types';
 import PluginsAPI from '../classes/plugins/API';
@@ -836,7 +836,7 @@ _('Example:'),
           }
 
           this.setState({showLoading: true});
-          addOverlayLayer(file, (err, entry, geojson) => {
+          OverlayLayer.addOverlayLayer(file, (err, entry, geojson) => {
             if (!err){
               this.assignOverlayTask(entry, this.getNearestTask());
               entry.children.forEach(c => c.layer.addTo(this.map));
@@ -1325,7 +1325,7 @@ _('Example:'),
           }
 
           const meta = item.meta || {};
-          const entry = buildOverlay(geojson, item.name || _("Overlay"), {
+          const entry = OverlayLayer.buildOverlay(geojson, item.name || _("Overlay"), {
             colors: meta.colors || {},
             opacity: meta.opacity,
             visible: meta.visible,
@@ -1434,7 +1434,7 @@ _('Example:'),
         if (idx === -1) return; // Removed in the meantime
 
         if (geojson && geojson.type === "FeatureCollection"){
-          const newEntry = buildOverlay(geojson, file.name);
+          const newEntry = OverlayLayer.buildOverlay(geojson, file.name);
           newEntry.task = entry.task;
           newEntry.group = entry.group;
           newEntry.children.forEach(c => c.layer.addTo(this.map));
@@ -1464,7 +1464,7 @@ _('Example:'),
     if (child && entry.children.length > 1){
       this.map.removeLayer(child.layer);
       entry.children = entry.children.filter(c => c !== child);
-      recomputeOverlayBounds(entry);
+      OverlayLayer.recomputeOverlayBounds(entry);
       this.setState({userOverlays: this.state.userOverlays.slice()});
       if (entry.storageId) this.patchOverlay(entry, {removeLayer: child.name});
       return;

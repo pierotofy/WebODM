@@ -2,9 +2,9 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import '../css/LayersControlOverlays.scss';
 import { Checkbox, ExpandButton } from './Toggle';
-import { ColorSwatches } from './ColorPicker';
-import { colors } from '../classes/OverlayColors';
-import { updateOverlayColor, updateOverlayOpacity } from '../classes/OverlayLayer';
+import ColorSwatches from './ColorSwatches';
+import OverlayColors from '../classes/OverlayColors';
+import OverlayLayer from '../classes/OverlayLayer';
 import { _ } from '../classes/gettext';
 
 class ColorDot extends React.Component{
@@ -45,7 +45,7 @@ class ColorDot extends React.Component{
   }
 
   handlePick = colorKey => {
-    updateOverlayColor(this.props.child, colorKey);
+    OverlayLayer.updateOverlayColor(this.props.child, colorKey);
     this.setState({pickerOpen: false});
   }
 
@@ -56,7 +56,7 @@ class ColorDot extends React.Component{
       <div className="btn-color-dot"
         title={_("Change color")}
         onClick={this.handleToggle}
-        style={{backgroundColor: colors[child.colorKey].color}}></div>
+        style={{backgroundColor: OverlayColors.colors[child.colorKey].color}}></div>
       {this.state.pickerOpen ?
         <div className="overlay-color-popup">
           <ColorSwatches colorKey={child.colorKey} onClick={this.handlePick} />
@@ -66,7 +66,7 @@ class ColorDot extends React.Component{
   }
 }
 
-class OverlayLayer extends React.Component{
+class OverlaySubLayer extends React.Component{
   static propTypes = {
     parent: PropTypes.object,
     child: PropTypes.object,
@@ -187,7 +187,7 @@ class OverlayEntry extends React.Component{
   }
 
   handleOpacityChange = e => {
-    updateOverlayOpacity(this.props.entry, parseFloat(e.target.value));
+    OverlayLayer.updateOverlayOpacity(this.props.entry, parseFloat(e.target.value));
     this.forceUpdate();
   }
 
@@ -240,7 +240,7 @@ class OverlayEntry extends React.Component{
         {deleteButton}
       </div>
       <div className={"layer-expanded " + (!this.state.expanded ? "hide" : "")}>
-        {entry.children.map((child, i) => <OverlayLayer parent={this}
+        {entry.children.map((child, i) => <OverlaySubLayer parent={this}
                                             ref={domNode => this.childRefs[i] = domNode}
                                             key={child.name}
                                             child={child}
