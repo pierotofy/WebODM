@@ -154,16 +154,19 @@ class ToasterTask extends React.Component {
         let icon = ACTION_ICONS[task.action] || ACTION_ICONS['process'];
         if (task.canceled) icon = "fa fa-ban";
         if (task.ready) icon = "fa fa-check";
+        if (task.ready && task.link) icon = "fa fa-clipboard";
         if (task.error) icon = "fa fa-exclamation-triangle";
 
         let label = task.name;
         if (task.error) label = `${task.name} - ${task.error}`;
 
         let iconTitle = task.error || task.status || task.name;
+        if (task.ready && !task.error) iconTitle = task.name;
+
         let labelTitle = label;
 
         if (task.link){
-            iconTitle = labelTitle = task.link;
+            label = labelTitle = task.link;
         }
 
         let background = "";
