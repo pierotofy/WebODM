@@ -78,11 +78,10 @@
             display: flex;
             align-items: center;
             i{ margin-right: 6px; font-size: 15px; }
-
             .toaster-share-pulse{
                 animation: toaster-share-pulse 1.5s ease-in-out infinite;
             }
-            .toaster-task-label-text{
+            .task-toaster-label-text{
                 max-width: 240px;
                 text-overflow: ellipsis;
                 overflow-x: hidden;
