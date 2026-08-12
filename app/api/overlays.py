@@ -56,7 +56,7 @@ def atomic_write(path, data):
     try:
         with os.fdopen(fd, 'wb') as f:
             f.write(data)
-        os.rename(tmp, path)
+        os.replace(tmp, path)
     finally:
         if os.path.isfile(tmp):
             os.unlink(tmp)
