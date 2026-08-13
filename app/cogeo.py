@@ -5,7 +5,7 @@ import shutil
 import rasterio
 import re
 import subprocess
-from pipes import quote
+from shelx import quote
 from rio_tiler.utils import has_alpha_band
 from webodm import settings
 
