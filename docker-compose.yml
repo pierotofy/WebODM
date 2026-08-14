@@ -21,7 +21,8 @@ services:
     volumes:
       - ${WO_MEDIA_DIR}:/webodm/app/media:z
     ports:
-      - "${WO_PORT}:8000"
+      - "${WO_PORT}:8000/tcp"
+      - "${WO_PORT}:8000/udp"
     depends_on:
       - db
       - broker

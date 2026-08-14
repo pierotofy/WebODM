@@ -71,7 +71,7 @@ class Dashboard extends React.Component {
 
 
     return [
-      <Router basename="/dashboard">
+      <Router key="router" basename="/dashboard">
         <div>
           {this.props.permissions.indexOf("add_project") !== -1 ? 
           <div className="text-right add-button">
@@ -90,7 +90,7 @@ class Dashboard extends React.Component {
           <Route path="/" component={projectList} />
         </div>
       </Router>,
-      <Toaster />
+      <Toaster key="toaster" />
     ];
   }
 }

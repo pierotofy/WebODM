@@ -1,0 +1,22 @@
+.color-swatches, .color-picker{
+    display: inline-flex;
+    align-items: center;
+
+    .btn-color{
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: inline-block;
+        flex-shrink: 0;
+        margin-right: 8px;
+        cursor: pointer;
+
+        &.selected{
+            box-shadow: 0 0 1px 2px #333;
+        }
+
+        &:last-child{
+            margin-right: 0;
+        }
+    }
+}

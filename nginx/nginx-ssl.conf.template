@@ -36,14 +36,25 @@ http {
   }
 
   server {
-    listen 8000 ssl http2 deferred;
-    listen [::]:8000 ssl http2 deferred;
+    listen 8000 ssl deferred;
+    listen [::]:8000 ssl deferred;
+
+    listen 8000 quic reuseport;
+    listen [::]:8000 quic reuseport;
+
+    http2 on;
+    http3 on;
+
     client_max_body_size 0;
 
     server_name $WO_HOST;
 
     ssl_certificate /webodm/nginx/ssl/cert.pem;
     ssl_certificate_key /webodm/nginx/ssl/key.pem;
+
+    # advertise HTTP/3
+    add_header Alt-Svc 'h3=":$WO_PORT"; ma=86400' always;
+    http3_stream_buffer_size 1m;
 
     keepalive_timeout 15;
 
@@ -70,7 +81,7 @@ http {
 
       # enable this if and only if you use HTTPS
       proxy_set_header X-Forwarded-Proto https;
-      proxy_set_header Host $http_host;
+      proxy_set_header Host $host;
 
       # we don't want nginx trying to do something clever with
       # redirects, we set the Host: header above already.
@@ -86,7 +97,7 @@ http {
 
       # enable this if and only if you use HTTPS
       # proxy_set_header X-Forwarded-Proto https;
-      proxy_set_header Host $http_host;
+      proxy_set_header Host $host;
 
       # we don't want nginx trying to do something clever with
       # redirects, we set the Host: header above already.

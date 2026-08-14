@@ -150,7 +150,7 @@ class ProjectListItem extends React.Component {
       this.dz = new Dropzone(this.dropzone, {
           paramName: "images",
           url : 'TO_BE_CHANGED',
-          parallelUploads: unstableConnection ? 1 : 4,
+          parallelUploads: unstableConnection ? 1 : 6,
           uploadMultiple: false,
           acceptedFiles: "image/*,text/plain,.las,.laz,video/*,.srt,.dng,.nef",
           autoProcessQueue: false,
