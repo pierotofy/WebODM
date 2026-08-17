@@ -121,6 +121,7 @@ def model_display(request, project_pk=None, task_pk=None):
             'title': title,
             'params': {
                 'task': json.dumps(task.get_model_display_params()),
+                'title': title,
                 'public': 'false',
                 'share-buttons': 'true'
             }.items()

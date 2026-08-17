@@ -15,7 +15,7 @@ export default {
             {
                 action: "openmvs",
                 label: _("Multi View Stereo"),
-                icon: "fa fa-braille"
+                icon: "fa fa-pointcloud"
             },
             {
                 action: "odm_filterpoints",
