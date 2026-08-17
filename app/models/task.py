@@ -219,6 +219,8 @@ class Task(models.Model):
             'shots.geojson': os.path.join('odm_report', 'shots.geojson'),
             'report.pdf': os.path.join('odm_report', 'report.pdf'),
             'ground_control_points.geojson': os.path.join('odm_georeferencing', 'ground_control_points.geojson'),
+            'splats.rad': os.path.join('splats', 'model.rad'),
+            'splats.spz': os.path.join('splats', 'model.spz'),
     }
 
     STATUS_CODES = (

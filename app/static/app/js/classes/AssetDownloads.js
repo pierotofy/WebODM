@@ -60,8 +60,8 @@ const api = {
       new AssetDownload(_("Camera Shots"),"shots.geojson","fa fa-camera"),
       new AssetDownload(_("Ground Control Points"),"ground_control_points.geojson","far fa-dot-circle"),
       new AssetDownload(_("Quality Report"),"report.pdf","far fa-file-pdf"),
-      
-      
+      new AssetDownload(_("Gaussian Splats (RAD)"),"model.rad","fa fa-splat"),
+      new AssetDownload(_("Gaussian Splats (SPZ)"),"model.spz","fa fa-splat"),
       
       new AssetDownloadSeparator(),
       new AssetDownload(_("All Assets"),"all.zip","far fa-file-archive")
