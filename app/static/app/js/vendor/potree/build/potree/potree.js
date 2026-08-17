@@ -79293,7 +79293,7 @@ ENDSEC
 				Potree.resourcePath + '/icons/angle.png',
 				'[title]tt.angle_measurement',
 				() => {
-					$('#menu_measurements').next().slideDown();
+					$('#menu_measurements').next().show();
 					let measurement = this.measuringTool.startInsertion({
 						showDistances: false,
 						showAngles: true,
@@ -79314,7 +79314,7 @@ ENDSEC
 				Potree.resourcePath + '/icons/point.svg',
 				'[title]tt.point_measurement',
 				() => {
-					$('#menu_measurements').next().slideDown();
+					$('#menu_measurements').next().show();
 					let measurement = this.measuringTool.startInsertion({
 						showDistances: false,
 						showAngles: false,
@@ -79336,7 +79336,7 @@ ENDSEC
 				Potree.resourcePath + '/icons/distance.svg',
 				'[title]tt.distance_measurement',
 				() => {
-					$('#menu_measurements').next().slideDown();
+					$('#menu_measurements').next().show();
 					let measurement = this.measuringTool.startInsertion({
 						showDistances: true,
 						showArea: false,
@@ -79355,7 +79355,7 @@ ENDSEC
 				Potree.resourcePath + '/icons/height.svg',
 				'[title]tt.height_measurement',
 				() => {
-					$('#menu_measurements').next().slideDown();
+					$('#menu_measurements').next().show();
 					let measurement = this.measuringTool.startInsertion({
 						showDistances: false,
 						showHeight: true,
@@ -79376,7 +79376,7 @@ ENDSEC
 				Potree.resourcePath + '/icons/circle.svg',
 				'[title]tt.circle_measurement',
 				() => {
-					$('#menu_measurements').next().slideDown();
+					$('#menu_measurements').next().show();
 					let measurement = this.measuringTool.startInsertion({
 						showDistances: false,
 						showHeight: false,
@@ -79399,7 +79399,7 @@ ENDSEC
 				Potree.resourcePath + '/icons/azimuth.svg',
 				'Azimuth',
 				() => {
-					$('#menu_measurements').next().slideDown();
+					$('#menu_measurements').next().show();
 					let measurement = this.measuringTool.startInsertion({
 						showDistances: false,
 						showHeight: false,
@@ -79423,7 +79423,7 @@ ENDSEC
 				Potree.resourcePath + '/icons/area.svg',
 				'[title]tt.area_measurement',
 				() => {
-					$('#menu_measurements').next().slideDown();
+					$('#menu_measurements').next().show();
 					let measurement = this.measuringTool.startInsertion({
 						showDistances: true,
 						showArea: true,
@@ -79470,7 +79470,7 @@ ENDSEC
 				Potree.resourcePath + '/icons/profile.svg',
 				'[title]tt.height_profile',
 				() => {
-					$('#menu_measurements').next().slideDown(); ;
+					$('#menu_measurements').next().show(); ;
 					let profile = this.profileTool.startInsertion();
 
 					let measurementsRoot = $("#jstree_scene").jstree().get_json("measurements");
@@ -79485,7 +79485,7 @@ ENDSEC
 				Potree.resourcePath + '/icons/annotation.svg',
 				'[title]tt.annotation',
 				() => {
-					$('#menu_measurements').next().slideDown(); ;
+					$('#menu_measurements').next().show(); ;
 					let annotation = this.viewer.annotationTool.startInsertion();
 
 					let annotationsRoot = $("#jstree_scene").jstree().get_json("annotations");
@@ -80485,7 +80485,7 @@ ENDSEC
 				content.hide();
 
 				header.click(() => {
-					content.slideToggle();
+					content.toggle();
 				});
 			});
 

@@ -12,7 +12,7 @@ const ASSET_TYPES = [
   { key: 'orthophoto', label: _('Orthophoto'), icon: 'fa fa-map', accept: '.tif', mimeTypes: 'image/tiff' },
   { key: 'dsm', label: _('Surface Model'), icon: 'fa fa-chart-area', accept: '.tif', mimeTypes: 'image/tiff' },
   { key: 'dtm', label: _('Terrain Model'), icon: 'fa fa-chart-area', accept: '.tif', mimeTypes: 'image/tiff' },
-  { key: 'pointcloud', label: _('Point Cloud'), icon: 'fa fa-braille', accept: '.laz,.las', mimeTypes: 'application/vnd.laszip,application/vnd.las' },
+  { key: 'pointcloud', label: _('Point Cloud'), icon: 'fa fa-pointcloud', accept: '.laz,.las', mimeTypes: 'application/vnd.laszip,application/vnd.las' },
   { key: 'texturedmodel', label: _('Textured Model'), icon: 'fab fa-connectdevelop', accept: '.glb', mimeTypes: 'gltf-binary' }
 ];
 

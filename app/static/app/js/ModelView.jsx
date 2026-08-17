@@ -72,41 +72,6 @@ class SetCameraView extends React.Component{
     }
 }
 
-class TexturedModelMenu extends React.Component{
-    static propTypes = {
-        toggleTexturedModel: PropTypes.func.isRequired,
-        selected: PropTypes.bool
-    }
-
-    static defaultProps = {
-        selected: false
-    }
-
-    constructor(props){
-        super(props);
-
-        this.state = {
-            showTexturedModel: props.selected
-        }
-        
-        // Translation for sidebar.html
-        _("Cameras");
-    }
-
-    handleClick = (e) => {
-        this.setState({showTexturedModel: e.target.checked});
-        this.props.toggleTexturedModel(e);
-    }
-
-    render(){
-        return (<label><input 
-                            type="checkbox" 
-                            checked={this.state.showTexturedModel}
-                            onChange={this.handleClick}
-                        /> {_("Show Model")}</label>);
-    }
-}
-
 class CamerasMenu extends React.Component{
     static propTypes = {
         toggleCameras: PropTypes.func.isRequired,
@@ -119,6 +84,9 @@ class CamerasMenu extends React.Component{
         this.state = {
             showCameras: false
         }
+
+        // Translations
+        _("Cameras");
     }
 
     componentDidMount(){
@@ -164,14 +132,16 @@ class ModelView extends React.Component {
     task: null,
     public: false,
     shareButtons: true,
-    modelType: "cloud"
+    modelType: "cloud",
+    title: ""
   };
 
   static propTypes = {
       task: PropTypes.object.isRequired, // The object should contain two keys: {id: <taskId>, project: <projectId>}
       public: PropTypes.bool, // Is the view being displayed via a shared link?
       shareButtons: PropTypes.bool,
-      modelType: PropTypes.oneOf(['cloud', 'mesh'])
+      modelType: PropTypes.oneOf(['cloud', 'mesh']),
+      title: PropTypes.string
   };
 
   constructor(props){
@@ -184,6 +154,7 @@ class ModelView extends React.Component {
       texModelLoadProgress: null,
       selectedCamera: null,
       modalOpen: false,
+      sidebarOpen: false,
       cameraScale: CAMERA_SCALES[props.task.srs.units] || 1.0,
       pluginActionButtons: []
     };
@@ -348,6 +319,14 @@ class ModelView extends React.Component {
     viewer.setEDLEnabled(true);
     viewer.setFOV(60);
 
+    // Potree signals the sidebar state by setting the "left" offset
+    // of the render area (0px when closed, 300px when open)
+    this.sidebarObserver = new MutationObserver(() => {
+        const sidebarOpen = container.style.left !== "" && container.style.left !== "0px";
+        if (sidebarOpen !== this.state.sidebarOpen) this.setState({sidebarOpen});
+    });
+    this.sidebarObserver.observe(container, {attributes: true, attributeFilter: ['style']});
+
     if (Utils.isIOS()){
         viewer.setPointBudget(1000*1000);
     }else if (Utils.isMobile()){
@@ -377,13 +356,6 @@ class ModelView extends React.Component {
     if (window.innerWidth > 600) {
         viewer.toggleSidebar();
     }
-
-      if (this.hasTexturedModel()){
-          window.ReactDOM.render(<TexturedModelMenu selected={this.props.modelType === 'mesh'} toggleTexturedModel={this.toggleTexturedModel}/>, $("#textured_model_button").get(0));
-      }else{
-          $("#textured_model").hide();
-          $("#textured_model_container").hide();
-      }
 
       if (this.hasCameras()){
           window.ReactDOM.render(<CamerasMenu 
@@ -421,7 +393,7 @@ class ModelView extends React.Component {
 
           // Automatically load 3D model if required
           if (this.hasTexturedModel() && this.props.modelType === "mesh"){
-            this.toggleTexturedModel({ target: { checked: true }});
+            this.toggleTexturedModel(true);
           }
     
           let scene = viewer.scene;
@@ -564,6 +536,7 @@ class ModelView extends React.Component {
 
   componentWillUnmount(){
     offUnitSystemChanged(this.handleUnitSystemChanged);
+    if (this.sidebarObserver) this.sidebarObserver.disconnect();
     viewer.renderer.domElement.removeEventListener( 'mousedown', this.handleRenderMouseClick );
     viewer.renderer.domElement.removeEventListener( 'mousemove', this.handleRenderMouseMove );
     viewer.renderer.domElement.removeEventListener( 'touchstart', this.handleRenderTouchStart );
@@ -757,10 +730,18 @@ class ModelView extends React.Component {
     );
   }
 
-  toggleTexturedModel = (e) => {
-    const value = e.target.checked;
+  setModelType = (type) => {
+    if (this.state.initializingModel) return;
 
-    if (value){
+    const showTexturedModel = type === "mesh";
+    const showing = this.state.showingTexturedModel === showTexturedModel;
+    if (showing) return;
+
+    this.toggleTexturedModel(showTexturedModel);
+  }
+
+  toggleTexturedModel = (show) => {
+    if (show){
       // Need to load model for the first time?
       if (this.modelReference === null && !this.state.initializingModel){
 
@@ -839,21 +820,65 @@ class ModelView extends React.Component {
 
   // React render
   render(){
-    const { selectedCamera, showingTexturedModel } = this.state;
+    const { selectedCamera, showingTexturedModel, initializingModel } = this.state;
     const { task } = this.props;
     const queryParams = {};
     if (showingTexturedModel){
         queryParams.t = "mesh";
     }
 
-    return (<div className="model-view">
+    let modelTypeButtons = [
+      {
+        label: _("Point Cloud"),
+        type: "cloud",
+        icon: "fa fa-pointcloud"
+      },
+      {
+        label: _("Textured Model"),
+        type: "mesh",
+        icon: "fab fa-connectdevelop"
+      }
+    ];
+
+    // If we have only one type available, hide the buttons
+    if (!this.hasTexturedModel()) modelTypeButtons = [];
+
+    const selectedModelType = (showingTexturedModel || initializingModel) ? "mesh" : "cloud";
+
+    return (<div className={"model-view " + (this.state.sidebarOpen ? "sidebar-open" : "")}>
           <ErrorMessage bind={[this, "error"]} />
-          <div className="container potree_container" 
-             style={{height: "100%", width: "100%", position: "relative"}}
+
+          {(this.props.title || modelTypeButtons.length > 0) ?
+          <div className="model-view-header">
+            {this.props.title ?
+              <h3 className="model-title" title={this.props.title}><i className="fa fa-cube"></i> {this.props.title}</h3>
+            : ""}
+
+            <div className="model-type-selector btn-group" role="group">
+              {modelTypeButtons.map(modelType =>
+                <button
+                  key={modelType.type}
+                  onClick={() => this.setModelType(modelType.type)}
+                  disabled={initializingModel}
+                  title={modelType.label}
+                  className={"btn btn-sm " + (modelType.type === selectedModelType ? "btn-primary" : "btn-default")}><i className={modelType.icon + " fa-fw"}></i><span className="hidden-sm hidden-xs"> {modelType.label}</span></button>
+              )}
+            </div>
+          </div>
+          : ""}
+
+          <div className="container potree_container"
+             style={{width: "100%", position: "relative"}}
              onContextMenu={(e) => {e.preventDefault();}}>
-                <div id="potree_render_area" 
+                <div id="potree_render_area"
                     ref={(domNode) => { this.container = domNode; }}></div>
                 <div id="potree_sidebar_container"> </div>
+
+                <Standby
+                  message={_("Loading textured model...")}
+                  show={this.state.initializingModel}
+                  progress={this.state.texModelLoadProgress}
+                  />
           </div>
 
           <div className={"model-action-buttons " + (this.state.modalOpen ? "modal-open" : "")}>
@@ -885,12 +910,6 @@ class ModelView extends React.Component {
             <a className="close-thumb" href="javascript:void(0)" onClick={this.closeThumb}><i className="fa fa-window-close"></i></a>
             <ImagePopup feature={selectedCamera._feat} task={task} />
         </div> : ""}
-
-          <Standby 
-            message={_("Loading textured model...")}
-            show={this.state.initializingModel}
-            progress={this.state.texModelLoadProgress}
-            />
       </div>);
   }
 }

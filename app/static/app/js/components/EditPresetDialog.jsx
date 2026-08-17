@@ -57,7 +57,7 @@ const OPTS_GROUPS = [
     {
         id: 'mvs',
         name: _('Point Cloud'),
-        icon: 'fa fa-braille',
+        icon: 'fa fa-pointcloud',
         subgroups: [
             { id: 'generation', name: _('Generation') },
             { id: 'filtering', name: _('Filtering') },

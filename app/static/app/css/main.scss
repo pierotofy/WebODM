@@ -25,6 +25,11 @@ a:focus{
             top: 20px;
         }
     }
+    .model-view{
+        .model-type-selector{
+            top: 20px;
+        }
+    }
 }
 
 #iframe{
@@ -49,6 +54,22 @@ a:focus{
     [data-mapview], .model-view{
         height: calc(100vh);
         height: calc(100dvh);
+    }
+    .model-view{
+        .model-view-header{
+            z-index: 1000;
+            position: absolute;
+            right: 10px;
+            top: 10px;
+        }
+
+        &.sidebar-open{
+            @media screen and (max-width: 447px){
+                .model-type-selector{
+                    display: none;
+                }
+            }
+        }
     }
 }
 
@@ -286,8 +307,8 @@ footer{
 }
 
 .full-height{
-    height: calc(100vh - 110px);
-    height: calc(100dvh - 110px);
+    height: calc(100vh - 60px);
+    height: calc(100dvh - 60px);
     padding-bottom: 12px;
 }
 
@@ -299,4 +320,16 @@ footer{
     text-overflow: ellipsis;
     overflow: hidden;
     white-space: nowrap;
+}
+
+.fa-pointcloud{
+    display: inline-block;
+    width: 1.25em;
+    height: 1em;
+    vertical-align: -.125em;
+    background-color: currentcolor;
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='4.5' cy='4.5' r='2.25'/%3E%3Ccircle cx='11.5' cy='4.5' r='2.25'/%3E%3Ccircle cx='4.5' cy='11.5' r='2.25'/%3E%3Ccircle cx='11.5' cy='11.5' r='2.25'/%3E%3C/svg%3E");
+    mask-repeat: no-repeat;
+    mask-position: center;
+    mask-size: contain;
 }

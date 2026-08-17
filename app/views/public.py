@@ -71,7 +71,7 @@ def map_iframe(request, uuid_type=None, uuid=None):
 
 @ensure_csrf_cookie
 @handle_302
-def handle_model_display(request, template, task_pk=None):
+def handle_model_display(request, template, task_pk=None, hide_title=False):
     task = get_public_task(task_pk)
     thumb = f'/api/projects/{task.project.id}/tasks/{task.id}/thumbnail?size=630'
 
@@ -80,6 +80,7 @@ def handle_model_display(request, template, task_pk=None):
             'thumb': thumb,
             'params': {
                 'task': json.dumps(task.get_model_display_params()),
+                'title': task.name if not hide_title else '',
                 'public': 'true',
                 'public-edit': str(task.public_edit).lower(),
                 'share-buttons': 'true',
@@ -91,7 +92,7 @@ def model_display(request, task_pk=None):
     return handle_model_display(request, 'app/public/3d_model_display.html', task_pk)
 
 def model_display_iframe(request, task_pk=None):
-    return handle_model_display(request, 'app/public/3d_model_display_iframe.html', task_pk)
+    return handle_model_display(request, 'app/public/3d_model_display_iframe.html', task_pk, hide_title=True)
 
 @handle_302
 def task_json(request, task_pk=None):
