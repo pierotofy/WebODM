@@ -39,6 +39,9 @@ export default class ContoursPanel extends React.Component {
         customInterval: Storage.getItem("last_contours_custom_interval_" + unitSystem) || defaultInterval,
         simplify: Storage.getItem("last_contours_simplify_" + unitSystem) || defaultSimplify,
         customSimplify: Storage.getItem("last_contours_custom_simplify_" + unitSystem) || defaultSimplify,
+        smoothing: Storage.getItem("last_contours_smoothing") || "2.5",
+        customSmoothing: Storage.getItem("last_contours_custom_smoothing") || "2.5",
+        contourType: Storage.getItem("last_contours_type") || "line",
         layer: "",
         epsg: props.tasks[0].epsg || "3857",
         customEpsg: Storage.getItem("last_contours_custom_epsg") || "3857",
@@ -124,7 +127,19 @@ export default class ContoursPanel extends React.Component {
   handleChangeCustomSimplify = e => {
     this.setState({customSimplify: e.target.value});
   }
-  
+
+  handleSelectSmoothing = e => {
+    this.setState({smoothing: e.target.value});
+  }
+
+  handleChangeCustomSmoothing = e => {
+    this.setState({customSmoothing: e.target.value});
+  }
+
+  handleSelectType = e => {
+    this.setState({contourType: e.target.value});
+  }
+
   handleSelectLayer = e => {
     this.setState({layer: e.target.value});
   }
@@ -142,8 +157,9 @@ export default class ContoursPanel extends React.Component {
   }
 
   getFormValues = (preview) => {
-    const { interval, customInterval, epsg, customEpsg, 
-      simplify, customSimplify, layer, unitSystem } = this.state;
+    const { interval, customInterval, epsg, customEpsg,
+      simplify, customSimplify, smoothing, customSmoothing,
+      contourType, layer, unitSystem } = this.state;
     const su = systems[unitSystem];
 
     let meterInterval = interval !== "custom" ? interval : customInterval;
@@ -151,13 +167,15 @@ export default class ContoursPanel extends React.Component {
 
     meterInterval = toMetric(meterInterval, su.lengthUnit(1)).value;
     meterSimplify = toMetric(meterSimplify, su.lengthUnit(1)).value;
-    
+
     const zfactor = preview ? 1 : su.lengthUnit(1).factor;
 
     return {
       interval: meterInterval,
       epsg: epsg !== "custom" ? epsg : customEpsg,
       simplify: meterSimplify,
+      smoothing: smoothing !== "custom" ? smoothing : customSmoothing,
+      type: contourType,
       zfactor,
       layer
     };
@@ -175,11 +193,18 @@ export default class ContoursPanel extends React.Component {
         this.setState({previewLayer: L.geoJSON(geojson, {
           onEachFeature: (feature, layer) => {
               if (feature.properties && feature.properties.level !== undefined) {
-                  layer.bindPopup(`<div style="margin-right: 32px;"><b>${_("Elevation:")}</b> ${us.elevation(feature.properties.level)}</div>`);
+                  let elevation = us.elevation(feature.properties.level);
+                  if (feature.properties.level_max !== undefined){
+                    elevation += ` - ${us.elevation(feature.properties.level_max)}`;
+                  }
+                  layer.bindPopup(`<div style="margin-right: 32px;"><b>${_("Elevation:")}</b> ${elevation}</div>`);
               }
           },
           style: feature => {
               // TODO: different colors for different elevations?
+              if (feature.geometry && feature.geometry.type.indexOf("Polygon") !== -1){
+                return {color: "yellow", weight: 1, fillColor: "yellow", fillOpacity: 0.25};
+              }
               return {color: "yellow"};
           }
         })});
@@ -210,6 +235,9 @@ export default class ContoursPanel extends React.Component {
     Storage.setItem("last_contours_custom_interval_" + us, this.state.customInterval);
     Storage.setItem("last_contours_simplify_" + us, this.state.simplify);
     Storage.setItem("last_contours_custom_simplify_" + us, this.state.customSimplify);
+    Storage.setItem("last_contours_smoothing", this.state.smoothing);
+    Storage.setItem("last_contours_custom_smoothing", this.state.customSmoothing);
+    Storage.setItem("last_contours_type", this.state.contourType);
     Storage.setItem("last_contours_epsg", this.state.epsg);
     Storage.setItem("last_contours_custom_epsg", this.state.customEpsg);
   }
@@ -271,9 +299,10 @@ export default class ContoursPanel extends React.Component {
   }
 
   render(){
-    const { loading, task, layers, error, permanentError, interval, customInterval, layer, 
+    const { loading, task, layers, error, permanentError, interval, customInterval, layer,
             epsg, customEpsg, exportLoading,
             simplify, customSimplify,
+            smoothing, customSmoothing, contourType,
             previewLoading, previewLayer, unitSystem } = this.state;
     const us = systems[unitSystem];
     const lengthUnit = us.lengthUnit(1); 
@@ -290,12 +319,18 @@ export default class ContoursPanel extends React.Component {
     const simplifyValues = [{label: _('Minimal'), value: unitSystem === "metric" ? 0.01 : 0.04},
                             {label: _('Normal'), value: unitSystem === "metric" ? 0.2 : 0.5},
                             {label: _('Aggressive'), value: unitSystem === "metric" ? 1 : 4}];
+    const smoothingValues = [{label: _('None'), value: 0},
+                             {label: _('Low'), value: 1},
+                             {label: _('Normal'), value: 2.5},
+                             {label: _('High'), value: 5}];
 
     let disabled = (interval === "custom" && !Utils.isNumeric(customInterval)) ||
                       (epsg === "custom" && !customEpsg) ||
-                      (simplify === "custom" && !Utils.isNumeric(customSimplify));
+                      (simplify === "custom" && !Utils.isNumeric(customSimplify)) ||
+                      (smoothing === "custom" && !Utils.isNumeric(customSmoothing));
     let highlightCustomInterval = false;
     let highlightCustomSimplify = false;
+    let highlightCustomSmoothing = false;
 
     if (interval === "custom" && Utils.isNumeric(customInterval)){
       if (toMetric(customInterval, lengthUnit).value < 0.1){
@@ -305,6 +340,12 @@ export default class ContoursPanel extends React.Component {
     if (simplify === "custom" && Utils.isNumeric(customSimplify)){
       if (toMetric(customSimplify, lengthUnit).value < 0.01){
         disabled = highlightCustomSimplify = true;
+      }
+    }
+    if (smoothing === "custom" && Utils.isNumeric(customSmoothing)){
+      const sv = parseFloat(customSmoothing);
+      if (sv < 0 || sv > 10){
+        disabled = highlightCustomSmoothing = true;
       }
     }
 
@@ -340,6 +381,34 @@ export default class ContoursPanel extends React.Component {
             </select>
           </div>
         </div>
+
+        <div className="row form-group form-inline">
+          <label className="col-sm-3 control-label">{_("Type:")}</label>
+          <div className="col-sm-9 ">
+            <select className="form-control" value={contourType} onChange={this.handleSelectType}>
+              <option value="line">{_("Line")}</option>
+              <option value="fill">{_("Fill")}</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="row form-group form-inline">
+          <label className="col-sm-3 control-label">{_("Smoothing:")}</label>
+          <div className="col-sm-9 ">
+            <select className="form-control" value={smoothing} onChange={this.handleSelectSmoothing}>
+              {smoothingValues.map(sv => <option value={sv.value}>{sv.label}</option>)}
+              <option value="custom">{_("Custom")}</option>
+            </select>
+          </div>
+        </div>
+        {smoothing === "custom" ?
+          <div className="row form-group form-inline">
+            <label className="col-sm-3 control-label">{_("Value:")}</label>
+            <div className="col-sm-9 ">
+              <input type="number" min="0" max="10" step="0.1" className={"form-control custom-interval " + (highlightCustomSmoothing ? "theme-background-failed" : "")} value={customSmoothing} onChange={this.handleChangeCustomSmoothing} />
+            </div>
+          </div>
+        : ""}
 
         <div className="row form-group form-inline">
           <label className="col-sm-3 control-label">{_("Simplify:")}</label>

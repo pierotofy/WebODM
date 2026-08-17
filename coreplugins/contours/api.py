@@ -9,7 +9,7 @@ from django.utils.translation import gettext_lazy as _
 class ContoursException(Exception):
     pass
 
-def calc_contours(dem, epsg, interval, output_format, simplify, zfactor = 1, crop = None, task_name = None):
+def calc_contours(dem, epsg, interval, output_format, simplify, zfactor = 1, smoothing = 2.5, contour_type = "line", crop = None, task_name = None):
     import os
     import subprocess
     import tempfile
@@ -17,6 +17,7 @@ def calc_contours(dem, epsg, interval, output_format, simplify, zfactor = 1, cro
     import glob
     import json
     import re
+    import importlib.util
     from webodm import settings
     from django.contrib.gis.geos import GEOSGeometry
     from app.geoutils import get_rasterio_to_meters_factor
@@ -67,9 +68,27 @@ def calc_contours(dem, epsg, interval, output_format, simplify, zfactor = 1, cro
             return {'error': f'Error calling gdalwarp: {str(err)}'}
 
         dem = dem_vrt
-    
+
+    # Smooth the input surface before computing contours
+    if smoothing > 0:
+        spec = importlib.util.spec_from_file_location("contours_smoothing",
+                os.path.join(settings.BASE_DIR, "coreplugins", "contours", "smoothing.py"))
+        contours_smoothing = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(contours_smoothing)
+
+        smoothed_dem = os.path.join(tmpdir, "smoothed.tif")
+        try:
+            contours_smoothing.smooth_dem(dem, smoothed_dem, smoothing=smoothing)
+            dem = smoothed_dem
+        except Exception as e:
+            return {'error': f'Error smoothing DEM: {str(e)}'}
+
     contours_file = f"contours.gpkg"
-    p = subprocess.Popen([gdal_contour_bin, "-q", "-a", "level", "-3d", "-f", "GPKG", "-i", str(interval), dem, contours_file], cwd=tmpdir, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if contour_type == "fill":
+        contour_args = ["-p", "-amin", "amin", "-amax", "amax"]
+    else:
+        contour_args = ["-a", "level", "-3d"]
+    p = subprocess.Popen([gdal_contour_bin, "-q"] + contour_args + ["-f", "GPKG", "-i", str(interval), dem, contours_file], cwd=tmpdir, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, err = p.communicate()
 
     out = out.decode('utf-8').strip()
@@ -84,9 +103,14 @@ def calc_contours(dem, epsg, interval, output_format, simplify, zfactor = 1, cro
         output_basename = re.sub(r'[^0-9a-zA-Z-_]+', '', task_name.replace(" ", "-").replace("/", "-")) + ("-" if task_name else "") + "contours"
         output_basename = re.sub(r'-[-]+', '-', output_basename)
 
+    if contour_type == "fill":
+        sql = f"SELECT ID, ROUND(amin * {zfactor}, 5) AS level, ROUND(amax * {zfactor}, 5) AS level_max, GEOM FROM contour"
+    else:
+        sql = f"SELECT ID, ROUND(level * {zfactor}, 5) AS level, GeomFromGML(AsGML(ATM_Transform(GEOM, ATM_Scale(ATM_Create(), 1, 1, {zfactor})), 10)) as GEOM FROM contour WHERE ST_Length(GEOM) >= {MIN_CONTOUR_LENGTH}"
+
     outfile = os.path.join(tmpdir, f"{output_basename}.{ext}")
     p = subprocess.Popen([ogr2ogr_bin, outfile, contours_file, "-simplify", str(simplify), "-f", output_format, "-t_srs", f"EPSG:{epsg}", "-nln", "contours",
-                            "-dialect", "sqlite", "-sql", f"SELECT ID, ROUND(level * {zfactor}, 5) AS level, GeomFromGML(AsGML(ATM_Transform(GEOM, ATM_Scale(ATM_Create(), 1, 1, {zfactor})), 10)) as GEOM FROM contour WHERE ST_Length(GEOM) >= {MIN_CONTOUR_LENGTH}"], cwd=tmpdir, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                            "-dialect", "sqlite", "-sql", sql], cwd=tmpdir, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, err = p.communicate()
 
     out = out.decode('utf-8').strip()
@@ -139,8 +163,12 @@ class TaskContoursGenerate(TaskView):
                 raise ContoursException("Invalid format {} (must be one of: {})".format(format, ",".join(supported_formats)))
             simplify = float(request.data.get('simplify', 0.01))
             zfactor = float(request.data.get('zfactor', 1))
+            smoothing = max(0.0, min(10.0, float(request.data.get('smoothing', 2.5))))
+            contour_type = request.data.get('type', 'line')
+            if not contour_type in ['line', 'fill']:
+                raise ContoursException("Invalid type {} (must be one of: line,fill)".format(contour_type))
 
-            celery_task_id = run_function_async(calc_contours, dem, epsg, interval, format, simplify, zfactor, task.crop.wkt if task.crop is not None else None, task.name).task_id
+            celery_task_id = run_function_async(calc_contours, dem, epsg, interval, format, simplify, zfactor, smoothing, contour_type, task.crop.wkt if task.crop is not None else None, task.name).task_id
             return Response({'celery_task_id': celery_task_id}, status=status.HTTP_200_OK)
         except ContoursException as e:
             return Response({'error': str(e)}, status=status.HTTP_200_OK)
