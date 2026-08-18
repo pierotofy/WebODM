@@ -140,7 +140,7 @@ class ModelView extends React.Component {
       task: PropTypes.object.isRequired, // The object should contain two keys: {id: <taskId>, project: <projectId>}
       public: PropTypes.bool, // Is the view being displayed via a shared link?
       shareButtons: PropTypes.bool,
-      modelType: PropTypes.oneOf(['cloud', 'mesh']),
+      modelType: PropTypes.oneOf(['cloud', 'mesh', 'splats']),
       title: PropTypes.string
   };
 
@@ -152,6 +152,9 @@ class ModelView extends React.Component {
       showingTexturedModel: false,
       initializingModel: false,
       texModelLoadProgress: null,
+      showingSplats: false,
+      initializingSplats: false,
+      splatsLoadProgress: null,
       selectedCamera: null,
       modalOpen: false,
       sidebarOpen: false,
@@ -161,6 +164,8 @@ class ModelView extends React.Component {
 
     this.pointCloud = null;
     this.modelReference = null;
+    this.splatsReference = null;
+    this.sparkRenderer = null;
 
     this.cameraMeshes = [];
   }
@@ -255,6 +260,10 @@ class ModelView extends React.Component {
 
   hasCameras = () => {
     return this.props.task.available_assets.indexOf('shots.geojson') !== -1;
+  }
+
+  hasSplats = () => {
+    return this.props.task.available_assets.indexOf('splats.rad') !== -1;
   }
 
   objFilePath = (cb) => {
@@ -394,6 +403,8 @@ class ModelView extends React.Component {
           // Automatically load 3D model if required
           if (this.hasTexturedModel() && this.props.modelType === "mesh"){
             this.toggleTexturedModel(true);
+          }else if (this.hasSplats() && this.props.modelType === "splats"){
+            this.toggleSplats(true);
           }
     
           let scene = viewer.scene;
@@ -536,6 +547,10 @@ class ModelView extends React.Component {
 
   componentWillUnmount(){
     offUnitSystemChanged(this.handleUnitSystemChanged);
+    if (this.splatsRAF !== undefined){
+        cancelAnimationFrame(this.splatsRAF);
+        this.splatsRAF = undefined;
+    }
     if (this.sidebarObserver) this.sidebarObserver.disconnect();
     viewer.renderer.domElement.removeEventListener( 'mousedown', this.handleRenderMouseClick );
     viewer.renderer.domElement.removeEventListener( 'mousemove', this.handleRenderMouseMove );
@@ -730,14 +745,240 @@ class ModelView extends React.Component {
     );
   }
 
+  getCurrentModelType = () => {
+    if (this.state.showingTexturedModel || this.state.initializingModel) return "mesh";
+    if (this.state.showingSplats || this.state.initializingSplats) return "splats";
+    return "cloud";
+  }
+
   setModelType = (type) => {
-    if (this.state.initializingModel) return;
+    if (this.state.initializingModel || this.state.initializingSplats) return;
 
-    const showTexturedModel = type === "mesh";
-    const showing = this.state.showingTexturedModel === showTexturedModel;
-    if (showing) return;
+    const current = this.getCurrentModelType();
+    if (current === type) return;
 
-    this.toggleTexturedModel(showTexturedModel);
+    if (current === "mesh") this.toggleTexturedModel(false);
+    else if (current === "splats") this.toggleSplats(false);
+
+    if (type === "mesh") this.toggleTexturedModel(true);
+    else if (type === "splats") this.toggleSplats(true);
+  }
+
+  loadSplatsModule = (cb) => {
+    if (window.THREEdgs){
+        cb();
+        return;
+    }
+
+    $.ajax({
+        url: "/static/app/js/vendor/threedgs.umd.js",
+        dataType: "script",
+        cache: true
+    }).done(() => {
+        if (window.THREEdgs) cb();
+        else cb(new Error(_("Cannot load splats renderer")));
+    }).fail(() => {
+        cb(new Error(_("Cannot load splats renderer")));
+    });
+  }
+
+  initSplatsRenderer = () => {
+    // Potree's renderer runs on a WebGL1 context, but gaussian splats
+    // require WebGL2, so we render them on a separate canvas placed
+    // behind Potree's (which clears to transparent when the background
+    // is set to null) and sync the camera every frame.
+    this.splatsRenderer = new THREE.WebGLRenderer({alpha: true, antialias: false});
+    this.splatsRenderer.setClearColor(0x000000, 0);
+
+    const canvas = this.splatsRenderer.domElement;
+    canvas.style.position = "absolute";
+    canvas.style.top = "0";
+    canvas.style.left = "0";
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
+
+    // Mimic Potree's gradient background
+    canvas.style.background = "radial-gradient(ellipse at center, rgb(31, 46, 52) 0%, rgb(13, 19, 22) 100%)";
+
+    const renderArea = viewer.renderer.domElement.parentElement;
+    renderArea.insertBefore(canvas, renderArea.firstChild);
+
+    this.splatsScene = new THREE.Scene();
+    this.splatsCamera = new THREE.PerspectiveCamera();
+    this.splatsCamera.matrixAutoUpdate = false;
+
+    // Separate camera for Potree's orthographic mode; the splats renderer
+    // relies on the camera type for both shading and LOD calculations
+    this.splatsCameraOrtho = new THREE.OrthographicCamera();
+    this.splatsCameraOrtho.matrixAutoUpdate = false;
+
+    this.sparkRenderer = new THREEdgs.SparkRenderer({renderer: this.splatsRenderer});
+    this.splatsScene.add(this.sparkRenderer);
+  }
+
+  renderSplatsLoop = () => {
+    this.splatsRAF = requestAnimationFrame(this.renderSplatsLoop);
+
+    // Loading a saved scene can restore the background at any time;
+    // it must stay null (transparent) while splats are displayed
+    if (!this._splatsWarmup && viewer.background !== null){
+        this._prevBackground = viewer.background;
+        viewer.setBackground(null);
+    }
+
+    const pCanvas = viewer.renderer.domElement;
+    const canvas = this.splatsRenderer.domElement;
+    if (canvas.width !== pCanvas.width || canvas.height !== pCanvas.height){
+        this.splatsRenderer.setSize(pCanvas.width, pCanvas.height, false);
+    }
+
+    // Copy Potree's camera, subtracting the georeferencing offset
+    // (the splat model is kept in local coordinates to avoid float32
+    // precision issues at UTM coordinate magnitudes)
+    const cam = viewer.scene.getActiveCamera();
+    const sc = cam.isOrthographicCamera ? this.splatsCameraOrtho : this.splatsCamera;
+    sc.matrixWorld.copy(cam.matrixWorld);
+    sc.matrixWorld.elements[12] -= this.splatsOffset.x;
+    sc.matrixWorld.elements[13] -= this.splatsOffset.y;
+
+    // The splats renderer calls getWorldPosition()/getWorldDirection()
+    // on the camera to drive splat sorting and LOD, which recompose
+    // matrixWorld from the local transform, so the local transform
+    // must be kept in sync
+    sc.matrix.copy(sc.matrixWorld);
+    sc.matrix.decompose(sc.position, sc.quaternion, sc.scale);
+
+    sc.matrixWorldInverse.copy(sc.matrixWorld).invert();
+
+    if (cam.isOrthographicCamera){
+        sc.left = cam.left;
+        sc.right = cam.right;
+        sc.top = cam.top;
+        sc.bottom = cam.bottom;
+        sc.zoom = cam.zoom;
+        sc.near = cam.near;
+        sc.far = cam.far;
+        sc.updateProjectionMatrix();
+    }else{
+        sc.fov = cam.fov;
+        sc.aspect = cam.aspect;
+
+        // Potree grows the near plane dynamically based on the visible
+        // point cloud nodes (potentially by several meters), which would
+        // clip out splats close to the camera; use a fixed one instead
+        sc.near = 0.1;
+        sc.far = cam.far;
+        sc.updateProjectionMatrix();
+    }
+
+    this.splatsRenderer.render(this.splatsScene, sc);
+
+    // Sorting/uploading splats to the GPU takes a few frames after load;
+    // keep the loading standby up until the first frame with actual
+    // content has been rendered
+    if (this._splatsWarmup){
+        this._splatsWarmupFrame = (this._splatsWarmupFrame || 0) + 1;
+        if (this._splatsWarmupFrame % 5 === 0){
+            if (this.splatsFrameHasContent() || performance.now() - this._splatsWarmupStart > 20000){
+                this._splatsWarmup = false;
+                this.setSplatsVisible(true);
+                this.setPointCloudsVisible(false);
+                this.setState({
+                    initializingSplats: false,
+                    showingSplats: true
+                });
+            }
+        }
+    }
+  }
+
+  splatsFrameHasContent = () => {
+    const gl = this.splatsRenderer.getContext();
+    const w = gl.drawingBufferWidth;
+    const h = gl.drawingBufferHeight;
+    const buf = new Uint8Array(w * h * 4);
+    gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+    for (let i = 3; i < buf.length; i += 1009 * 4){
+        if (buf[i] > 8) return true;
+    }
+    return false;
+  }
+
+  setSplatsVisible = (flag) => {
+    if (flag){
+        this.splatsRenderer.domElement.style.display = "";
+        if (this.splatsRAF === undefined) this.renderSplatsLoop();
+    }else{
+        if (this.splatsRAF !== undefined){
+            cancelAnimationFrame(this.splatsRAF);
+            this.splatsRAF = undefined;
+        }
+        this.splatsRenderer.domElement.style.display = "none";
+        if (this._prevBackground !== undefined){
+            viewer.setBackground(this._prevBackground);
+            this._prevBackground = undefined;
+        }
+    }
+  }
+
+  toggleSplats = (show) => {
+    if (show){
+      // Need to load splats for the first time?
+      if (this.splatsReference === null && !this.state.initializingSplats){
+
+        this.setState({initializingSplats: true, splatsLoadProgress: null});
+
+        this.loadSplatsModule(err => {
+            if (err){
+                this.setState({initializingSplats: false, error: err.message});
+                return;
+            }
+
+            if (!this.splatsRenderer) this.initSplatsRenderer();
+
+            const url = this.assetsPath() + '/splats/model.rad';
+            const splats = new THREEdgs.SplatMesh({
+                url,
+                paged: true,
+                onProgress: e => {
+                    if (e.lengthComputable){
+                        this.setState({splatsLoadProgress: Math.round((e.loaded / e.total) * 100)});
+                    }
+                },
+                onLoad: () => {
+                    this.setState({splatsLoadProgress: null});
+                    this.loadGeoreferencingOffset((offset) => {
+                        this.splatsOffset = offset;
+
+                        this.splatsScene.add(splats);
+                        this.splatsReference = splats;
+
+                        // Start rendering (hidden behind Potree's opaque
+                        // canvas); renderSplatsLoop reveals the splats and
+                        // clears the standby once the first frame is ready
+                        this._splatsWarmup = true;
+                        this._splatsWarmupStart = performance.now();
+                        if (this.splatsRAF === undefined) this.renderSplatsLoop();
+                    });
+                }
+            });
+
+            splats.initialized.catch(e => {
+                console.error(e);
+                this.setState({initializingSplats: false, error: _("Could not load splats. This task doesn't seem to have a valid splats file.")});
+            });
+        });
+      }else{
+        // Already initialized
+        this.setSplatsVisible(true);
+        this.setPointCloudsVisible(false);
+        this.setState({showingSplats: true});
+      }
+    }else{
+      this.setSplatsVisible(false);
+      this.setPointCloudsVisible(true);
+      this.setState({showingSplats: false});
+    }
   }
 
   toggleTexturedModel = (show) => {
@@ -820,11 +1061,13 @@ class ModelView extends React.Component {
 
   // React render
   render(){
-    const { selectedCamera, showingTexturedModel, initializingModel } = this.state;
+    const { selectedCamera, showingTexturedModel, initializingModel, showingSplats, initializingSplats } = this.state;
     const { task } = this.props;
     const queryParams = {};
     if (showingTexturedModel){
         queryParams.t = "mesh";
+    }else if (showingSplats){
+        queryParams.t = "splats";
     }
 
     let modelTypeButtons = [
@@ -832,18 +1075,28 @@ class ModelView extends React.Component {
         label: _("Point Cloud"),
         type: "cloud",
         icon: "fa fa-pointcloud"
-      },
-      {
+      }
+    ];
+    if (this.hasTexturedModel()){
+      modelTypeButtons.push({
         label: _("Textured Model"),
         type: "mesh",
         icon: "fab fa-connectdevelop"
-      }
-    ];
+      });
+    }
+    if (this.hasSplats()){
+      modelTypeButtons.push({
+        label: _("Splats"),
+        type: "splats",
+        icon: "fa fa-splat"
+      });
+    }
 
     // If we have only one type available, hide the buttons
-    if (!this.hasTexturedModel()) modelTypeButtons = [];
+    if (modelTypeButtons.length === 1) modelTypeButtons = [];
 
-    const selectedModelType = (showingTexturedModel || initializingModel) ? "mesh" : "cloud";
+    const selectedModelType = this.getCurrentModelType();
+    const initializing = initializingModel || initializingSplats;
 
     return (<div className={"model-view " + (this.state.sidebarOpen ? "sidebar-open" : "")}>
           <ErrorMessage bind={[this, "error"]} />
@@ -859,7 +1112,7 @@ class ModelView extends React.Component {
                 <button
                   key={modelType.type}
                   onClick={() => this.setModelType(modelType.type)}
-                  disabled={initializingModel}
+                  disabled={initializing}
                   title={modelType.label}
                   className={"btn btn-sm " + (modelType.type === selectedModelType ? "btn-primary" : "btn-default")}><i className={modelType.icon + " fa-fw"}></i><span className="hidden-sm hidden-xs"> {modelType.label}</span></button>
               )}
@@ -875,9 +1128,9 @@ class ModelView extends React.Component {
                 <div id="potree_sidebar_container"> </div>
 
                 <Standby
-                  message={_("Loading textured model...")}
-                  show={this.state.initializingModel}
-                  progress={this.state.texModelLoadProgress}
+                  message={initializingSplats ? _("Loading splats...") : _("Loading textured model...")}
+                  show={initializing}
+                  progress={initializingSplats ? this.state.splatsLoadProgress : this.state.texModelLoadProgress}
                   />
           </div>
 
