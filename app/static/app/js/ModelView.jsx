@@ -950,6 +950,11 @@ class ModelView extends React.Component {
                     this.loadGeoreferencingOffset((offset) => {
                         this.splatsOffset = offset;
 
+                        const cropCoords = this.getCropCoordinates();
+                        if (cropCoords){
+                            this.sparkRenderer.cropVertices = cropCoords.map(v => new THREE.Vector2(v.x - offset.x, v.y - offset.y));
+                        }
+
                         this.splatsScene.add(splats);
                         this.splatsReference = splats;
 
