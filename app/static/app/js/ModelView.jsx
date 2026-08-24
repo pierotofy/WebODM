@@ -819,8 +819,7 @@ class ModelView extends React.Component {
   renderSplatsLoop = () => {
     this.splatsRAF = requestAnimationFrame(this.renderSplatsLoop);
 
-    // Loading a saved scene can restore the background at any time;
-    // it must stay null (transparent) while splats are displayed
+    // Background must be null while splats are displayed
     if (!this._splatsWarmup && viewer.background !== null){
         this._prevBackground = viewer.background;
         viewer.setBackground(null);
@@ -963,7 +962,7 @@ class ModelView extends React.Component {
                         // clears the standby once the first frame is ready
                         this._splatsWarmup = true;
                         this._splatsWarmupStart = performance.now();
-                        if (this.splatsRAF === undefined) this.renderSplatsLoop();
+                        if (!this.splatsRAF) this.renderSplatsLoop();
                     });
                 }
             });
