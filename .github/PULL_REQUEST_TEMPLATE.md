@@ -12,7 +12,7 @@ Before you open this pull request, make sure you've read [CONTRIBUTING.md](https
 
 Responsible use of AI tools to increase productivity and facilitate contributions is generally allowed, but:
 
- * You must carefully review and test everything you submit. You are the author of this patch, not the tool.
+ * You must carefully review and test everything you submit. You are the author and person responsible for the code, not the tool.
  * You must make sure no copyright is being infringed.
  * You must open the pull request manually and write the description below in your own words. We close automatic submissions.
  * You must disclose which AI you've used and to what extent
