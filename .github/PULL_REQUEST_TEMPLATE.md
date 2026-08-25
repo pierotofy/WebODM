@@ -6,7 +6,7 @@ First of all, thank you for taking the time to contribute to WebODM.
 Before you open this pull request, make sure you've read [CONTRIBUTING.md](https://github.com/WebODM/WebODM/blob/master/CONTRIBUTING.md).
 
  * Keep contributions minimal and focused to solving one issue.
- * No unrelated changes due to automated linters. If you have a linter, disable it.
+ * No unrelated changes due to automated linters. If you have a linter, disable it
 
 ### Use of AI
 
