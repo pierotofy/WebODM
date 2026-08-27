@@ -39,6 +39,7 @@ from django.contrib.gis.db.models.fields import GeometryField
 
 from app.net import patch_dns_resolution, is_dns_resolution_problem
 from app.cogeo import assure_cogeo
+from app.grids import check_download_grid_for
 from app.pointcloud_utils import is_pointcloud_georeferenced
 from app.testwatch import testWatch
 from app.security import path_traversal_check
@@ -1032,30 +1033,12 @@ class Task(models.Model):
             logger.warning("Cannot find assets archive for {} ({})".format(self, zip_path))
             raise NodeServerError("Cannot import task")
 
-        # Populate *_extent fields
-        extent_fields = self.get_extent_fields()
-
-        for raster_path, field in extent_fields:
-            if os.path.exists(raster_path):
-                # Make sure this is a Cloud Optimized GeoTIFF
-                # if not, it will be created
-                try:
-                    assure_cogeo(raster_path)
-                except IOError as e:
-                    logger.warning("Cannot create Cloud Optimized GeoTIFF for %s (%s). This will result in degraded visualization performance." % (raster_path, str(e)))
-
-                # Read extent
-                extent_wkt = get_raster_bounds_wkt(raster_path)
-                if extent_wkt is not None:
-                    extent = GEOSGeometry(extent_wkt, srid=4326)
-                    setattr(self, field, extent)
-                    logger.info("Populated extent field with {} for {}".format(raster_path, self))
-                else:
-                    logger.warning("Cannot populate extent field with {} for {}, not georeferenced".format(raster_path, self))
-        
+        self.assure_cogs()
         self.check_ept()
         self.update_available_assets_field()
         self.update_georef_fields()
+        check_download_grid_for(self)
+        self.populate_extent_fields()
         self.update_orthophoto_bands_field()
         self.update_media_field()
         self.update_size()
@@ -1080,6 +1063,35 @@ class Task(models.Model):
 
         from app.plugins import signals as plugin_signals
         plugin_signals.task_completed.send_robust(sender=self.__class__, task_id=self.id)
+
+
+    def assure_cogs(self):
+        extent_fields = self.get_extent_fields()
+
+        for raster_path, _ in extent_fields:
+            if os.path.exists(raster_path):
+                # Make sure this is a Cloud Optimized GeoTIFF
+                # if not, it will be created
+                try:
+                    assure_cogeo(raster_path)
+                except IOError as e:
+                    logger.warning("Cannot create Cloud Optimized GeoTIFF for %s (%s). This will result in degraded visualization performance." % (raster_path, str(e)))
+
+
+    def populate_extent_fields(self):
+        extent_fields = self.get_extent_fields()
+
+        for raster_path, field in extent_fields:
+            if os.path.exists(raster_path):
+                # Read extent
+                extent_wkt = get_raster_bounds_wkt(raster_path)
+                if extent_wkt is not None:
+                    extent = GEOSGeometry(extent_wkt, srid=4326)
+                    setattr(self, field, extent)
+                    logger.info("Populated extent field with {} for {}".format(raster_path, self))
+                else:
+                    logger.warning("Cannot populate extent field with {} for {}, not georeferenced".format(raster_path, self))
+        
 
     def check_ept(self, threads=1):
         # Make sure that the entwine_pointcloud/ept.json file exists
