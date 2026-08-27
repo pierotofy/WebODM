@@ -1037,9 +1037,7 @@ class Task(models.Model):
         self.check_ept()
         self.update_available_assets_field()
         self.update_georef_fields()
-        
-
-
+        check_download_grid_for(self)
         self.populate_extent_fields()
         self.update_orthophoto_bands_field()
         self.update_media_field()
