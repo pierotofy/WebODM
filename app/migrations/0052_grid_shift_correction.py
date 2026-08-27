@@ -81,14 +81,14 @@ def update_shifted_tasks(apps, schema_editor):
                 grid_tf = next((t for t in tg.transformers if has_grid(t)), None)
                 old_tf = next((t for t in tg.transformers if not has_grid(t)), None)
                 if grid_tf is None or old_tf is None:
-                    logger.warning(f"No grid/grid-free transform pair for {kind} {value}, skipping {len(task_ids)} task(s)")
+                    logger.warning(f"No grid/grid-free transform for {kind} {value}, skipping {len(task_ids)} task(s)")
                     continue
 
                 def fix(lon_bad, lat_bad):
                     e, n = old_tf.transform(lon_bad, lat_bad)
                     lon, lat = grid_tf.transform(e, n, direction="INVERSE")
                     if not (math.isfinite(lon) and math.isfinite(lat)):
-                        raise ValueError(f"non-finite grid shift result for ({lon_bad}, {lat_bad})")
+                        raise ValueError(f"infinite grid shift ({lon_bad}, {lat_bad})")
                     return lon, lat
 
                 for task_id in task_ids:
@@ -112,11 +112,11 @@ def update_shifted_tasks(apps, schema_editor):
 
                         t.save()
                         updated.append({'id': str(task_id), kind: value})
-                        logger.info(f"Applied grid shift correction to task {task_id}")
+                        logger.info(f"Applied grid shift to task {task_id}")
                     except Exception as e:
-                        logger.warning(f"Cannot apply grid shift correction to task {task_id}, skipping: {str(e)}")
+                        logger.warning(f"Cannot apply grid shift to task {task_id}, skipping: {str(e)}")
             except Exception as e:
-                logger.warning(f"Cannot apply grid shift corrections for {kind} {value}: {str(e)}")
+                logger.warning(f"Cannot apply grid shift for {kind} {value}: {str(e)}")
 
         if len(updated) > 0:
             updated_file = os.path.join(settings.MEDIA_ROOT, 'tmp', 'updated_grids.json')
