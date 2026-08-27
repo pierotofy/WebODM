@@ -37,6 +37,7 @@ psycopg2-binary==2.8.6
 PyJWT==1.5.3
 pydantic==1.10.8
 pyodx==1.5.14
+pyproj==3.6.1
 pyparsing==2.4.7
 pytz==2020.1
 rcssmin==1.0.6
