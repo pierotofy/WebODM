@@ -458,12 +458,11 @@ class Tiles(TaskNestedView):
             if nodata is None and tile_type == 'orthophoto':
                 nodata = 0
 
-            resampling = "nearest"
+            resampling = "bilinear"
             padding = 0
             tile_buffer = None
 
             if tile_type in ["dsm", "dtm"]:
-                resampling = "bilinear"
                 padding = 16
 
                 # WarpedVRT is really slow with compound CRSes
