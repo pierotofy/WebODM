@@ -14,7 +14,6 @@ def update_shifted_tasks(apps, schema_editor):
         from pyproj.transformer import TransformerGroup
         from django.contrib.gis.geos import GEOSGeometry
         from webodm import settings
-        from app.models.task import assets_directory_path
         from app.geoutils import get_raster_bounds_wkt
         from app.grids import check_download_grid_for
 
@@ -31,7 +30,7 @@ def update_shifted_tasks(apps, schema_editor):
         def populate_extent_fields(t):
             # Same logic as Task.populate_extent_fields, which is not
             # available on the historical model
-            assets_dir = os.path.join(settings.MEDIA_ROOT, assets_directory_path(t.id, t.project_id, ""), "assets")
+            assets_dir = os.path.join(settings.MEDIA_ROOT, "project", str(t.project_id), "task", str(t.id), "assets")
             for raster_path, field in [
                     (os.path.join(assets_dir, "odm_orthophoto", "odm_orthophoto.tif"), 'orthophoto_extent'),
                     (os.path.join(assets_dir, "odm_dem", "dsm.tif"), 'dsm_extent'),
@@ -57,7 +56,7 @@ def update_shifted_tasks(apps, schema_editor):
         for key, task_ids in groups.items():
             try:
                 tg = TransformerGroup("EPSG:4326", init_crs(key), always_xy=True)
-                if len(tg.unavailable_operations) > 0:
+                if not tg.best_available:
                     pending[key] = task_ids
             except Exception as e:
                 logger.warning(f"Cannot check grids for {key}: {str(e)}")
@@ -74,7 +73,7 @@ def update_shifted_tasks(apps, schema_editor):
                 check_download_grid_for(Task.objects.only('id', 'epsg', 'wkt').get(pk=task_ids[0]), max_retries=1)
 
                 tg = TransformerGroup("EPSG:4326", init_crs(key), always_xy=True)
-                if len(tg.unavailable_operations) > 0:
+                if not tg.best_available:
                     logger.warning(f"Grids still unavailable for {kind} {value}, skipping {len(task_ids)} task(s)")
                     continue
 

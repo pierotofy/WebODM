@@ -48,7 +48,7 @@ def check_download_grid_for(task, max_retries=7):
             return
         
         tg = TransformerGroup("EPSG:4326", crs, always_xy=True)
-        if len(tg.unavailable_operations) > 0:
+        if not tg.best_available:
             if not os.path.isdir(settings.MEDIA_GRIDS):
                 os.makedirs(settings.MEDIA_GRIDS, exist_ok=True)
             
