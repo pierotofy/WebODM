@@ -440,6 +440,9 @@ GCP_DOCS_LINK = "https://docs.webodm.org/ground-control-points/#gcp-file-format"
 # Link to general docs
 DOCS_LINK = "https://docs.webodm.org"
 
+# Link to Splat docs
+SPLAT_DOCS_LINK = "https://docs.webodm.org/gaussian-splats/"
+
 # Link to task options docs
 TASK_OPTIONS_DOCS_LINK = ""
 
