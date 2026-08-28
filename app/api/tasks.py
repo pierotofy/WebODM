@@ -731,6 +731,35 @@ class TaskAssets(TaskNestedView):
         return download_file_response(request, asset_path, 'inline')
 
 """
+Relative-to-center coordinates
+"""
+class TaskRtc(TaskNestedView):
+    def get(self, request, pk=None, project_pk=None):
+        """
+        Retrieve the georeferencing offset (relative-to-center coordinates) for a task
+        """
+        task = self.get_and_check_task(request, pk)
+
+        coords_files = [
+            task.assets_path("odm_georeferencing", "coords.txt"), 
+            task.assets_path("odm_georeferencing", "odm_georeferencing_model_geo.txt"),
+        ]
+
+        for cf in coords_files:
+            if not os.path.isfile(cf):
+                continue
+            try:
+                with open(cf) as f:
+                    lines = f.read().split("\n")
+                if len(lines) >= 2:
+                    x, y = [float(v) for v in lines[1].split(" ")[:2]]
+                    return Response({'coords': [x, y]}, status=status.HTTP_200_OK)
+            except (IOError, ValueError, IndexError):
+                pass
+
+        return Response({'coords': [0, 0]}, status=status.HTTP_200_OK)
+
+"""
 Task backup endpoint
 """
 class TaskBackup(TaskNestedView):

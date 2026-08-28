@@ -192,41 +192,18 @@ class ModelView extends React.Component {
   }
 
   loadGeoreferencingOffset = (cb) => {
-    const geoFile = `${this.assetsPath()}/odm_georeferencing/coords.txt`;
-    const legacyGeoFile = `${this.assetsPath()}/odm_georeferencing/odm_georeferencing_model_geo.txt`;
-    const getGeoOffsetFromUrl = (url) => {
-        $.ajax({
-            url: url,
-            type: 'GET',
-            error: () => {
-                console.warn(`Cannot find ${url} (not georeferenced?)`);
-                cb({x: 0, y: 0});
-            },
-            success: (data) => {
-                const lines = data.split("\n");
-                if (lines.length >= 2){
-                    const [ x, y ] = lines[1].split(" ").map(parseFloat);
-                    cb({x, y});
-                }else{
-                    console.warn(`Malformed georeferencing file: ${data}`);
-                    cb({x: 0, y: 0});
-                }
-            }
-        });
-    };
-
     $.ajax({
-        type: "HEAD",
-        url: legacyGeoFile
-    }).done(() => {
-        // If a legacy georeferencing file is present
-        // we'll use that
-        getGeoOffsetFromUrl(legacyGeoFile);
-    }).fail(() => {
-        getGeoOffsetFromUrl(geoFile);
+        url: `${this.basePath()}/rtc`,
+        type: 'GET',
+        error: () => {
+            console.warn(`Cannot retrieve georeferencing offset (not georeferenced?)`);
+            cb({x: 0, y: 0});
+        },
+        success: (data) => {
+            const [ x, y ] = data.coords;
+            cb({x, y});
+        }
     });
-
-    
   }
 
   pointCloudFilePath = (cb) => {
