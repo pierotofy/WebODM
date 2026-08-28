@@ -927,6 +927,12 @@ class TestApiTask(BootTransactionTestCase):
             self.assertTrue(os.path.isdir(ta_cache_dir))
             self.assertTrue(os.path.isfile(os.path.join(ta_cache_dir, "odm_textured_model_geo-2.glb")))
             
+            # Can access /rtc endpoint
+            res = client.get("/api/projects/{}/tasks/{}/rtc".format(project.id, task.id))
+            self.assertEqual(res.status_code, status.HTTP_200_OK)
+            self.assertTrue('coords' in res.data)
+            self.assertTrue(isinstance(res.data['coords'], list))
+            self.assertTrue(len(res.data['coords'] == 2))
 
             # Another user does not have access to the resources
             other_client = APIClient()
