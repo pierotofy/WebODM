@@ -1,5 +1,7 @@
 import os
+import re
 import shutil
+import subprocess
 import tempfile
 import traceback
 import json
@@ -22,6 +24,7 @@ import worker
 from .celery import app
 from app.raster_utils import export_raster as export_raster_sync, extension_for_export_format
 from app.pointcloud_utils import export_pointcloud as export_pointcloud_sync
+from app import splats
 from django.utils import timezone
 from datetime import timedelta
 import redis
@@ -227,6 +230,99 @@ def export_pointcloud(self, input, **opts):
     except Exception as e:
         logger.error(str(e))
         return {'error': str(e)}
+
+@app.task(bind=True, time_limit=settings.WORKERS_MAX_TIME_LIMIT)
+def export_splats(self, task_id, image_size=0, sample=1.0):
+    try:
+        logger.info("Exporting splats training data for {} (image_size: {})".format(task_id, image_size))
+        task = Task.objects.get(pk=task_id)
+        tmpdir = tempfile.mkdtemp('_splats', dir=settings.MEDIA_TMP)
+
+        last_update = 0
+        def progress_callback(status, perc):
+            nonlocal last_update
+            if time.time() - last_update >= 1 or perc >= 100:
+                self.update_state(state="PROGRESS", meta={"status": status, "progress": perc})
+                last_update = time.time()
+
+        splats.generate_sparse(task, tmpdir, image_size=image_size, sample=sample,
+                               progress_callback=progress_callback)
+        result = {'output': {'sparse_dir': tmpdir, 'image_size': image_size}}
+
+        if settings.TESTING:
+            TestSafeAsyncResult.set(self.request.id, result)
+
+        return result
+    except Exception as e:
+        logger.error(str(e))
+
+        result = {'error': str(e)}
+        if settings.TESTING:
+            TestSafeAsyncResult.set(self.request.id, result)
+        return result
+
+@app.task(bind=True, time_limit=settings.WORKERS_MAX_TIME_LIMIT)
+def process_splats(self, task_id, input_file):
+    tmp_out = tempfile.mktemp('_model.rad', dir=settings.MEDIA_TMP)
+    try:
+        logger.info("Processing splats {} for task {}".format(input_file, task_id))
+        task = Task.objects.get(pk=task_id)
+
+        p = subprocess.Popen([settings.SPLAT_TOOLS_BIN, '--quality', '-o', tmp_out, input_file],
+                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0)
+        perc_re = re.compile(br'(\d{1,3})(?:\.\d+)?%')
+        buf = b''
+        tail = []
+        last_update = 0
+        while True:
+            chunk = p.stdout.read(512)
+            if not chunk:
+                break
+            # splat-tools reports progress on \r-terminated lines
+            *lines, buf = re.split(br'[\r\n]+', buf + chunk)
+            for line in lines:
+                if not line:
+                    continue
+                tail = (tail + [line[-200:]])[-5:]
+                if time.time() - last_update >= 1:
+                    m = perc_re.search(line)
+                    meta = {"status": "Processing splats...", "progress": min(100, int(m.group(1)))} if m \
+                        else {"status": line.decode('utf-8', 'ignore')[:128], "progress": 0}
+                    self.update_state(state="PROGRESS", meta=meta)
+                    last_update = time.time()
+
+        if p.wait() != 0 or not os.path.isfile(tmp_out):
+            raise Exception("splat-tools failed: %s" % b' | '.join(tail).decode('utf-8', 'ignore'))
+
+        os.makedirs(task.assets_path('splats'), exist_ok=True)
+        shutil.move(tmp_out, task.assets_path(task.ASSETS_MAP['splats.rad']))
+        stale_spz = task.assets_path(task.ASSETS_MAP['splats.spz'])
+        if os.path.isfile(stale_spz):
+            os.unlink(stale_spz)
+
+        task.refresh_from_db()
+        task.update_available_assets_field()
+        task.update_size()
+        task.save()
+
+        result = {'output': "ok"}
+
+        if settings.TESTING:
+            TestSafeAsyncResult.set(self.request.id, result)
+
+        return result
+    except Exception as e:
+        logger.error(str(e))
+        if os.path.isfile(tmp_out):
+            os.unlink(tmp_out)
+
+        result = {'error': str(e)}
+        if settings.TESTING:
+            TestSafeAsyncResult.set(self.request.id, result)
+        return result
+    finally:
+        if os.path.isfile(input_file):
+            os.unlink(input_file)
 
 @app.task(ignore_result=True)
 def check_quotas():

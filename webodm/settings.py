@@ -443,6 +443,9 @@ DOCS_LINK = "https://docs.webodm.org"
 # Link to Splat docs
 SPLAT_DOCS_LINK = "https://docs.webodm.org/gaussian-splats/"
 
+# Path to the splat-tools binary
+SPLAT_TOOLS_BIN = "/usr/bin/splat-tools"
+
 # Link to task options docs
 TASK_OPTIONS_DOCS_LINK = ""
 

@@ -1,0 +1,96 @@
+.splats-dialog {
+
+  .modal-body > .alert {
+    margin-bottom: 12px;
+    padding: 8px 12px;
+  }
+
+  .splats-step {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+
+    &:not(:last-child) {
+      border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+    }
+
+    .step-number {
+      flex: 0 0 auto;
+      width: 28px;
+      height: 28px;
+      margin-top: 3px;
+      margin-right: 12px;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 28px;
+      font-weight: bold;
+    }
+
+    .step-body {
+      flex: 1 1 auto;
+      min-width: 0;
+
+      p {
+        margin: 7px 0;
+      }
+    }
+  }
+
+  .download-area {
+    .toggle-options {
+      margin-left: 6px;
+    }
+
+    .resize-images {
+      margin-top: 10px;
+
+      label {
+        margin-right: 8px;
+        margin-bottom: 0;
+      }
+
+      .resize-control {
+        display: inline-block;
+        vertical-align: middle;
+        margin-left: 8px;
+        width: 11em;
+
+        input {
+          width: 8em;
+          display: inline-block;
+        }
+
+        span {
+          width: 2em;
+          opacity: 0.6;
+          font-size: 90%;
+        }
+      }
+    }
+  }
+
+  .splats-upload-area {
+    .upload-hint {
+      display: block;
+      margin-top: 8px;
+      font-size: 12px;
+    }
+
+    .upload-progress-area,
+    .processing-area {
+      margin-top: 10px;
+    }
+  }
+
+  .model-actions {
+    .btn {
+      margin-right: 6px;
+    }
+
+    .alert {
+      margin-bottom: 12px;
+      padding: 8px 12px;
+    }
+  }
+}
