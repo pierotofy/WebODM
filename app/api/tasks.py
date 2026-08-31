@@ -37,7 +37,7 @@ from .tags import TagsField
 from app.security import path_traversal_check
 from django.utils.translation import gettext_lazy as _
 from .fields import PolygonGeometryField
-from app.geoutils import geom_transform_wkt_bbox, get_srs_name_units_from_epsg_or_wkt
+from app.geoutils import geom_transform_wkt_bbox, get_srs_name_units_from_epsg_or_wkt, get_rtc_offset
 from webodm import settings
 
 def flatten_files(request_files):
@@ -740,24 +740,7 @@ class TaskRtc(TaskNestedView):
         """
         task = self.get_and_check_task(request, pk)
 
-        coords_files = [
-            task.assets_path("odm_georeferencing", "coords.txt"), 
-            task.assets_path("odm_georeferencing", "odm_georeferencing_model_geo.txt"),
-        ]
-
-        for cf in coords_files:
-            if not os.path.isfile(cf):
-                continue
-            try:
-                with open(cf) as f:
-                    lines = f.read().split("\n")
-                if len(lines) >= 2:
-                    x, y = [float(v) for v in lines[1].split(" ")[:2]]
-                    return Response({'coords': [x, y]}, status=status.HTTP_200_OK)
-            except (IOError, ValueError, IndexError):
-                pass
-
-        return Response({'coords': [0, 0]}, status=status.HTTP_200_OK)
+        return Response({'coords': get_rtc_offset(task)}, status=status.HTTP_200_OK)
 
 """
 Task backup endpoint

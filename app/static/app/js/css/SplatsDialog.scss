@@ -6,10 +6,14 @@
   }
 
   .splats-step {
+    &.last{
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
     display: flex;
     align-items: flex-start;
-    margin-bottom: 8px;
-    padding-bottom: 8px;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
 
     &:not(:last-child) {
       border-bottom: 1px solid rgba(128, 128, 128, 0.2);
@@ -25,6 +29,9 @@
       text-align: center;
       line-height: 28px;
       font-weight: bold;
+      &.step-button{
+        margin-top: 6px;
+      }
     }
 
     .step-body {
@@ -72,8 +79,9 @@
 
   .splats-upload-area {
     .upload-hint {
-      display: block;
-      margin-top: 8px;
+      display: inline-block;
+      vertical-align: middle;
+      margin-left: 8px;
       font-size: 12px;
     }
 

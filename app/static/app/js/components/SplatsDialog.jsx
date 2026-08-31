@@ -46,7 +46,6 @@ class SplatsDialog extends React.Component {
       processingProgress: null,
       hasModel: (props.task.available_assets || []).indexOf('splats.rad') !== -1,
       showWorkflow: (props.task.available_assets || []).indexOf('splats.rad') === -1,
-      modelAdded: false,
       deleting: false,
       showResizeOptions: false,
       resizeMode: Storage.getItem('splats_resize_mode') == null ? ResizeModes.YES : ResizeModes.fromString(Storage.getItem('splats_resize_mode')),
@@ -132,10 +131,7 @@ class SplatsDialog extends React.Component {
           file.trackedBytesSent = 0;
           file.retries = 0;
 
-          this.setState({
-            totalBytes: file.size,
-            modelAdded: false
-          });
+          this.setState({totalBytes: file.size});
         })
         .on("sending", () => {
           this.setState({uploading: true});
@@ -263,15 +259,15 @@ class SplatsDialog extends React.Component {
   }
 
   handleModelAdded = () => {
-    this.setState({hasModel: true, modelAdded: true, showWorkflow: false});
+    this.setState({hasModel: true, showWorkflow: false});
     if (this.props.onTaskChanged) this.props.onTaskChanged();
   }
 
   handleDownload = () => {
     const imageSize = this.state.resizeMode === ResizeModes.NO ? 0 : (parseInt(this.state.resizeSize) || 1920);
-    this.setState({exporting: true, exportProgress: null, error: ""});
+    this.setState({exporting: true, exportProgress: null, showResizeOptions: false, error: ""});
     $.ajax({
-        url: this.splatsUrl("export"),
+        url: this.splatsUrl("download"),
         type: 'POST',
         data: { image_size: imageSize }
     }).done(result => {
@@ -280,10 +276,11 @@ class SplatsDialog extends React.Component {
                 if (!this._mounted) return;
                 this.setState({exporting: false});
                 if (error) this.setState({error});
-                else window.location.href = this.splatsUrl(`export/${result.celery_task_id}/download`) + `?filename=${result.filename}`;
+                else window.location.href = this.splatsUrl(`download/${result.celery_task_id}`) + `?filename=${result.filename}`;
             }, (_status, progress) => {
                 if (!this._mounted) return;
-                this.setState({exportProgress: progress});
+                if (progress === 100) this.setState({exportProgress: null}); // Don't show the last bit
+                else this.setState({exportProgress: progress});
             });
         }else{
             this.setState({exporting: false, error: interpolate(_("Invalid response: %(error)s"), {error: JSON.stringify(result)})});
@@ -304,7 +301,7 @@ class SplatsDialog extends React.Component {
     }).done(resp => {
       this.setState({deleting: false});
       if (resp.success){
-        this.setState({hasModel: false, modelAdded: false, showWorkflow: true});
+        this.setState({hasModel: false, showWorkflow: true});
         if (this.props.onTaskChanged) this.props.onTaskChanged();
       }
     }).fail(() => {
@@ -345,7 +342,7 @@ class SplatsDialog extends React.Component {
     return [
       !hasCameras ?
         <div key="missing-cameras" className="alert alert-info">
-          <i className="fa fa-info-circle"></i> {_("This task is missing camera information, so training data cannot be generated.")}
+          <i className="fa fa-info-circle"></i> {_("This task is missing camera information, so training data cannot be downloaded.")}
         </div>
       : "",
       hasCameras && !hasPointCloud ?
@@ -362,15 +359,13 @@ class SplatsDialog extends React.Component {
   }
 
   renderModelActions() {
-    const { modelAdded, deleting } = this.state;
+    const { deleting } = this.state;
 
     return (
       <div className="model-actions">
-        {modelAdded ?
-          <div className="alert alert-success">
-            <i className="fa fa-check-circle"></i> {_("The splat model has been added.")}
-          </div>
-        : ""}
+        <p>
+          {_("The splat model has been added.")}
+        </p>
         <a className="btn btn-primary" href={`/3d/project/${this.props.projectId}/task/${this.props.task.id}/?t=splats`}>
           <i className="fa fa-splat"></i> {_("View in 3D")}
         </a>
@@ -386,120 +381,11 @@ class SplatsDialog extends React.Component {
     );
   }
 
-  renderDownloadStep() {
-    const { exporting, exportProgress, showResizeOptions, resizeMode } = this.state;
-    const { hasCameras } = this.assetsInfo();
-    const disabled = !hasCameras || exporting;
-
-    return (
-      <div className="download-area">
-        <button onClick={this.handleDownload}
-            disabled={disabled} type="button" className="btn btn-primary">
-            {exporting ? <i className="fa fa-spin fa-circle-notch fa-fw"/> : <i className="fa fa-download fa-fw"/>} {exporting ? _("Downloading...") : _("Download Training Data")}{exporting && exportProgress !== null ? ` (${exportProgress.toFixed(0)}%)` : ""}
-        </button>
-        <button type="button" className="btn btn-default toggle-options" title={_("Options")}
-            disabled={disabled}
-            onClick={() => this.setState({showResizeOptions: !showResizeOptions})}>
-            <i className="fa fa-cog"></i>
-        </button>
-        {showResizeOptions && (
-          <div className="resize-images">
-            <label>{_("Resize Images")}</label>
-            <div className="btn-group">
-              <button type="button" className="btn btn-default dropdown-toggle" data-toggle="dropdown">
-                  {ResizeModes.toHuman(resizeMode)} <span className="caret"></span>
-              </button>
-              <ul className="dropdown-menu">
-                  {ResizeModes.all().map(mode =>
-                  <li key={mode}>
-                      <a href="javascript:void(0);"
-                          onClick={this.setResizeMode(mode)}>
-                          <i style={{opacity: resizeMode === mode ? 1 : 0}} className="fa fa-check"></i> {ResizeModes.toHuman(mode)}</a>
-                  </li>
-                  )}
-              </ul>
-            </div>
-            <div className={"resize-control " + (resizeMode === ResizeModes.NO ? "hide" : "")}>
-              <input
-                  type="number"
-                  step="100"
-                  className="form-control"
-                  onChange={this.handleResizeSizeChange}
-                  value={this.state.resizeSize}
-              />
-              <span>{_("px")}</span>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  renderTrainStep() {
-    return (
-      <p>
-        <Trans params={{link_start: `<a href="${window.__splatDocsLink}" target="_blank">`, link_end: '</a>'}}>
-          {_("Train a model using your choice of %(link_start)s compatible software %(link_end)s")}
-        </Trans>
-      </p>
-    );
-  }
-
-  renderUploadStep() {
-    const { canEdit } = this.props;
-    const { uploading, processing } = this.state;
-
-    if (!canEdit){
-      return (<p>{_("You don't have permission to upload a splat model to this task.")}</p>);
-    }
-
-    return (
-      <div className="splats-upload-area">
-        <button
-          ref={(el) => (this.uploadBtn = el)}
-          disabled={uploading || processing || !this.assetsInfo().hasPointCloud}
-          type="button"
-          className="btn btn-primary"
-        >
-          <i className="glyphicon glyphicon-upload"></i> {_('Upload Splats Model')}
-        </button>
-        <span className="upload-hint">{ACCEPTED_EXTENSIONS.replace(/,/g, ", ")}</span>
-        {uploading && (
-          <div className="upload-progress-area">
-            <UploadProgressBar
-              progress={this.state.progress}
-              totalBytes={this.state.totalBytes}
-              totalBytesSent={this.state.totalBytesSent}
-              totalCount={1}
-              format={(perc) => {
-                if (parseFloat(perc) === 100) return _("Finalizing... please wait");
-                return `${perc}%`;
-              }}
-            />
-            <button
-              type="button"
-              className="btn btn-danger btn-sm"
-              onClick={this.handleCancel}
-            >
-              <i className="glyphicon glyphicon-remove-circle"></i> {_('Cancel')}
-            </button>
-          </div>
-        )}
-        {processing && (
-          <div className="processing-area">
-            <i className="fa fa-circle-notch fa-spin fa-fw"></i> {this.state.processingStatus !== '' ? this.state.processingStatus : _("Processing splats...")}{this.state.processingProgress !== null ? ` (${this.state.processingProgress.toFixed(0)}%)` : ""}
-          </div>
-        )}
-      </div>
-    );
-  }
-
   render() {
-    const steps = [
-      () => this.renderDownloadStep(),
-      () => this.renderTrainStep(),
-      () => this.renderUploadStep()
-    ];
+    const { canEdit } = this.props;
+    const { exporting, exportProgress, showResizeOptions, resizeMode, uploading, processing } = this.state;
+    const { hasPointCloud, hasCameras } = this.assetsInfo();
+    const downloadDisabled = !hasCameras || exporting;
 
     return (
       <div ref={(el) => (this.modal = el)} className="modal splats-dialog" tabIndex="-1" data-backdrop="static">
@@ -518,14 +404,110 @@ class SplatsDialog extends React.Component {
                   upload button keeps working as the dropzone target */}
               <div style={{display: this.state.showWorkflow ? "block" : "none"}}>
                 {this.renderAlerts()}
-                {steps.map((render, i) => (
-                  <div key={i} className="splats-step">
-                    <div className="step-number theme-background-highlight">{i + 1}</div>
-                    <div className="step-body">
-                      {render()}
+
+                <div className="splats-step">
+                  <div className="step-number step-button theme-background-highlight">1</div>
+                  <div className="step-body">
+                    <div className="download-area">
+                      <button onClick={this.handleDownload}
+                          disabled={downloadDisabled} type="button" className="btn btn-primary">
+                          {exporting ? <i className="fa fa-spin fa-circle-notch fa-fw"/> : <i className="fa fa-download fa-fw"/>} {exporting ? _("Downloading...") : _("Download Training Data")}{exporting && exportProgress !== null ? ` (${exportProgress.toFixed(0)}%)` : ""}
+                      </button>
+                      <button type="button" className="btn btn-default toggle-options" title={_("Options")}
+                          disabled={downloadDisabled}
+                          onClick={() => this.setState({showResizeOptions: !showResizeOptions})}>
+                          <i className="fa fa-cog"></i>
+                      </button>
+                      {showResizeOptions && (
+                        <div className="resize-images">
+                          <label>{_("Resize Images")}</label>
+                          <div className="btn-group">
+                            <button type="button" className="btn btn-default dropdown-toggle" data-toggle="dropdown">
+                                {ResizeModes.toHuman(resizeMode)} <span className="caret"></span>
+                            </button>
+                            <ul className="dropdown-menu">
+                                {ResizeModes.all().map(mode =>
+                                <li key={mode}>
+                                    <a href="javascript:void(0);"
+                                        onClick={this.setResizeMode(mode)}>
+                                        <i style={{opacity: resizeMode === mode ? 1 : 0}} className="fa fa-check"></i> {ResizeModes.toHuman(mode)}</a>
+                                </li>
+                                )}
+                            </ul>
+                          </div>
+                          <div className={"resize-control " + (resizeMode === ResizeModes.NO ? "hide" : "")}>
+                            <input
+                                type="number"
+                                step="100"
+                                className="form-control"
+                                onChange={this.handleResizeSizeChange}
+                                value={this.state.resizeSize}
+                            />
+                            <span>{_("px")}</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
-                ))}
+                </div>
+
+                <div className="splats-step">
+                  <div className="step-number theme-background-highlight">2</div>
+                  <div className="step-body">
+                    <p>
+                      <Trans params={{link_start: `<a href="${window.__splatDocsLink}" target="_blank">`, link_end: '</a>'}}>
+                        {_("Train a model using your choice of %(link_start)s compatible software %(link_end)s")}
+                      </Trans>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="splats-step last">
+                  <div className="step-number step-button theme-background-highlight">3</div>
+                  <div className="step-body">
+                    {!canEdit ?
+                      <p>{_("You don't have permission to upload a splat model to this task.")}</p>
+                    :
+                      <div className="splats-upload-area">
+                        <button
+                          ref={(el) => (this.uploadBtn = el)}
+                          disabled={uploading || processing || !hasPointCloud}
+                          type="button"
+                          className="btn btn-primary"
+                        >
+                          <i className="glyphicon glyphicon-upload"></i> {_('Upload Splats Model')}
+                        </button>
+                        <span className="upload-hint">{ACCEPTED_EXTENSIONS.replace(/,/g, ", ")}</span>
+                        {uploading && (
+                          <div className="upload-progress-area">
+                            <UploadProgressBar
+                              progress={this.state.progress}
+                              totalBytes={this.state.totalBytes}
+                              totalBytesSent={this.state.totalBytesSent}
+                              totalCount={1}
+                              format={(perc) => {
+                                if (parseFloat(perc) === 100) return _("Finalizing... please wait");
+                                return `${perc}%`;
+                              }}
+                            />
+                            <button
+                              type="button"
+                              className="btn btn-danger btn-sm"
+                              onClick={this.handleCancel}
+                            >
+                              <i className="glyphicon glyphicon-remove-circle"></i> {_('Cancel')}
+                            </button>
+                          </div>
+                        )}
+                        {processing && (
+                          <div className="processing-area">
+                            <i className="fa fa-circle-notch fa-spin fa-fw"></i> {this.state.processingStatus !== '' ? this.state.processingStatus : _("Processing splats...")}{this.state.processingProgress !== null ? ` (${this.state.processingProgress.toFixed(0)}%)` : ""}
+                          </div>
+                        )}
+                      </div>
+                    }
+                  </div>
+                </div>
               </div>
             </div>
             <div className="modal-footer">

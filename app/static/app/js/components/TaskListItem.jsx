@@ -281,7 +281,22 @@ class TaskListItem extends React.Component {
   }
 
   copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
+    if (navigator.clipboard !== undefined){
+      navigator.clipboard.writeText(text);
+    }else{
+      // navigator.clipboard is only available in secure contexts (HTTPS)
+      const el = document.createElement('textarea');
+      el.value = text;
+      el.style.position = 'fixed';
+      el.style.opacity = '0';
+      document.body.appendChild(el);
+      el.select();
+      try{
+        document.execCommand('copy');
+      }finally{
+        document.body.removeChild(el);
+      }
+    }
     this.setState({copiedToClipboard: true});
     if (this._clipboardTimeout){
       clearTimeout(this._clipboardTimeout);

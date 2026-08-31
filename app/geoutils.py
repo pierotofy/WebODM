@@ -1,4 +1,5 @@
 import math
+import os
 import rasterio.warp
 import numpy as np
 from rasterio.crs import CRS
@@ -13,6 +14,30 @@ UNIT_TO_M = {
     "ft": 0.3048,
     "US survey foot": 1200.0 / 3937.0,
 }
+
+def get_rtc_offset(task):
+    """
+    Read a task's georeferencing offset (relative-to-center coordinates)
+    from its georeferencing files. Returns [0, 0] if not available.
+    """
+    coords_files = [
+        task.assets_path("odm_georeferencing", "coords.txt"),
+        task.assets_path("odm_georeferencing", "odm_georeferencing_model_geo.txt"),
+    ]
+
+    for cf in coords_files:
+        if not os.path.isfile(cf):
+            continue
+        try:
+            with open(cf) as f:
+                lines = f.read().split("\n")
+            if len(lines) >= 2:
+                x, y = [float(v) for v in lines[1].split(" ")[:2]]
+                return [x, y]
+        except (IOError, ValueError, IndexError):
+            pass
+
+    return [0, 0]
 
 # GEOS has some weird bug where
 # we can't simply call geom.tranform(srid)

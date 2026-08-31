@@ -3,14 +3,13 @@ import re
 import shutil
 import tempfile
 
-from django.http import StreamingHttpResponse
 from django.utils.translation import gettext_lazy as _
 from rest_framework import status, exceptions, parsers
 from rest_framework.response import Response
 from django.core.files.uploadedfile import InMemoryUploadedFile
 
 from app import splats
-from app.api.tasks import TaskNestedView, flatten_files
+from app.api.tasks import TaskNestedView, flatten_files, download_file_stream
 from worker.tasks import export_splats, process_splats, TestSafeAsyncResult
 from .common import check_project_perms, get_asset_download_filename
 from app.security import sanitize_filename
@@ -20,7 +19,7 @@ MAX_SPLAT_FILE_SIZE = 128 * 1024 * 1024 * 1024  # 128 GB
 SPLAT_EXTENSIONS = ('.ply', '.spz', '.splat', '.ksplat', '.sog', '.sogs', '.zip', '.rad')
 
 
-class TaskSplatsExport(TaskNestedView):
+class TaskSplatsDownload(TaskNestedView):
     def post(self, request, pk=None, project_pk=None):
         """
         Generate the sparse reconstruction data needed to download
@@ -46,8 +45,6 @@ class TaskSplatsExport(TaskNestedView):
             'filename': get_asset_download_filename(task, "training.zip")
         }, status=status.HTTP_200_OK)
 
-
-class TaskSplatsExportDownload(TaskNestedView):
     def get(self, request, pk=None, project_pk=None, celery_task_id=""):
         """
         Stream the splats training zip from a completed export
@@ -62,25 +59,17 @@ class TaskSplatsExportDownload(TaskNestedView):
         if not isinstance(result, dict) or result.get('error') is not None:
             raise exceptions.ValidationError(detail=(result or {}).get('error', _("Invalid export")))
 
-        output = result.get('output')
-        if not isinstance(output, dict):
-            raise exceptions.NotFound(_("Invalid export"))
-
-        sparse_dir = output.get('sparse_dir', '')
-        image_size = output.get('image_size', 0)
-
+        # Same directory that the export_splats worker task writes to.
         # The export could have been cleaned up from the temporary
         # directory in the meantime
-        if not os.path.abspath(sparse_dir).startswith(os.path.abspath(settings.MEDIA_TMP)) or \
-                not os.path.isdir(sparse_dir):
+        export_dir = os.path.join(settings.MEDIA_TMP, "splats_export_{}".format(re.sub('[^0-9a-zA-Z-]+', '', celery_task_id)))
+        if not os.path.isdir(export_dir):
             raise exceptions.NotFound(_("Export has expired, please generate a new one"))
 
         filename = request.query_params.get('filename', get_asset_download_filename(task, "training.zip"))
 
-        response = StreamingHttpResponse(splats.stream_zip(task, sparse_dir, image_size=image_size),
-                                         content_type="application/zip")
-        response['Content-Disposition'] = "attachment; filename={}".format(filename)
-        return response
+        return download_file_stream(request, splats.export_zip(export_dir), 'attachment',
+                                    download_filename=filename)
 
 
 class TaskSplatsUpload(TaskNestedView):

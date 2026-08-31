@@ -128,7 +128,7 @@ def resize_image(image_path, resize_to, done=None):
             xmp = im.info.get("xmp")
             exif = im.info.get("exif")
 
-            resized = im.resize((resized_width, resized_height), Image.LANCZOS)
+            resized = im.resize((resized_width, resized_height), Image.LANCZOS, reducing_gap=2)
             params = {}
             if is_jpeg:
                 params['quality'] = 100

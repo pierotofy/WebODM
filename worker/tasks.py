@@ -232,22 +232,21 @@ def export_pointcloud(self, input, **opts):
         return {'error': str(e)}
 
 @app.task(bind=True, time_limit=settings.WORKERS_MAX_TIME_LIMIT)
-def export_splats(self, task_id, image_size=0, sample=1.0):
+def export_splats(self, task_id, image_size=0):
     try:
-        logger.info("Exporting splats training data for {} (image_size: {})".format(task_id, image_size))
+        logger.info("Exporting splats data for {} (image size: {})".format(task_id, image_size))
         task = Task.objects.get(pk=task_id)
-        tmpdir = tempfile.mkdtemp('_splats', dir=settings.MEDIA_TMP)
 
-        last_update = 0
+        # The download endpoint derives this same directory from the celery task id
+        tmpdir = os.path.join(settings.MEDIA_TMP, "splats_export_{}".format(self.request.id))
+        os.makedirs(tmpdir, exist_ok=True)
+
         def progress_callback(status, perc):
-            nonlocal last_update
-            if time.time() - last_update >= 1 or perc >= 100:
-                self.update_state(state="PROGRESS", meta={"status": status, "progress": perc})
-                last_update = time.time()
+            self.update_state(state="PROGRESS", meta={"status": status, "progress": perc})
 
-        splats.generate_sparse(task, tmpdir, image_size=image_size, sample=sample,
-                               progress_callback=progress_callback)
-        result = {'output': {'sparse_dir': tmpdir, 'image_size': image_size}}
+        splats.prepare_export(task, tmpdir, image_size=image_size,
+                              progress_callback=progress_callback)
+        result = {'output': "ok"}
 
         if settings.TESTING:
             TestSafeAsyncResult.set(self.request.id, result)
