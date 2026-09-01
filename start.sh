@@ -62,7 +62,7 @@ fi
 echo Running migrations
 python manage.py migrate
 echo Syncing grids
-python manage.py syncgrids
+python manage.py syncgrids --watch &
 
 if [[ "$WO_DEFAULT_NODES" > 0 ]]; then
     python manage.py addnode node-odx-1 3000 --label node-odx-1
