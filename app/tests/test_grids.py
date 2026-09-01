@@ -65,3 +65,5 @@ class TestGrids(BootTestCase):
         os.unlink(os.path.join(settings.MEDIA_GRIDS, OSGB_GRID))
         grids.sync_grids_to_proj()
         self.assertFalse(os.path.isfile(os.path.join(proj_dir, OSGB_GRID)))
+
+        
