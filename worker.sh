@@ -57,7 +57,7 @@ environment_check(){
 start(){
 	action=$1
 	echo "Starting worker using broker at $WO_BROKER"
-	python manage.py syncgrids --watch &
+	python manage.py syncgrids
 	celery -A worker worker --autoscale $WEB_CONCURRENCY,2 --max-tasks-per-child 1000 --loglevel=warn > /dev/null
 }
 
