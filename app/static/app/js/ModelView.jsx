@@ -748,7 +748,7 @@ class ModelView extends React.Component {
     }
 
     $.ajax({
-        url: "/static/app/js/vendor/threedgs.umd.js",
+        url: "/static/app/js/vendor/threedgs.umd.min.js",
         dataType: "script",
         cache: true
     }).done(() => {
@@ -809,8 +809,6 @@ class ModelView extends React.Component {
     }
 
     // Copy Potree's camera, subtracting the georeferencing offset
-    // (the splat model is kept in local coordinates to avoid float32
-    // precision issues at UTM coordinate magnitudes)
     const cam = viewer.scene.getActiveCamera();
     const sc = cam.isOrthographicCamera ? this.splatsCameraOrtho : this.splatsCamera;
     sc.matrixWorld.copy(cam.matrixWorld);

@@ -42,10 +42,8 @@ class SplatsDialog extends React.Component {
       totalBytesSent: 0,
       lastUpdated: 0,
       processing: false,
-      processingStatus: '',
-      processingProgress: null,
       hasModel: (props.task.available_assets || []).indexOf('splats.rad') !== -1,
-      showWorkflow: (props.task.available_assets || []).indexOf('splats.rad') === -1,
+      showSteps: (props.task.available_assets || []).indexOf('splats.rad') === -1,
       deleting: false,
       showResizeOptions: false,
       resizeMode: Storage.getItem('splats_resize_mode') == null ? ResizeModes.YES : ResizeModes.fromString(Storage.getItem('splats_resize_mode')),
@@ -61,8 +59,7 @@ class SplatsDialog extends React.Component {
   }
 
   handleResizeSizeChange = (e) => {
-    // Remove all non-digit characters
-    let n = parseInt(e.target.value.replace(/[^\d]*/g, ""));
+    let n = parseInt(e.target.value);
     if (isNaN(n)) n = "";
     this.setState({resizeSize: n});
     if (n !== "") Storage.setItem('splats_resize_size', n);
@@ -98,7 +95,7 @@ class SplatsDialog extends React.Component {
       Dropzone.autoDiscover = false;
       this.dz = new Dropzone(this.dropzone, {
         paramName: 'file',
-        url: this.uploadUrl(),
+        url: this.apiUrl("upload"),
         parallelUploads: 1,
         maxFilesize: MAX_FILE_SIZE / 1024 / 1024,
         uploadMultiple: false,
@@ -237,29 +234,22 @@ class SplatsDialog extends React.Component {
     $(this.modal).off('hidden.bs.modal').modal('hide');
   }
 
-  splatsUrl(action) {
+  apiUrl(action) {
     return `/api/projects/${this.props.projectId}/tasks/${this.props.task.id}/splats/${action}`;
   }
 
-  uploadUrl() {
-    return this.splatsUrl("upload");
-  }
-
   monitorProcessing = (celeryTaskId) => {
-    this.setState({processing: true, processingStatus: '', processingProgress: null});
+    this.setState({processing: true});
     Workers.waitForCompletion(celeryTaskId, error => {
       if (!this._mounted) return;
       this.setState({processing: false});
       if (error) this.setState({error});
       else this.handleModelAdded();
-    }, (status, progress) => {
-      if (!this._mounted) return;
-      this.setState({processingStatus: status, processingProgress: progress});
     });
   }
 
   handleModelAdded = () => {
-    this.setState({hasModel: true, showWorkflow: false});
+    this.setState({hasModel: true, showSteps: false});
     if (this.props.onTaskChanged) this.props.onTaskChanged();
   }
 
@@ -267,7 +257,7 @@ class SplatsDialog extends React.Component {
     const imageSize = this.state.resizeMode === ResizeModes.NO ? 0 : (parseInt(this.state.resizeSize) || 1920);
     this.setState({exporting: true, exportProgress: null, showResizeOptions: false, error: ""});
     $.ajax({
-        url: this.splatsUrl("download"),
+        url: this.apiUrl("download"),
         type: 'POST',
         data: { image_size: imageSize }
     }).done(result => {
@@ -276,7 +266,7 @@ class SplatsDialog extends React.Component {
                 if (!this._mounted) return;
                 this.setState({exporting: false});
                 if (error) this.setState({error});
-                else window.location.href = this.splatsUrl(`download/${result.celery_task_id}`) + `?filename=${result.filename}`;
+                else window.location.href = this.apiUrl(`download/${result.celery_task_id}`) + `?filename=${result.filename}`;
             }, (_status, progress) => {
                 if (!this._mounted) return;
                 if (progress === 100) this.setState({exportProgress: null}); // Don't show the last bit
@@ -291,21 +281,21 @@ class SplatsDialog extends React.Component {
   }
 
   handleDeleteModel = () => {
-    if (!window.confirm(_('Are you sure you want to delete the splat model?'))) return;
+    if (!window.confirm(_('Are you sure you want to delete the splats model?'))) return;
 
     this.setState({deleting: true, error: ""});
     $.ajax({
-      url: this.splatsUrl("manage"),
-      type: 'DELETE',
+      url: this.apiUrl("delete"),
+      type: 'POST',
       dataType: 'json',
     }).done(resp => {
       this.setState({deleting: false});
       if (resp.success){
-        this.setState({hasModel: false, showWorkflow: true});
+        this.setState({hasModel: false, showSteps: true});
         if (this.props.onTaskChanged) this.props.onTaskChanged();
       }
     }).fail(() => {
-      this.setState({deleting: false, error: _('Cannot delete splat model.')});
+      this.setState({deleting: false, error: _('Cannot delete splats model.')});
     });
   }
 
@@ -347,7 +337,7 @@ class SplatsDialog extends React.Component {
       : "",
       hasCameras && !hasPointCloud ?
         <div key="missing-pointcloud" className="alert alert-warning">
-          <i className="fa fa-exclamation-triangle"></i> {_("This task is missing a point cloud, so the training data will include an empty point cloud. Some training software might not work properly without one. Uploading a splat model is disabled.")}
+          <i className="fa fa-exclamation-triangle"></i> {_("This task is missing a point cloud, so the training data will include an empty point cloud. Some training software might not work properly without one. Uploading a splats model is disabled.")}
         </div>
       : "",
       hasCameras && missingImages ?
@@ -364,13 +354,13 @@ class SplatsDialog extends React.Component {
     return (
       <div className="model-actions">
         <p>
-          {_("The splat model has been added.")}
+          {_("A splats model has been added.")}
         </p>
         <a className="btn btn-primary" href={`/3d/project/${this.props.projectId}/task/${this.props.task.id}/?t=splats`}>
           <i className="fa fa-splat"></i> {_("View in 3D")}
         </a>
         {this.props.canEdit ? [
-          <button key="upload" type="button" className="btn btn-default" disabled={!this.assetsInfo().hasPointCloud} onClick={() => this.setState({showWorkflow: true})}>
+          <button key="upload" type="button" className="btn btn-default" disabled={!this.assetsInfo().hasPointCloud} onClick={() => this.setState({showSteps: true})}>
             <i className="glyphicon glyphicon-upload"></i> {_("Upload New")}
           </button>,
           <button key="delete" type="button" className="btn btn-danger" onClick={this.handleDeleteModel} disabled={deleting}>
@@ -399,13 +389,11 @@ class SplatsDialog extends React.Component {
             </div>
             <div className="modal-body">
               <ErrorMessage bind={[this, 'error']} />
-              {!this.state.showWorkflow ? this.renderModelActions() : ""}
-              {/* The workflow is hidden (not unmounted) so that the
-                  upload button keeps working as the dropzone target */}
-              <div style={{display: this.state.showWorkflow ? "block" : "none"}}>
+              {!this.state.showSteps ? this.renderModelActions() : ""}
+              <div style={{display: this.state.showSteps ? "block" : "none"}}>
                 {this.renderAlerts()}
 
-                <div className="splats-step">
+                <div className="splats-step theme-border-highlight-9">
                   <div className="step-number step-button theme-background-highlight">1</div>
                   <div className="step-body">
                     <div className="download-area">
@@ -451,12 +439,12 @@ class SplatsDialog extends React.Component {
                   </div>
                 </div>
 
-                <div className="splats-step">
+                <div className="splats-step theme-border-highlight-9">
                   <div className="step-number theme-background-highlight">2</div>
                   <div className="step-body">
                     <p>
                       <Trans params={{link_start: `<a href="${window.__splatDocsLink}" target="_blank">`, link_end: '</a>'}}>
-                        {_("Train a model using your choice of %(link_start)s compatible software %(link_end)s")}
+                        {_("Train a model using %(link_start)s compatible software %(link_end)s")}
                       </Trans>
                     </p>
                   </div>
@@ -466,7 +454,7 @@ class SplatsDialog extends React.Component {
                   <div className="step-number step-button theme-background-highlight">3</div>
                   <div className="step-body">
                     {!canEdit ?
-                      <p>{_("You don't have permission to upload a splat model to this task.")}</p>
+                      <p>{_("You don't have permission to upload a splats model to this task.")}</p>
                     :
                       <div className="splats-upload-area">
                         <button
@@ -501,7 +489,7 @@ class SplatsDialog extends React.Component {
                         )}
                         {processing && (
                           <div className="processing-area">
-                            <i className="fa fa-circle-notch fa-spin fa-fw"></i> {this.state.processingStatus !== '' ? this.state.processingStatus : _("Processing splats...")}{this.state.processingProgress !== null ? ` (${this.state.processingProgress.toFixed(0)}%)` : ""}
+                            <i className="fa fa-circle-notch fa-spin fa-fw"></i> {_("Processing splats model...")}
                           </div>
                         )}
                       </div>

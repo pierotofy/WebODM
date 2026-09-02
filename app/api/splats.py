@@ -21,10 +21,6 @@ SPLAT_EXTENSIONS = ('.ply', '.spz', '.splat', '.ksplat', '.sog', '.sogs', '.zip'
 
 class TaskSplatsDownload(TaskNestedView):
     def post(self, request, pk=None, project_pk=None):
-        """
-        Generate the sparse reconstruction data needed to download
-        a splats training zip for this task
-        """
         task = self.get_and_check_task(request, pk)
 
         try:
@@ -41,14 +37,10 @@ class TaskSplatsDownload(TaskNestedView):
         celery_task_id = export_splats.delay(task.id, image_size=image_size).task_id
 
         return Response({
-            'celery_task_id': celery_task_id,
-            'filename': get_asset_download_filename(task, "training.zip")
+            'celery_task_id': celery_task_id
         }, status=status.HTTP_200_OK)
 
     def get(self, request, pk=None, project_pk=None, celery_task_id=""):
-        """
-        Stream the splats training zip from a completed export
-        """
         task = self.get_and_check_task(request, pk)
 
         res = TestSafeAsyncResult(celery_task_id)
@@ -59,9 +51,7 @@ class TaskSplatsDownload(TaskNestedView):
         if not isinstance(result, dict) or result.get('error') is not None:
             raise exceptions.ValidationError(detail=(result or {}).get('error', _("Invalid export")))
 
-        # Same directory that the export_splats worker task writes to.
-        # The export could have been cleaned up from the temporary
-        # directory in the meantime
+        # Same directory that the export_splats worker task writes to
         export_dir = os.path.join(settings.MEDIA_TMP, "splats_export_{}".format(re.sub('[^0-9a-zA-Z-]+', '', celery_task_id)))
         if not os.path.isdir(export_dir):
             raise exceptions.NotFound(_("Export has expired, please generate a new one"))
@@ -76,16 +66,11 @@ class TaskSplatsUpload(TaskNestedView):
     parser_classes = (parsers.MultiPartParser, parsers.FormParser)
 
     def post(self, request, pk=None, project_pk=None):
-        """
-        Upload a splat model file. Unless it's already in .rad format,
-        the file is converted in a background task, whose id is returned
-        for progress monitoring.
-        """
         task = self.get_and_check_task(request, pk)
         check_project_perms(request, task.project, perms=("change_project", ))
 
         if 'georeferenced_model.laz' not in task.available_assets:
-            raise exceptions.ValidationError(detail=_("Cannot upload a splat model (task is missing a point cloud)"))
+            raise exceptions.ValidationError(detail=_("Cannot upload a splats model (task is missing a point cloud)"))
 
         files = flatten_files(request.FILES)
         if len(files) != 1:
@@ -167,30 +152,27 @@ class TaskSplatsUpload(TaskNestedView):
 
             return Response({'success': True, 'celery_task_id': None}, status=status.HTTP_200_OK)
         else:
-            # splat-tools detects the input format from the file extension
-            input_file = tempfile.mktemp('_splats' + ext, dir=settings.MEDIA_TMP)
-            shutil.move(uploaded_file, input_file)
+            tmp_splats_file = tempfile.mktemp('_splats' + ext, dir=settings.MEDIA_TMP)
+            shutil.move(uploaded_file, tmp_splats_file)
 
-            celery_task_id = process_splats.delay(task.id, input_file).task_id
+            celery_task_id = process_splats.delay(task.id, tmp_splats_file).task_id
             return Response({'success': True, 'celery_task_id': celery_task_id}, status=status.HTTP_200_OK)
 
 
-class TaskSplatsManage(TaskNestedView):
-    def delete(self, request, pk=None, project_pk=None):
+class TaskSplatsDelete(TaskNestedView):
+    def post(self, request, pk=None, project_pk=None):
         """
-        Delete a task's splat model
+        Delete a task's splats model
         """
         task = self.get_and_check_task(request, pk)
         check_project_perms(request, task.project, perms=("change_project", ))
 
-        model_rad = task.assets_path(task.ASSETS_MAP['splats.rad'])
-        model_spz = task.assets_path(task.ASSETS_MAP['splats.spz'])
-        if not os.path.isfile(model_rad) and not os.path.isfile(model_spz):
+        model_rad = task.get_asset_file_or_stream('splats.rad')
+        if not os.path.isfile(model_rad):
             raise exceptions.NotFound(_("Asset does not exist"))
-
-        for f in (model_rad, model_spz):
-            if os.path.isfile(f):
-                os.unlink(f)
+        
+        if os.path.isfile(model_rad):
+            os.unlink(model_rad)
 
         task.update_available_assets_field()
         task.update_size()

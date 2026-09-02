@@ -6,7 +6,7 @@ from .projects import ProjectViewSet
 from .tasks import TaskViewSet, TaskDownloads, TaskThumbnail, TaskAssets, TaskBackup, \
   TaskAssetsImport, TaskExternalImportInit, TaskExternalImportUpload, TaskExternalImportCommit, TaskSafeTexturedModel, TaskRtc
 from .media import TaskMediaUpload, TaskMediaManage, TaskMediaDownload, TaskMediaThumbnail, TaskMediaList, TaskMediaGeoJSON, TaskVideoFlightPath
-from .splats import TaskSplatsDownload, TaskSplatsUpload, TaskSplatsManage
+from .splats import TaskSplatsDownload, TaskSplatsUpload, TaskSplatsDelete
 from .overlays import TaskOverlayConvert, TaskOverlaysSync, TaskOverlay, overlayStamp
 from .panorama import TaskPanoramaTiles
 from .imageuploads import Thumbnail, ImageDownload
@@ -78,7 +78,7 @@ urlpatterns = [
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/splats/download$', TaskSplatsDownload.as_view()),
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/splats/download/(?P<celery_task_id>[^/]+)$', TaskSplatsDownload.as_view()),
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/splats/upload$', TaskSplatsUpload.as_view()),
-    url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/splats/manage$', TaskSplatsManage.as_view()),
+    url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/splats/delete$', TaskSplatsDelete.as_view()),
 
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/images/thumbnail/(?P<image_filename>.+)$', Thumbnail.as_view()),
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/images/download/(?P<image_filename>.+)$', ImageDownload.as_view()),
