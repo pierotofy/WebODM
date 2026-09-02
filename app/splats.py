@@ -214,16 +214,21 @@ def load_scene(task, image_size):
         cameras[normalize_camera_id(cam_id)] = camera
 
     if len(cameras) == 0:
-        raise ValueError("No cameras can be exported to COLMAP")
+        raise ValueError("Failed to export cameras")
 
     shots = []
     seen = set()
     for feat in shots_geojson.get('features', []):
         props = feat.get('properties', {})
         filename = props.get('filename')
-        camera = cameras.get(normalize_camera_id(props.get('camera', '')))
-        if not filename or camera is None:
+        if not filename:
             continue
+        
+        camera = cameras.get(normalize_camera_id(props.get('camera', '')))
+        if not camera:
+            # Assume first
+            camera = cameras[0]
+                    
         filename = os.path.basename(filename)
         if filename in seen:
             continue
@@ -242,7 +247,7 @@ def load_scene(task, image_size):
         })
 
     if len(shots) == 0:
-        raise ValueError("No shots can be exported to COLMAP")
+        raise ValueError("Failed to export shots")
 
     return cameras, shots, offset_x, offset_y
 
