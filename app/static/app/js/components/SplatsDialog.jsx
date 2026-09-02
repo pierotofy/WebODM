@@ -266,7 +266,7 @@ class SplatsDialog extends React.Component {
                 if (!this._mounted) return;
                 this.setState({exporting: false});
                 if (error) this.setState({error});
-                else window.location.href = this.apiUrl(`download/${result.celery_task_id}`) + `?filename=${result.filename}`;
+                else window.location.href = this.apiUrl(`download/${result.celery_task_id}`);
             }, (_status, progress) => {
                 if (!this._mounted) return;
                 if (progress === 100) this.setState({exportProgress: null}); // Don't show the last bit

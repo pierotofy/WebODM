@@ -227,7 +227,7 @@ def load_scene(task, image_size):
         camera = cameras.get(normalize_camera_id(props.get('camera', '')))
         if not camera:
             # Assume first
-            camera = cameras[0]
+            camera = next(iter(cameras.values()))
                     
         filename = os.path.basename(filename)
         if filename in seen:
