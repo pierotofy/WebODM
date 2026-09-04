@@ -128,7 +128,7 @@ def resize_image(image_path, resize_to, done=None):
             xmp = im.info.get("xmp")
             exif = im.info.get("exif")
 
-            resized = im.resize((resized_width, resized_height), Image.LANCZOS)
+            resized = im.resize((resized_width, resized_height), Image.LANCZOS, reducing_gap=2)
             params = {}
             if is_jpeg:
                 params['quality'] = 100
@@ -220,6 +220,7 @@ class Task(models.Model):
             'shots.geojson': os.path.join('odm_report', 'shots.geojson'),
             'report.pdf': os.path.join('odm_report', 'report.pdf'),
             'ground_control_points.geojson': os.path.join('odm_georeferencing', 'ground_control_points.geojson'),
+            'splats.rad': os.path.join('splats', 'model.rad'),
     }
 
     STATUS_CODES = (

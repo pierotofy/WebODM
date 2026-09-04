@@ -140,7 +140,7 @@ class ModelView extends React.Component {
       task: PropTypes.object.isRequired, // The object should contain two keys: {id: <taskId>, project: <projectId>}
       public: PropTypes.bool, // Is the view being displayed via a shared link?
       shareButtons: PropTypes.bool,
-      modelType: PropTypes.oneOf(['cloud', 'mesh']),
+      modelType: PropTypes.oneOf(['cloud', 'mesh', 'splats']),
       title: PropTypes.string
   };
 
@@ -152,6 +152,9 @@ class ModelView extends React.Component {
       showingTexturedModel: false,
       initializingModel: false,
       texModelLoadProgress: null,
+      showingSplats: false,
+      initializingSplats: false,
+      splatsLoadProgress: null,
       selectedCamera: null,
       modalOpen: false,
       sidebarOpen: false,
@@ -161,6 +164,8 @@ class ModelView extends React.Component {
 
     this.pointCloud = null;
     this.modelReference = null;
+    this.splatsReference = null;
+    this.sparkRenderer = null;
 
     this.cameraMeshes = [];
   }
@@ -187,41 +192,18 @@ class ModelView extends React.Component {
   }
 
   loadGeoreferencingOffset = (cb) => {
-    const geoFile = `${this.assetsPath()}/odm_georeferencing/coords.txt`;
-    const legacyGeoFile = `${this.assetsPath()}/odm_georeferencing/odm_georeferencing_model_geo.txt`;
-    const getGeoOffsetFromUrl = (url) => {
-        $.ajax({
-            url: url,
-            type: 'GET',
-            error: () => {
-                console.warn(`Cannot find ${url} (not georeferenced?)`);
-                cb({x: 0, y: 0});
-            },
-            success: (data) => {
-                const lines = data.split("\n");
-                if (lines.length >= 2){
-                    const [ x, y ] = lines[1].split(" ").map(parseFloat);
-                    cb({x, y});
-                }else{
-                    console.warn(`Malformed georeferencing file: ${data}`);
-                    cb({x: 0, y: 0});
-                }
-            }
-        });
-    };
-
     $.ajax({
-        type: "HEAD",
-        url: legacyGeoFile
-    }).done(() => {
-        // If a legacy georeferencing file is present
-        // we'll use that
-        getGeoOffsetFromUrl(legacyGeoFile);
-    }).fail(() => {
-        getGeoOffsetFromUrl(geoFile);
+        url: `${this.basePath()}/rtc`,
+        type: 'GET',
+        error: () => {
+            console.warn(`Cannot retrieve georeferencing offset (not georeferenced?)`);
+            cb({x: 0, y: 0});
+        },
+        success: (data) => {
+            const [ x, y ] = data.coords;
+            cb({x, y});
+        }
     });
-
-    
   }
 
   pointCloudFilePath = (cb) => {
@@ -255,6 +237,10 @@ class ModelView extends React.Component {
 
   hasCameras = () => {
     return this.props.task.available_assets.indexOf('shots.geojson') !== -1;
+  }
+
+  hasSplats = () => {
+    return this.props.task.available_assets.indexOf('splats.rad') !== -1;
   }
 
   objFilePath = (cb) => {
@@ -394,6 +380,8 @@ class ModelView extends React.Component {
           // Automatically load 3D model if required
           if (this.hasTexturedModel() && this.props.modelType === "mesh"){
             this.toggleTexturedModel(true);
+          }else if (this.hasSplats() && this.props.modelType === "splats"){
+            this.toggleSplats(true);
           }
     
           let scene = viewer.scene;
@@ -730,14 +718,117 @@ class ModelView extends React.Component {
     );
   }
 
+  getCurrentModelType = () => {
+    if (this.state.showingTexturedModel || this.state.initializingModel) return "mesh";
+    if (this.state.showingSplats || this.state.initializingSplats) return "splats";
+    return "cloud";
+  }
+
   setModelType = (type) => {
-    if (this.state.initializingModel) return;
+    if (this.state.initializingModel || this.state.initializingSplats) return;
 
-    const showTexturedModel = type === "mesh";
-    const showing = this.state.showingTexturedModel === showTexturedModel;
-    if (showing) return;
+    const current = this.getCurrentModelType();
+    if (current === type) return;
 
-    this.toggleTexturedModel(showTexturedModel);
+    if (current === "mesh") this.toggleTexturedModel(false);
+    else if (current === "splats") this.toggleSplats(false);
+
+    if (type === "mesh") this.toggleTexturedModel(true);
+    else if (type === "splats") this.toggleSplats(true);
+  }
+
+  loadSplatsModule = (cb) => {
+    if (window.THREEdgs){
+        cb();
+        return;
+    }
+
+    $.ajax({
+        url: "/static/app/js/vendor/threedgs.umd.min.js",
+        dataType: "script",
+        cache: true
+    }).done(() => {
+        if (window.THREEdgs) cb();
+        else cb(new Error(_("Cannot load splats renderer")));
+    }).fail(() => {
+        cb(new Error(_("Cannot load splats renderer")));
+    });
+  }
+
+  initSplatsRenderer = () => {
+    this.sparkRenderer = new THREEdgs.SparkRenderer({renderer: viewer.renderer});
+    viewer.scene.scene.add(this.sparkRenderer);
+  }
+
+  setSplatsVisible = (flag) => {
+    if (this.sparkRenderer) this.sparkRenderer.visible = flag;
+  }
+
+  toggleSplats = (show) => {
+    if (show){
+      // Need to load splats for the first time?
+      if (this.splatsReference === null && !this.state.initializingSplats){
+
+        this.setState({initializingSplats: true, splatsLoadProgress: null});
+
+        this.loadSplatsModule(err => {
+            if (err){
+                this.setState({initializingSplats: false, error: err.message});
+                return;
+            }
+
+            if (!this.sparkRenderer) this.initSplatsRenderer();
+
+            const url = this.assetsPath() + '/splats/model.rad';
+            const splats = new THREEdgs.SplatMesh({
+                url,
+                paged: true,
+                onProgress: e => {
+                    if (e.lengthComputable){
+                        this.setState({splatsLoadProgress: Math.round((e.loaded / e.total) * 100)});
+                    }
+                },
+                onLoad: () => {
+                    this.setState({splatsLoadProgress: null});
+                    this.loadGeoreferencingOffset((offset) => {
+                        splats.translateX(offset.x);
+                        splats.translateY(offset.y);
+
+                        const cropCoords = this.getCropCoordinates();
+                        if (cropCoords){
+                            this.sparkRenderer.cropVertices = cropCoords.map(v => new THREE.Vector2(v.x, v.y));
+                        }
+
+                        viewer.scene.scene.add(splats);
+                        this.splatsReference = splats;
+
+                        this.sparkRenderer.addEventListener("firstDisplay", () => {
+                            this.setPointCloudsVisible(false);
+                            this.setState({
+                                initializingSplats: false,
+                                showingSplats: true
+                            });
+                        });
+                    });
+                }
+            });
+
+            splats.initialized.catch(e => {
+                console.error(e);
+                this.setState({initializingSplats: false, error: _("Could not load splats. This task doesn't seem to have a valid splats file.")});
+            });
+        });
+      }else{
+        // Already initialized
+        this.setSplatsVisible(true);
+        this.setPointCloudsVisible(false);
+        this.setState({showingSplats: true});
+      }
+    }else{
+      this.setSplatsVisible(false);
+      this.setPointCloudsVisible(true);
+      this.setState({showingSplats: false});
+    }
   }
 
   toggleTexturedModel = (show) => {
@@ -820,11 +911,13 @@ class ModelView extends React.Component {
 
   // React render
   render(){
-    const { selectedCamera, showingTexturedModel, initializingModel } = this.state;
+    const { selectedCamera, showingTexturedModel, initializingModel, showingSplats, initializingSplats } = this.state;
     const { task } = this.props;
     const queryParams = {};
     if (showingTexturedModel){
         queryParams.t = "mesh";
+    }else if (showingSplats){
+        queryParams.t = "splats";
     }
 
     let modelTypeButtons = [
@@ -832,18 +925,28 @@ class ModelView extends React.Component {
         label: _("Point Cloud"),
         type: "cloud",
         icon: "fa fa-pointcloud"
-      },
-      {
+      }
+    ];
+    if (this.hasTexturedModel()){
+      modelTypeButtons.push({
         label: _("Textured Model"),
         type: "mesh",
         icon: "fab fa-connectdevelop"
-      }
-    ];
+      });
+    }
+    if (this.hasSplats()){
+      modelTypeButtons.push({
+        label: _("Splats"),
+        type: "splats",
+        icon: "fa fa-splat"
+      });
+    }
 
     // If we have only one type available, hide the buttons
-    if (!this.hasTexturedModel()) modelTypeButtons = [];
+    if (modelTypeButtons.length === 1) modelTypeButtons = [];
 
-    const selectedModelType = (showingTexturedModel || initializingModel) ? "mesh" : "cloud";
+    const selectedModelType = this.getCurrentModelType();
+    const initializing = initializingModel || initializingSplats;
 
     return (<div className={"model-view " + (this.state.sidebarOpen ? "sidebar-open" : "")}>
           <ErrorMessage bind={[this, "error"]} />
@@ -859,7 +962,7 @@ class ModelView extends React.Component {
                 <button
                   key={modelType.type}
                   onClick={() => this.setModelType(modelType.type)}
-                  disabled={initializingModel}
+                  disabled={initializing}
                   title={modelType.label}
                   className={"btn btn-sm " + (modelType.type === selectedModelType ? "btn-primary" : "btn-default")}><i className={modelType.icon + " fa-fw"}></i><span className="hidden-sm hidden-xs"> {modelType.label}</span></button>
               )}
@@ -875,9 +978,9 @@ class ModelView extends React.Component {
                 <div id="potree_sidebar_container"> </div>
 
                 <Standby
-                  message={_("Loading textured model...")}
-                  show={this.state.initializingModel}
-                  progress={this.state.texModelLoadProgress}
+                  message={initializingSplats ? _("Loading splats...") : _("Loading textured model...")}
+                  show={initializing}
+                  progress={initializingSplats ? this.state.splatsLoadProgress : this.state.texModelLoadProgress}
                   />
           </div>
 

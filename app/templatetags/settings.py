@@ -19,6 +19,10 @@ def gcp_docs_link():
     return settings.GCP_DOCS_LINK
 
 @register.simple_tag
+def splat_docs_link():
+    return settings.SPLAT_DOCS_LINK
+
+@register.simple_tag
 def reset_password_link():
     return settings.RESET_PASSWORD_LINK
 

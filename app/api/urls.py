@@ -4,8 +4,9 @@ from app.api.presets import PresetViewSet
 from app.plugins.views import api_view_handler
 from .projects import ProjectViewSet
 from .tasks import TaskViewSet, TaskDownloads, TaskThumbnail, TaskAssets, TaskBackup, \
-  TaskAssetsImport, TaskExternalImportInit, TaskExternalImportUpload, TaskExternalImportCommit, TaskSafeTexturedModel
+  TaskAssetsImport, TaskExternalImportInit, TaskExternalImportUpload, TaskExternalImportCommit, TaskSafeTexturedModel, TaskRtc
 from .media import TaskMediaUpload, TaskMediaManage, TaskMediaDownload, TaskMediaThumbnail, TaskMediaList, TaskMediaGeoJSON, TaskVideoFlightPath
+from .splats import TaskSplatsDownload, TaskSplatsUpload, TaskSplatsDelete
 from .overlays import TaskOverlayConvert, TaskOverlaysSync, TaskOverlay, overlayStamp
 from .panorama import TaskPanoramaTiles
 from .imageuploads import Thumbnail, ImageDownload
@@ -57,6 +58,7 @@ urlpatterns = [
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/import/external/commit$', TaskExternalImportCommit.as_view()),
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/thumbnail$', TaskThumbnail.as_view()),
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/backup$', TaskBackup.as_view()),
+    url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/rtc$', TaskRtc.as_view()),
 
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/overlays/(?P<overlay_id>[^/]+)\.geojson$', TaskOverlay.as_view()),
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/overlays/convert$', TaskOverlayConvert.as_view()),
@@ -72,6 +74,11 @@ urlpatterns = [
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/media/video/(?P<filename>[^/]+)/flightpath\.geojson$', TaskVideoFlightPath.as_view()),
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/media/manage/(?P<filename>.+)$', TaskMediaManage.as_view()),
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/media/panorama/(?P<filename>[^/]+)/tiles/(?P<level>\d+)/(?P<face>\w)/(?P<row>\d+)/(?P<col>\d+)\.jpg$', TaskPanoramaTiles.as_view()),
+
+    url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/splats/download$', TaskSplatsDownload.as_view()),
+    url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/splats/download/(?P<celery_task_id>[^/]+)$', TaskSplatsDownload.as_view()),
+    url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/splats/upload$', TaskSplatsUpload.as_view()),
+    url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/splats/delete$', TaskSplatsDelete.as_view()),
 
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/images/thumbnail/(?P<image_filename>.+)$', Thumbnail.as_view()),
     url(r'projects/(?P<project_pk>[^/.]+)/tasks/(?P<pk>[^/.]+)/images/download/(?P<image_filename>.+)$', ImageDownload.as_view()),
