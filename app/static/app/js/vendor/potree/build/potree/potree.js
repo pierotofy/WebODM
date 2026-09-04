@@ -56462,6 +56462,9 @@
 					supported = supported && gl.getExtension('EXT_frag_depth');
 					supported = supported && gl.getParameter(gl.MAX_VARYING_VECTORS) >= 8;
 
+					// EXT_frag_depth is core in WebGL2 (getExtension returns null)
+					supported = supported || (typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext);
+
 					return supported;
 				}
 			},
@@ -56472,6 +56475,10 @@
 					supported = supported && gl.getExtension('EXT_frag_depth');
 					supported = supported && gl.getExtension('OES_texture_float');
 					supported = supported && gl.getParameter(gl.MAX_VARYING_VECTORS) >= 8;
+
+					// EXT_frag_depth and OES_texture_float are core in WebGL2
+					// (getExtension returns null for them)
+					supported = supported || (typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext);
 
 					return supported;
 				}
@@ -56485,7 +56492,9 @@
 					supported = supported && gl.getExtension('OES_texture_float');
 					supported = supported && gl.getParameter(gl.MAX_VARYING_VECTORS) >= 8;
 
-					//supported = supported || (gl instanceof WebGL2RenderingContext);
+					// EXT_frag_depth and OES_texture_float are core in WebGL2
+					// (getExtension returns null for them)
+					supported = supported || (typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext);
 
 					return supported;
 				}
@@ -57632,25 +57641,25 @@
 
 	let Shaders = {};
 
-	Shaders["pointcloud.vs"] = `
+	Shaders["pointcloud.vs"] = `#version 300 es
 precision highp float;
 precision highp int;
 
 #define max_clip_polygons 8
 #define PI 3.141592653589793
 
-attribute vec3 position;
-attribute vec3 color;
-attribute float intensity;
-attribute float classification;
-attribute float returnNumber;
-attribute float numberOfReturns;
-attribute float pointSourceID;
-attribute vec4 indices;
-attribute float spacing;
-attribute float gpsTime;
-attribute vec3 normal;
-attribute float aExtra;
+in vec3 position;
+in vec3 color;
+in float intensity;
+in float classification;
+in float returnNumber;
+in float numberOfReturns;
+in float pointSourceID;
+in vec4 indices;
+in float spacing;
+in float gpsTime;
+in vec3 normal;
+in float aExtra;
 
 uniform mat4 modelMatrix;
 uniform mat4 modelViewMatrix;
@@ -57761,16 +57770,14 @@ uniform mat4 uShadowWorldView[num_shadowmaps];
 uniform mat4 uShadowProj[num_shadowmaps];
 #endif
 
-varying vec3	vColor;
-varying float	vLogDepth;
-varying vec3	vViewPosition;
-varying float 	vRadius;
-varying float 	vPointSize;
+out vec3	vColor;
+out float	vLogDepth;
+out vec3	vViewPosition;
+out float 	vRadius;
+out float 	vPointSize;
 
 
-float round(float number){
-	return floor(number + 0.5);
-}
+// round() is a built-in in GLSL ES 3.00
 
 // 
 //    ###    ########     ###    ########  ######## #### ##     ## ########     ######  #### ######## ########  ######  
@@ -57863,7 +57870,7 @@ float getLOD(){
 		index3d = floor(index3d + 0.5);
 		int index = int(round(4.0 * index3d.x + 2.0 * index3d.y + index3d.z));
 		
-		vec4 value = texture2D(visibleNodes, vec2(float(iOffset) / 2048.0, 0.0));
+		vec4 value = texture(visibleNodes, vec2(float(iOffset) / 2048.0, 0.0));
 		int mask = int(round(value.r * 255.0));
 
 		if(isBitSet(mask, index)){
@@ -57903,7 +57910,7 @@ float getSpacing(){
 		index3d = floor(index3d + 0.5);
 		int index = int(round(4.0 * index3d.x + 2.0 * index3d.y + index3d.z));
 		
-		vec4 value = texture2D(visibleNodes, vec2(float(iOffset) / 2048.0, 0.0));
+		vec4 value = texture(visibleNodes, vec2(float(iOffset) / 2048.0, 0.0));
 		int mask = int(round(value.r * 255.0));
 		float spacingFactor = value.a;
 
@@ -57961,7 +57968,7 @@ float getLOD(){
 		
 	for(float i = 0.0; i <= 1000.0; i++){
 		
-		vec4 value = texture2D(visibleNodes, vec2(iOffset / 2048.0, 0.0));
+		vec4 value = texture(visibleNodes, vec2(iOffset / 2048.0, 0.0));
 		
 		int children = int(value.r * 255.0);
 		float next = value.g * 255.0;
@@ -58058,13 +58065,13 @@ vec3 getGpsTime(){
 	float w = (gpsTime + uGpsOffset) * uGpsScale;
 
 
-	vec3 c = texture2D(gradient, vec2(w, 1.0 - w)).rgb;
+	vec3 c = texture(gradient, vec2(w, 1.0 - w)).rgb;
 
 
 	// vec2 r = uNormalizedGpsBufferRange;
 	// float w = gpsTime * (r.y - r.x) + r.x;
 	// w = clamp(w, 0.0, 1.0);
-	// vec3 c = texture2D(gradient, vec2(w,1.0-w)).rgb;
+	// vec3 c = texture(gradient, vec2(w,1.0-w)).rgb;
 	
 	return c;
 }
@@ -58072,14 +58079,14 @@ vec3 getGpsTime(){
 vec3 getElevation(){
 	vec4 world = modelMatrix * vec4( position, 1.0 );
 	float w = (world.z - elevationRange.x) / (elevationRange.y - elevationRange.x);
-	vec3 cElevation = texture2D(gradient, vec2(w,1.0-w)).rgb;
+	vec3 cElevation = texture(gradient, vec2(w,1.0-w)).rgb;
 	
 	return cElevation;
 }
 
 vec4 getClassification(){
 	vec2 uv = vec2(classification / 255.0, 0.5);
-	vec4 classColor = texture2D(classificationLUT, uv);
+	vec4 classColor = texture(classificationLUT, uv);
 	
 	return classColor;
 }
@@ -58143,14 +58150,14 @@ vec3 getNumberOfReturns(){
 
 	float w = value / 6.0;
 
-	vec3 color = texture2D(gradient, vec2(w, 1.0 - w)).rgb;
+	vec3 color = texture(gradient, vec2(w, 1.0 - w)).rgb;
 
 	return color;
 }
 
 vec3 getSourceID(){
 	float w = mod(pointSourceID, 10.0) / 10.0;
-	return texture2D(gradient, vec2(w,1.0 - w)).rgb;
+	return texture(gradient, vec2(w,1.0 - w)).rgb;
 }
 
 vec3 getCompositeColor(){
@@ -58214,7 +58221,7 @@ vec3 getMatcap(){
 	vec3 r_en = reflect( eye, getNormal() ); // or r_en = e - 2. * dot( n, e ) * n;
 	float m = 2. * sqrt(pow( r_en.x, 2. ) + pow( r_en.y, 2. ) + pow( r_en.z + 1., 2. ));
 	vec2 vN = r_en.xy / m + .5;
-	return texture2D(matcapTextureUniform, vN).rgb; 
+	return texture(matcapTextureUniform, vN).rgb; 
 }
 #endif
 
@@ -58223,7 +58230,7 @@ vec3 getExtra(){
 	float w = (aExtra + uExtraOffset) * uExtraScale;
 	w = clamp(w, 0.0, 1.0);
 
-	vec3 color = texture2D(gradient, vec2(w,1.0-w)).rgb;
+	vec3 color = texture(gradient, vec2(w,1.0-w)).rgb;
 
 	// vec2 r = uExtraNormalizedRange;
 
@@ -58233,7 +58240,7 @@ vec3 getExtra(){
 
 	// w = clamp(w, 0.0, 1.0);
 
-	// vec3 color = texture2D(gradient, vec2(w,1.0-w)).rgb;
+	// vec3 color = texture(gradient, vec2(w,1.0-w)).rgb;
 
 	return color;
 }
@@ -58260,13 +58267,13 @@ vec3 getColor(){
 		color = getGpsTime();
 	#elif defined color_type_intensity_gradient
 		float w = getIntensity();
-		color = texture2D(gradient, vec2(w,1.0-w)).rgb;
+		color = texture(gradient, vec2(w,1.0-w)).rgb;
 	#elif defined color_type_color
 		color = uColor;
 	#elif defined color_type_level_of_detail
 		float depth = getLOD();
 		float w = depth / 10.0;
-		color = texture2D(gradient, vec2(w,1.0-w)).rgb;
+		color = texture(gradient, vec2(w,1.0-w)).rgb;
 	#elif defined color_type_indices
 		color = indices.rgb;
 	#elif defined color_type_classification
@@ -58574,7 +58581,7 @@ void main() {
 
 			if(distance < 1.0){
 				float w = distance;
-				vec3 cGradient = texture2D(gradient, vec2(w, 1.0 - w)).rgb;
+				vec3 cGradient = texture(gradient, vec2(w, 1.0 - w)).rgb;
 				
 				vColor = cGradient;
 				//vColor = cGradient * 0.7 + vColor * 0.3;
@@ -58616,7 +58623,7 @@ void main() {
 			float bias = vRadius * 2.0;
 
 			for(int j = 0; j < 9; j++){
-				vec4 depthMapValue = texture2D(uShadowMap[i], vec2(u, v) + sampleLocations[j]);
+				vec4 depthMapValue = texture(uShadowMap[i], vec2(u, v) + sampleLocations[j]);
 
 				float linearDepthFromSM = depthMapValue.x + bias;
 				float linearDepthFromViewer = distanceToLight;
@@ -58644,13 +58651,11 @@ void main() {
 }
 `;
 
-	Shaders["pointcloud.fs"] = `
-#if defined paraboloid_point_shape
-	#extension GL_EXT_frag_depth : enable
-#endif
-
+	Shaders["pointcloud.fs"] = `#version 300 es
 precision highp float;
 precision highp int;
+
+out vec4 fragColor;
 
 uniform mat4 viewMatrix;
 uniform mat4 uViewInv;
@@ -58671,19 +58676,19 @@ uniform float uPCIndex;
 uniform float uScreenWidth;
 uniform float uScreenHeight;
 
-varying vec3	vColor;
-varying float	vLogDepth;
-varying vec3	vViewPosition;
-varying float	vRadius;
-varying float 	vPointSize;
-varying vec3 	vPosition;
+in vec3	vColor;
+in float	vLogDepth;
+in vec3	vViewPosition;
+in float	vRadius;
+in float 	vPointSize;
+in vec3 	vPosition;
 
 
 float specularStrength = 1.0;
 
 void main() {
 
-	// gl_FragColor = vec4(vColor, 1.0);
+	// fragColor = vec4(vColor, 1.0);
 
 	vec3 color = vColor;
 	float depth = gl_FragCoord.z;
@@ -58701,9 +58706,9 @@ void main() {
 	#endif
 		
 	#if defined color_type_indices
-		gl_FragColor = vec4(color, uPCIndex / 255.0);
+		fragColor = vec4(color, uPCIndex / 255.0);
 	#else
-		gl_FragColor = vec4(color, uOpacity);
+		fragColor = vec4(color, uOpacity);
 	#endif
 
 	#if defined paraboloid_point_shape
@@ -58715,7 +58720,7 @@ void main() {
 		pos = pos / pos.w;
 		float expDepth = pos.z;
 		depth = (pos.z + 1.0) / 2.0;
-		gl_FragDepthEXT = depth;
+		gl_FragDepth = depth;
 		
 		#if defined(color_type_depth)
 			color.r = linearDepth;
@@ -58723,12 +58728,12 @@ void main() {
 		#endif
 		
 		#if defined(use_edl)
-			gl_FragColor.a = log2(linearDepth);
+			fragColor.a = log2(linearDepth);
 		#endif
 		
 	#else
 		#if defined(use_edl)
-			gl_FragColor.a = vLogDepth;
+			fragColor.a = vLogDepth;
 		#endif
 	#endif
 
@@ -58737,11 +58742,11 @@ void main() {
 		float weight = max(0.0, 1.0 - distance);
 		weight = pow(weight, 1.5);
 
-		gl_FragColor.a = weight;
-		gl_FragColor.xyz = gl_FragColor.xyz * weight;
+		fragColor.a = weight;
+		fragColor.xyz = fragColor.xyz * weight;
 	#endif
 
-	//gl_FragColor = vec4(0.0, 0.7, 0.0, 1.0);
+	//fragColor = vec4(0.0, 0.7, 0.0, 1.0);
 	
 }
 
@@ -58915,13 +58920,13 @@ void main() {
 precision mediump float;
 precision mediump int;
 
-attribute vec3 position;
-attribute vec2 uv;
+in vec3 position;
+in vec2 uv;
 
 uniform mat4 projectionMatrix;
 uniform mat4 modelViewMatrix;
 
-varying vec2 vUv;
+out vec2 vUv;
 
 void main() {
 	vUv = uv;
@@ -58929,39 +58934,37 @@ void main() {
 }`;
 
 	Shaders["normalize.fs"] = `
-#extension GL_EXT_frag_depth : enable
-
 precision mediump float;
 precision mediump int;
 
 uniform sampler2D uWeightMap;
 uniform sampler2D uDepthMap;
 
-varying vec2 vUv;
+in vec2 vUv;
+
+out vec4 fragColor;
 
 void main() {
-	float depth = texture2D(uDepthMap, vUv).r;
-	
+	float depth = texture(uDepthMap, vUv).r;
+
 	if(depth >= 1.0){
 		discard;
 	}
 
-	gl_FragColor = vec4(depth, 1.0, 0.0, 1.0);
+	fragColor = vec4(depth, 1.0, 0.0, 1.0);
 
-	vec4 color = texture2D(uWeightMap, vUv); 
+	vec4 color = texture(uWeightMap, vUv);
 	color = color / color.w;
-	
-	gl_FragColor = vec4(color.xyz, 1.0); 
-	
-	gl_FragDepthEXT = depth;
+
+	fragColor = vec4(color.xyz, 1.0);
+
+	gl_FragDepth = depth;
 
 
 }`;
 
 	Shaders["normalize_and_edl.fs"] = `
-#extension GL_EXT_frag_depth : enable
-
-// 
+//
 // adapted from the EDL shader code from Christian Boucheny in cloud compare:
 // https://github.com/cloudcompare/trunk/tree/master/plugins/qEDL/shaders/EDL
 //
@@ -58979,17 +58982,19 @@ uniform vec2 neighbours[NEIGHBOUR_COUNT];
 uniform float edlStrength;
 uniform float radius;
 
-varying vec2 vUv;
+in vec2 vUv;
+
+out vec4 fragColor;
 
 float response(float depth){
 	vec2 uvRadius = radius / vec2(screenWidth, screenHeight);
-	
+
 	float sum = 0.0;
-	
+
 	for(int i = 0; i < NEIGHBOUR_COUNT; i++){
 		vec2 uvNeighbor = vUv + uvRadius * neighbours[i];
-		
-		float neighbourDepth = texture2D(uEDLMap, uvNeighbor).a;
+
+		float neighbourDepth = texture(uEDLMap, uvNeighbor).a;
 
 		if(neighbourDepth != 0.0){
 			if(depth == 0.0){
@@ -58999,54 +59004,52 @@ float response(float depth){
 			}
 		}
 	}
-	
+
 	return sum / float(NEIGHBOUR_COUNT);
 }
 
 void main() {
 
-	float edlDepth = texture2D(uEDLMap, vUv).a;
+	float edlDepth = texture(uEDLMap, vUv).a;
 	float res = response(edlDepth);
 	float shade = exp(-res * 300.0 * edlStrength);
 
-	float depth = texture2D(uDepthMap, vUv).r;
+	float depth = texture(uDepthMap, vUv).r;
 	if(depth >= 1.0 && res == 0.0){
 		discard;
 	}
-	
-	vec4 color = texture2D(uWeightMap, vUv); 
+
+	vec4 color = texture(uWeightMap, vUv);
 	color = color / color.w;
 	color = color * shade;
 
-	gl_FragColor = vec4(color.xyz, 1.0); 
+	fragColor = vec4(color.xyz, 1.0);
 
-	gl_FragDepthEXT = depth;
+	gl_FragDepth = depth;
 }`;
 
 	Shaders["edl.vs"] = `
 precision mediump float;
 precision mediump int;
 
-attribute vec3 position;
-attribute vec2 uv;
+in vec3 position;
+in vec2 uv;
 
 uniform mat4 projectionMatrix;
 uniform mat4 modelViewMatrix;
 
-varying vec2 vUv;
+out vec2 vUv;
 
 void main() {
 	vUv = uv;
-	
+
 	vec4 mvPosition = modelViewMatrix * vec4(position,1.0);
 
 	gl_Position = projectionMatrix * mvPosition;
 }`;
 
 	Shaders["edl.fs"] = `
-#extension GL_EXT_frag_depth : enable
-
-// 
+//
 // adapted from the EDL shader code from Christian Boucheny in cloud compare:
 // https://github.com/cloudcompare/trunk/tree/master/plugins/qEDL/shaders/EDL
 //
@@ -59069,17 +59072,19 @@ uniform mat4 uProj;
 uniform sampler2D uEDLColor;
 uniform sampler2D uEDLDepth;
 
-varying vec2 vUv;
+in vec2 vUv;
+
+out vec4 fragColor;
 
 float response(float depth){
 	vec2 uvRadius = radius / vec2(screenWidth, screenHeight);
-	
+
 	float sum = 0.0;
-	
+
 	for(int i = 0; i < NEIGHBOUR_COUNT; i++){
 		vec2 uvNeighbor = vUv + uvRadius * neighbours[i];
-		
-		float neighbourDepth = texture2D(uEDLColor, uvNeighbor).a;
+
+		float neighbourDepth = texture(uEDLColor, uvNeighbor).a;
 		neighbourDepth = (neighbourDepth == 1.0) ? 0.0 : neighbourDepth;
 
 		if(neighbourDepth != 0.0){
@@ -59090,19 +59095,26 @@ float response(float depth){
 			}
 		}
 	}
-	
+
 	return sum / float(NEIGHBOUR_COUNT);
 }
 
 void main(){
-	vec4 cEDL = texture2D(uEDLColor, vUv);
-	
+	// Fully transparent: don't write color nor depth values
+	// (the point cloud might be hidden to display other models,
+	// e.g. gaussian splats, that render into the same buffers)
+	if(opacity == 0.0){
+		discard;
+	}
+
+	vec4 cEDL = texture(uEDLColor, vUv);
+
 	float depth = cEDL.a;
 	depth = (depth == 1.0) ? 0.0 : depth;
 	float res = response(depth);
 	float shade = exp(-res * 300.0 * edlStrength);
 
-	gl_FragColor = vec4(cEDL.rgb * shade, opacity);
+	fragColor = vec4(cEDL.rgb * shade, opacity);
 
 	{ // write regular hyperbolic depth values to depth buffer
 		float dl = pow(2.0, depth);
@@ -59111,7 +59123,7 @@ void main(){
 		float pz = dp.z / dp.w;
 		float fragDepth = (pz + 1.0) / 2.0;
 
-		gl_FragDepthEXT = fragDepth;
+		gl_FragDepth = fragDepth;
 	}
 
 	if(depth == 0.0){
@@ -65651,7 +65663,7 @@ void main() {
 		}
 
 		getDefines() {
-			let defines = '';
+			let defines = '#version 300 es\n';
 
 			defines += '#define NEIGHBOUR_COUNT ' + this.neighbourCount + '\n';
 
@@ -65719,7 +65731,7 @@ void main() {
 		}
 
 		getDefines() {
-			let defines = '';
+			let defines = '#version 300 es\n';
 
 			defines += '#define NEIGHBOUR_COUNT ' + this.neighbourCount + '\n';
 
@@ -65778,7 +65790,7 @@ void main() {
 		}
 
 		getDefines() {
-			let defines = '';
+			let defines = '#version 300 es\n';
 
 			return defines;
 		}
@@ -89483,7 +89495,7 @@ ENDSEC
 
 			let canvas = document.createElement("canvas");
 
-			let context = canvas.getContext('webgl', contextAttributes );
+			let context = canvas.getContext('webgl2', contextAttributes );
 
 			this.renderer = new WebGLRenderer({
 				alpha: true, 

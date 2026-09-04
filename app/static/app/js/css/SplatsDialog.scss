@@ -1,0 +1,101 @@
+.splats-dialog {
+  .alert{
+    margin-bottom: 22px;
+  }
+  .splats-step {
+    &.last{
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+
+    &:not(:last-child) {
+      border-bottom-width: 1px;
+      border-bottom-style: solid;
+    }
+
+    .step-number {
+      flex: 0 0 auto;
+      width: 28px;
+      height: 28px;
+      margin-top: 3px;
+      margin-right: 12px;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 28px;
+      font-weight: bold;
+      &.step-button{
+        margin-top: 6px;
+      }
+    }
+
+    .step-body {
+      flex: 1 1 auto;
+      min-width: 0;
+
+      p {
+        margin: 7px 0;
+      }
+    }
+  }
+
+  .download-area {
+    .toggle-options {
+      margin-left: 6px;
+    }
+
+    .resize-images {
+      margin-top: 10px;
+
+      label {
+        margin-right: 8px;
+        margin-bottom: 0;
+      }
+
+      .resize-control {
+        display: inline-block;
+        vertical-align: middle;
+        margin-left: 8px;
+        width: 11em;
+
+        input {
+          width: 8em;
+          display: inline-block;
+        }
+
+        span {
+          width: 2em;
+          opacity: 0.6;
+          font-size: 90%;
+        }
+      }
+    }
+  }
+
+  .splats-upload-area {
+    .upload-hint {
+      display: inline-block;
+      vertical-align: middle;
+      margin-left: 8px;
+      font-size: 12px;
+    }
+
+    .upload-progress-area {
+      margin-top: 10px;
+    }
+  }
+
+  .processing-splats {
+    text-align: center;
+    padding: 8px 0;
+  }
+
+  .model-actions {
+    .btn {
+      margin-right: 6px;
+    }
+  }
+}

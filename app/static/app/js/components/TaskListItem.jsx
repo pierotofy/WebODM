@@ -11,6 +11,7 @@ import PropTypes from 'prop-types';
 import TaskPluginActionButtons from './TaskPluginActionButtons';
 import MoveTaskDialog from './MoveTaskDialog';
 import ManageMediaDialog from './ManageMediaDialog';
+import SplatsDialog from './SplatsDialog';
 import PipelineSteps from '../classes/PipelineSteps';
 import Css from '../classes/Css';
 import Tags from '../classes/Tags';
@@ -55,6 +56,7 @@ class TaskListItem extends React.Component {
       displayPdf: false,
       copiedToClipboard: false,
       showMediaDialog: false,
+      showSplatsDialog: false,
     }
 
     for (let k in props.data){
@@ -279,7 +281,22 @@ class TaskListItem extends React.Component {
   }
 
   copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
+    if (navigator.clipboard !== undefined){
+      navigator.clipboard.writeText(text);
+    }else{
+      // navigator.clipboard is only available in secure contexts (HTTPS)
+      const el = document.createElement('textarea');
+      el.value = text;
+      el.style.position = 'fixed';
+      el.style.opacity = '0';
+      document.body.appendChild(el);
+      el.select();
+      try{
+        document.execCommand('copy');
+      }finally{
+        document.body.removeChild(el);
+      }
+    }
     this.setState({copiedToClipboard: true});
     if (this._clipboardTimeout){
       clearTimeout(this._clipboardTimeout);
@@ -846,6 +863,7 @@ class TaskListItem extends React.Component {
     if (task.status === statusCodes.COMPLETED){
       taskActions.push(
             <li key="media"><a href="javascript:void(0)" onClick={() => { this.setState({showMediaDialog: true}); }}><i className="fa fa-image"></i>{_("Media")}</a></li>,
+            <li key="splats"><a href="javascript:void(0)" onClick={() => { this.setState({showSplatsDialog: true}); }}><i className="fa fa-splat"></i>{_("Splats")}</a></li>,
       );
     }
 
@@ -895,6 +913,15 @@ class TaskListItem extends React.Component {
                 projectId={task.project}
                 canEdit={this.props.hasPermission("change")}
                 onClose={() => this.setState({showMediaDialog: false})}
+            />
+        : ""}
+        {this.state.showSplatsDialog ?
+            <SplatsDialog
+                task={task}
+                projectId={task.project}
+                canEdit={this.props.hasPermission("change")}
+                onClose={() => this.setState({showSplatsDialog: false})}
+                onTaskChanged={() => this.refresh()}
             />
         : ""}
         <div className="row">
