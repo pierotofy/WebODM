@@ -272,6 +272,9 @@ class TaskOverlayConvert(TaskNestedView):
             if epsg is not None:
                 args += ["-s_srs", "EPSG:{}".format(epsg)]
 
+            args += ['--config', 'DXF_ENCODING', 'UTF-8']
+            args += ['--config', 'DXF_3D_EXTENSIBLE_MODE', 'YES']
+            
             outfile = os.path.join(tmpdir, "output.geojson")
             p = subprocess.Popen(args + [outfile, src],
                                  cwd=tmpdir, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
