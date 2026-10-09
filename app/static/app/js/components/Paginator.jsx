@@ -154,11 +154,11 @@ class Paginator extends React.Component {
                 <SortPanel selected={this.state.sortKey} items={this.sortItems} onChange={this.sortChanged} />
             </li>
             <li className="btn-group">
-                <a href="javascript:void(0);" className="dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title={_("Items per page")}><i className="fa fa-list-ol"></i> {pageSize}</a>
+                <a href="javascript:void(0);" className="dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title={_("Items per page")}><i className="fa fa-list-ol"></i></a>
                 <ul className="dropdown-menu dropdown-menu-right">
                     {[10, 25, 50, 100].map(size => (
                         <li key={size}>
-                            <a href="javascript:void(0);" onClick={() => this.pageSizeChanged(size)}>
+                            <a className="page-size" href="javascript:void(0);" onClick={() => this.pageSizeChanged(size)}>
                                 {size} {pageSize === size ? <i className="fa fa-check"></i> : ""}
                             </a>
                         </li>
