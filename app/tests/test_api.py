@@ -498,6 +498,10 @@ class TestApi(BootTestCase):
 
         settings.NODE_OPTIMISTIC_MODE = False
 
+        # Test refresh, nothing should change
+        res = client.get('/api/processingnodes/?refresh=1')
+        self.assertEqual(len(res.data), 3)
+
     def test_token_auth(self):
         client = APIClient()
 

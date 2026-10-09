@@ -1,4 +1,5 @@
 import django_filters
+from concurrent.futures import ThreadPoolExecutor
 from django_filters.rest_framework import FilterSet
 from guardian.shortcuts import get_objects_for_user
 from rest_framework import serializers, viewsets
@@ -49,12 +50,32 @@ class ProcessingNodeViewSet(viewsets.ModelViewSet):
         if settings.UI_MAX_PROCESSING_NODES is not None:
             queryset = queryset[:settings.UI_MAX_PROCESSING_NODES]
 
-        if settings.NODE_OPTIMISTIC_MODE:
-            for pn in queryset:
-                pn.update_node_info()
+        refresh = request.query_params.get('refresh', '').lower() in ['true', '1']
+
+        if settings.NODE_OPTIMISTIC_MODE or refresh:
+            def refresh_node_info(pn):
+                try:
+                    return pn.update_node_info(save=False)
+                except Exception:
+                    return False
+
+            nodes = list(queryset)
+            num_nodes = len(nodes)
+            if num_nodes > 0:
+                if num_nodes == 1:
+                    results = [refresh_node_info(nodes[0])]
+                else:
+                    with ThreadPoolExecutor(max_workers=min(num_nodes, 10)) as executor:
+                        results = list(executor.map(refresh_node_info, nodes))
+
+                for pn, updated in zip(nodes, results):
+                    if updated:
+                        pn.save()
+            queryset = nodes
 
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
+    
 
 class ProcessingNodeOptionsView(APIView):
     """

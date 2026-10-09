@@ -66,11 +66,12 @@ class ProcessingNode(models.Model):
         return self.last_refreshed is not None and \
                self.last_refreshed >= timezone.now() - timedelta(minutes=settings.NODE_OFFLINE_MINUTES)
 
-    def update_node_info(self):
+    def update_node_info(self, save=True):
         """
         Retrieves information and options from the node API
         and saves it into the database.
 
+        :param save: whether to save the updated information into the database
         :returns: True if information could be updated, False otherwise
         """
         api_client = self.api_client(timeout=5)
@@ -90,7 +91,8 @@ class ProcessingNode(models.Model):
             options = list(map(lambda o: o.__dict__, api_client.options()))
             self.available_options = options
             self.last_refreshed = timezone.now()
-            self.save()
+            if save:
+                self.save()
             return True
         except exceptions.GenericError:
             return False
