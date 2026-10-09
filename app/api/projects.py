@@ -21,6 +21,7 @@ from app import models
 from .tasks import TaskIDsSerializer
 from .tags import TagsField, parse_tags_input
 from .common import get_and_check_project
+from .pagination import PageSizePagination
 from django.utils.translation import gettext as _
 
 def normalized_perm_names(perms):
@@ -108,6 +109,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
     queryset = models.Project.objects.prefetch_related('task_set').filter(deleting=False).order_by('-created_at')
     filterset_class = ProjectFilter
     ordering_fields = '__all__'
+    pagination_class = PageSizePagination
 
     # Disable pagination when not requesting any page
     def paginate_queryset(self, queryset):

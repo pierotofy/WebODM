@@ -58,8 +58,7 @@ class Dashboard extends React.Component {
       if (q.page === undefined) q.page = 1;
       else q.page = parseInt(q.page);
       if (q.ordering === undefined) q.ordering = Storage.getItem("project_ordering") || "";
-      if (q.page_size === undefined) q.page_size = parseInt(Storage.getItem("project_page_size")) || 10;
-      else q.page_size = parseInt(q.page_size);
+      q.page_size = parseInt(q.page_size !== undefined ? q.page_size : Storage.getItem("project_page_size"));
 
       return <ProjectList
                 source={`/api/projects/${Utils.toSearchQuery(q)}`}

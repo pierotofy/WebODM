@@ -18,9 +18,7 @@ class Paginator extends React.Component {
         
         this.state = {
             searchText: decodeSearch(q.search || ""),
-            sortKey: q.ordering || Storage.getItem("project_ordering") || "-created_at",
-            pageSize: parseInt(q.page_size) || parseInt(Storage.getItem("project_page_size")) || 10,
-            customPageSizeInput: ""
+            sortKey: q.ordering || Storage.getItem("project_ordering") || "-created_at"
         }
 
         this.sortItems = [{
@@ -87,25 +85,24 @@ class Paginator extends React.Component {
         }, 0);
     }
 
+    getPageSize = () => {
+        return this.props.itemsPerPage || 10;
+    }
+
     getQueryForPage = (num, overridePageSize) => {
         return Utils.toSearchQuery({
             page: num,
-            page_size: overridePageSize !== undefined ? overridePageSize : this.state.pageSize,
+            page_size: overridePageSize !== undefined ? overridePageSize : this.getPageSize(),
             ordering: this.state.sortKey,
             search: this.state.searchText.replace(/#/g, ":")
         });
     }
 
     pageSizeChanged = size => {
-        const parsed = Math.min(100, parseInt(size));
-        if (isNaN(parsed) || parsed < 1) return;
-        const firstItem = (this.props.currentPage - 1) * this.state.pageSize + 1;
-        const equivalentPage = Math.ceil(firstItem / parsed);
-        this.setState({ pageSize: parsed, customPageSizeInput: "" });
-        setTimeout(() => {
-            Storage.setItem("project_page_size", parsed);
-            this.props.history.push({ search: this.getQueryForPage(equivalentPage, parsed) });
-        }, 0);
+        const firstItem = (this.props.currentPage - 1) * this.getPageSize() + 1;
+        const equivalentPage = Math.ceil(firstItem / size);
+        Storage.setItem("project_page_size", size);
+        this.props.history.push({ search: this.getQueryForPage(equivalentPage, size) });
     }
 
     addTagAndSearch = e => {
@@ -128,7 +125,7 @@ class Paginator extends React.Component {
 
         let paginator = null;
         let clearSearch = null;
-        const { pageSize, customPageSizeInput } = this.state;
+        const pageSize = this.getPageSize();
         let toolbar = (<ul className={"pagination pagination-sm toolbar " + (totalItems == 0 && !searchText ? "hidden " : " ") + (totalItems / itemsPerPage <= 1 ? "no-margin" : "")}>
             <li className="btn-group" ref={domNode => { this.searchContainer = domNode; }}>
                 <a href="javascript:void(0);" className="dropdown-toggle"
@@ -157,7 +154,7 @@ class Paginator extends React.Component {
                 <SortPanel selected={this.state.sortKey} items={this.sortItems} onChange={this.sortChanged} />
             </li>
             <li className="btn-group">
-                <a href="javascript:void(0);" className="dropdown-toggle" data-toggle-outside data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title={_("Items per page")}><i className="fa fa-list-ol"></i> {pageSize}</a>
+                <a href="javascript:void(0);" className="dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title={_("Items per page")}><i className="fa fa-list-ol"></i> {pageSize}</a>
                 <ul className="dropdown-menu dropdown-menu-right">
                     {[10, 25, 50, 100].map(size => (
                         <li key={size}>
@@ -166,20 +163,6 @@ class Paginator extends React.Component {
                             </a>
                         </li>
                     ))}
-                    <li role="separator" className="divider"></li>
-                    <li className="page-size-custom">
-                        <input
-                            type="number"
-                            min="1"
-                            max="100"
-                            className="form-control"
-                            placeholder={_("Custom")}
-                            value={customPageSizeInput}
-                            onChange={e => this.setState({ customPageSizeInput: e.target.value })}
-                            onKeyDown={e => { if (e.key === "Enter") this.pageSizeChanged(customPageSizeInput); }}
-                        />
-                        <button className="btn btn-sm btn-default" onClick={() => this.pageSizeChanged(customPageSizeInput)}>OK</button>
-                    </li>
                 </ul>
             </li>
         </ul>);
