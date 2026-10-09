@@ -11,6 +11,7 @@ from nodeodm.models import ProcessingNode
 from app.models import Project, Task, Basemap
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.utils.html import format_html
 from django.utils.translation import ugettext as _
 from django import forms
 from app.views.utils import get_permissions, get_project_or_raise, get_task_or_raise, handle_302, ResponseClusterRedirect, cluster_mode
@@ -134,6 +135,12 @@ def about(request):
 @login_required
 def processing_node(request, processing_node_id):
     pn = get_object_or_404(ProcessingNode, pk=processing_node_id)
+    
+    if settings.DEPRECATION_WARNINGS and pn.engine is not None and pn.engine == 'odm':
+        messages.add_message(request, messages.constants.WARNING, format_html(
+            _('%(node)s is deprecated might stop working in a future version. See the %(link_start)s migration guide %(link_end)s to upgrade.' % {'node': pn, 'link_start': '<a href="https://docs.webodm.org/tutorials/opendronemap-migration-guide/" target="_blank">', 'link_end': '</a>'}),
+        ))
+
     if not pn.update_node_info():
         messages.add_message(request, messages.constants.WARNING, _('%(node)s seems to be offline.') % {'node': pn})
 

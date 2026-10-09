@@ -446,6 +446,9 @@ SPLAT_DOCS_LINK = "https://docs.webodm.org/gaussian-splats/#software"
 # Link to task options docs
 TASK_OPTIONS_DOCS_LINK = ""
 
+# Whether to show deprecation messages
+DEPRECATION_WARNINGS = True
+
 # Whether to display onboarding instructions and 
 # automatically create a first project on first login
 DASHBOARD_ONBOARDING = True
