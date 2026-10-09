@@ -110,13 +110,13 @@ class EditTaskForm extends React.Component {
       return null;
   }
 
-  loadProcessingNodes(){
+  loadProcessingNodes(refresh = false){
     const failed = () => {
       this.setState({error: _("Could not load list of processing nodes. Are you connected to the internet?")});
     }
 
     this.nodesRequest = 
-      $.getJSON("/api/processingnodes/?has_available_options=True", json => {
+      $.getJSON("/api/processingnodes/?has_available_options=True" + (refresh ? "&refresh=True" : ""), json => {
         if (Array.isArray(json)){
           // No nodes with options?
           const noProcessingNodesError = (nodes) => {
@@ -187,7 +187,7 @@ class EditTaskForm extends React.Component {
 
   retryLoad(){
     this.setState({error: ""});
-    this.loadProcessingNodes();
+    this.loadProcessingNodes(true);
     this.loadPresets();
   }
 
