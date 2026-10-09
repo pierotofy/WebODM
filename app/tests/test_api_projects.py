@@ -226,3 +226,46 @@ class TestApiProjects(BootTestCase):
         res = other_client.get("/api/projects/{}/".format(project.id))
         self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
 
+    def test_project_pagination(self):
+        client = APIClient()
+
+        user = User.objects.create_user(username="puser", password="test1234")
+        
+        # Add 25 projects
+        for i in range(25):
+            Project.objects.create(owner=user, name="pagination project {}".format(i))
+
+        client.login(username="puser", password="test1234")
+
+        # /api/projects/ returns 10 items per page
+        res = client.get("/api/projects/?page=1")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data['count'], 25)
+        self.assertEqual(len(res.data['results']), 10)
+        self.assertEqual(res.data['page_size'], 10)
+
+        # /api/projects/?page_size=5 return 5 items per page
+        res = client.get("/api/projects/?page=1&page_size=5")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data['results']), 5)
+        self.assertEqual(res.data['page_size'], 5)
+
+        # /api/projects/?page_size=25 returns a single page
+        res = client.get("/api/projects/?page=1&page_size=25")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data['results']), 25)
+        self.assertEqual(res.data['page_size'], 25)
+        self.assertIsNone(res.data['next'])
+        self.assertIsNone(res.data['previous'])
+
+        # Add another 150 projects
+        for i in range(25, 175):
+            Project.objects.create(owner=user, name="pagination project {}".format(i))
+
+        # /api/projects/?page_size=1000 caps out at 100
+        res = client.get("/api/projects/?page=1&page_size=1000")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data['count'], 175)
+        self.assertEqual(len(res.data['results']), 100)
+        self.assertEqual(res.data['page_size'], 100)
+        self.assertIsNotNone(res.data['next'])
