@@ -301,7 +301,7 @@ class Task(models.Model):
         super(Task, self).__init__(*args, **kwargs)
 
         # To help keep track of changes to the project id
-        self.__original_project_id = self.project.id
+        self.__original_project_id = self.project_id
         
         self.console = Console(self.data_path("console_output.txt"))
 
@@ -335,9 +335,9 @@ class Task(models.Model):
             logger.warning("Could not move assets folder for task {}. We're going to proceed anyway, but you might experience issues: {}".format(self, e))
 
     def save(self, *args, **kwargs):
-        if self.project.id != self.__original_project_id:
-            self.move_assets(self.__original_project_id, self.project.id)
-            self.__original_project_id = self.project.id
+        if self.project_id != self.__original_project_id:
+            self.move_assets(self.__original_project_id, self.project_id)
+            self.__original_project_id = self.project_id
 
         # Manually validate the fields we want,
         # since Django's clean_fields() method obliterates 
@@ -416,7 +416,7 @@ class Task(models.Model):
         Get path relative to the root task directory
         """
         return os.path.join(settings.MEDIA_ROOT,
-                            assets_directory_path(self.id, self.project.id, ""),
+                            assets_directory_path(self.id, self.project_id, ""),
                             *args)
 
     def is_asset_available_slow(self, asset):

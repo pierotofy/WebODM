@@ -16,7 +16,7 @@ from django.db import transaction
 from django.contrib.auth.models import User, Group
 from django.contrib.postgres.search import SearchQuery, SearchVector
 from django.contrib.postgres.aggregates import StringAgg
-from django.db.models import Q
+from django.db.models import Q, Prefetch
 
 from app import models
 from .tasks import TaskIDsSerializer
@@ -28,7 +28,7 @@ def normalized_perm_names(perms):
     return list(map(lambda p: p.replace("_project", ""),perms))
 
 class ProjectSerializer(serializers.ModelSerializer):
-    tasks = TaskIDsSerializer(many=True, read_only=True)
+    tasks = TaskIDsSerializer(many=True, read_only=True, source='task_set')
     owner = serializers.HiddenField(
             default=serializers.CurrentUserDefault()
         )
@@ -47,7 +47,7 @@ class ProjectSerializer(serializers.ModelSerializer):
     def get_owned(self, obj):
         if 'request' in self.context:
             user = self.context['request'].user
-            return user.is_superuser or obj.owner.id == user.id
+            return user.is_superuser or obj.owner_id == user.id
         return False
 
     class Meta:
@@ -120,7 +120,9 @@ class ProjectsPagination(PageNumberPagination):
 class ProjectViewSet(viewsets.ModelViewSet):
     filter_fields = ('id', 'name', 'description', 'created_at')
     serializer_class = ProjectSerializer
-    queryset = models.Project.objects.prefetch_related('task_set').filter(deleting=False).order_by('-created_at')
+    queryset = models.Project.objects.prefetch_related(
+        Prefetch('task_set', queryset=models.Task.objects.only('id', 'project_id'))
+    ).filter(deleting=False).order_by('-created_at')
     filterset_class = ProjectFilter
     ordering_fields = '__all__'
     pagination_class = ProjectsPagination
