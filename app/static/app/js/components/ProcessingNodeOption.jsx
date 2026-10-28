@@ -35,7 +35,8 @@ class ProcessingNodeOption extends React.Component {
     super();
 
     this.state = {
-      value: props.value !== undefined ? props.value : ""
+      value: props.value !== undefined ? props.value : "",
+      pluginControls: [],
     };
 
     this.resetToDefault = this.resetToDefault.bind(this);
@@ -50,6 +51,10 @@ class ProcessingNodeOption extends React.Component {
 
   getValue(){
     return this.state.value !== "" ? this.state.value : undefined;
+  }
+
+  setValue(value){
+    this.setState({value: value !== undefined && value !== null ? value : ""});
   }
 
   setTooltips(domNode){
@@ -184,6 +189,8 @@ class ProcessingNodeOption extends React.Component {
         {this.state.value !== "" ? 
         <button type="submit" className="btn glyphicon glyphicon glyphicon-repeat btn-default" data-toggle="tooltip" data-placement="top" title={_("Reset to default")} onClick={this.resetToDefault}></button> :
         ""}
+
+        {this.state.pluginControls.map((control, i) => <React.Fragment key={i}>{control}</React.Fragment>)}
 
         {warningMsg}
       </div>

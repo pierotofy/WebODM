@@ -29,6 +29,7 @@ class EditTaskForm extends React.Component {
       task: PropTypes.object,
       suggestedTaskName: PropTypes.oneOfType([PropTypes.string, PropTypes.func]),
       getCropPolygon: PropTypes.func,
+      getExifData: PropTypes.func,
       getGcpFile: PropTypes.func
   };
 
@@ -633,6 +634,8 @@ class EditTaskForm extends React.Component {
 
           {this.state.editingPreset ? 
             <EditPresetDialog
+              task={this.props.task}
+              getExifData={this.props.getExifData}
               preset={this.state.selectedPreset}
               availableOptions={this.state.selectedNode.options}
               onHide={this.handleCancelEditPreset}

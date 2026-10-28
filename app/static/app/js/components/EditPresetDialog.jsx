@@ -255,6 +255,8 @@ const OPTION_GROUP_MAP = {
 
 class EditPresetDialog extends React.Component {
     static defaultProps = {
+        task: null,
+        getExifData: () => []
     };
 
     static propTypes = {
@@ -262,7 +264,9 @@ class EditPresetDialog extends React.Component {
         availableOptions: PropTypes.array.isRequired,
         saveAction: PropTypes.func.isRequired,
         deleteAction: PropTypes.func.isRequired,
-        onHide: PropTypes.func
+        onHide: PropTypes.func,
+        task: PropTypes.object,
+        getExifData: PropTypes.func
     };
 
     constructor(props){
@@ -292,6 +296,31 @@ class EditPresetDialog extends React.Component {
         this.setOptionRef = this.setOptionRef.bind(this);
         this.getOptions = this.getOptions.bind(this);
         this.isCustomPreset = this.isCustomPreset.bind(this);
+    }
+
+    componentDidMount(){
+        const { task, getExifData } = this.props;
+
+        PluginsAPI.Dashboard.triggerEditPresetDialogReady({
+            task,
+            getExifData,
+            options: this.options
+        }, result => {
+            if (!result || typeof result !== 'object' || this.unmounted) return;
+
+            const { controls } = result;
+            if (controls && typeof controls === "object"){
+                for (let opt in controls){
+                    if (this.options[opt]){
+                        this.options[opt].setState(state => ({ pluginControls: state.pluginControls.concat([controls[opt]]) }));
+                    }
+                }
+            }
+        });
+    }
+
+    componentWillUnmount(){
+        this.unmounted = true;
     }
 
     setOptionRef(optionName){
