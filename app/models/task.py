@@ -23,7 +23,6 @@ from shutil import copyfile
 import requests
 from PIL import Image
 Image.MAX_IMAGE_PIXELS = 4096000000
-from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.postgres import fields
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.core.exceptions import ValidationError, SuspiciousFileOperation
@@ -34,7 +33,7 @@ from django.utils import timezone
 from urllib3.exceptions import ReadTimeoutError
 
 from app import pending_actions
-from django.contrib.gis.db.models.fields import GeometryField
+from django.contrib.postgres.fields import JSONField
 
 from app.net import patch_dns_resolution, is_dns_resolution_problem
 from app.cogeo import assure_cogeo
@@ -42,7 +41,7 @@ from app.grids import check_download_grid_for
 from app.pointcloud_utils import is_pointcloud_georeferenced
 from app.testwatch import testWatch
 from app.security import path_traversal_check
-from app.geoutils import geom_transform, epsg_from_wkt, get_raster_bounds_wkt, get_srs_name_units_from_epsg_or_wkt
+from app.geoutils import geom_transform, epsg_from_wkt, get_raster_bounds_geojson, get_srs_name_units_from_epsg_or_wkt, polygon_valid, polygon_bbox, polygon_clip_bbox, polygon_area
 from app.imageutils import extract_gps_from_image, is_panorama
 from app.video import extract_subtitles, srt_file_for_video, extract_gps_from_srt, VIDEO_EXTENSIONS as VIDEO_MOD_EXTENSIONS
 from nodeodm import status_codes
@@ -254,9 +253,9 @@ class Task(models.Model):
     options = fields.JSONField(default=dict, blank=True, help_text=_("Options that are being used to process this task"), validators=[validate_task_options], verbose_name=_("Options"))
     available_assets = fields.ArrayField(models.CharField(max_length=80), default=list, blank=True, help_text=_("List of available assets to download"), verbose_name=_("Available Assets"))
 
-    orthophoto_extent = GeometryField(null=True, blank=True, srid=4326, help_text=_("Extent of the orthophoto"), verbose_name=_("Orthophoto Extent"))
-    dsm_extent = GeometryField(null=True, blank=True, srid=4326, help_text=_("Extent of the DSM"), verbose_name=_("DSM Extent"))
-    dtm_extent = GeometryField(null=True, blank=True, srid=4326, help_text=_("Extent of the DTM"), verbose_name=_("DTM Extent"))
+    orthophoto_extent = JSONField(null=True, blank=True, help_text=_("Extent of the orthophoto"), verbose_name=_("Orthophoto Extent"))
+    dsm_extent = JSONField(null=True, blank=True, help_text=_("Extent of the DSM"), verbose_name=_("DSM Extent"))
+    dtm_extent = JSONField(null=True, blank=True, help_text=_("Extent of the DTM"), verbose_name=_("DTM Extent"))
 
     # mission
     created_at = models.DateTimeField(default=timezone.now, help_text=_("Creation date"), verbose_name=_("Created at"))
@@ -289,7 +288,7 @@ class Task(models.Model):
     orthophoto_bands = fields.JSONField(default=list, blank=True, help_text=_("List of orthophoto bands"), verbose_name=_("Orthophoto Bands"))
     size = models.FloatField(default=0.0, blank=True, help_text=_("Size of the task on disk in megabytes"), verbose_name=_("Size"))
     compacted = models.BooleanField(default=False, help_text=_("A flag indicating whether this task was compacted"), verbose_name=_("Compact"))
-    crop = GeometryField(null=True, blank=True, srid=4326, help_text=_("Polygon defining the crop area of this task"), verbose_name=_("Crop Polygon"))
+    crop = JSONField(null=True, blank=True, help_text=_("Polygon defining the crop area of this task"), verbose_name=_("Crop Polygon"))
     media = fields.JSONField(default=list, blank=True, help_text=_("List of media files associated with this task"), verbose_name=_("Media"))
 
     
@@ -361,13 +360,13 @@ class Task(models.Model):
         # must be enclosed within all raster extents
         # and have a positive area
         if self.crop is not None:
-            if self.crop.valid:
+            if polygon_valid(self.crop):
                 has_extents = False
                 for extent in [self.orthophoto_extent, self.dsm_extent, self.dtm_extent]:
-                    if extent is not None:
+                    if extent is not None and self.crop is not None:
                         has_extents = True
-                        self.crop = extent.intersection(self.crop)
-                if not has_extents or self.crop.area <= 0:
+                        self.crop = polygon_clip_bbox(self.crop, polygon_bbox(extent))
+                if not has_extents or self.crop is None or polygon_area(self.crop) <= 0:
                     self.crop = None
             else:
                 self.crop = None
@@ -379,11 +378,11 @@ class Task(models.Model):
     
     def get_extent(self):
         if self.orthophoto_extent is not None:
-            return self.orthophoto_extent.extent
+            return polygon_bbox(self.orthophoto_extent)
         elif self.dsm_extent is not None:
-            return self.dsm_extent.extent
+            return polygon_bbox(self.dsm_extent)
         elif self.dtm_extent is not None:
-            return self.dtm_extent.extent
+            return polygon_bbox(self.dtm_extent)
         else:
             return None
 
@@ -523,7 +522,7 @@ class Task(models.Model):
                 'resize_to': self.resize_to,
                 'potree_scene': self.potree_scene,
                 'tags': self.tags,
-                'crop': json.loads(self.crop.geojson) if self.crop is not None else None,
+                'crop': self.crop,
             }))
     
     def read_backup_file(self):
@@ -1084,9 +1083,8 @@ class Task(models.Model):
         for raster_path, field in extent_fields:
             if os.path.exists(raster_path):
                 # Read extent
-                extent_wkt = get_raster_bounds_wkt(raster_path)
-                if extent_wkt is not None:
-                    extent = GEOSGeometry(extent_wkt, srid=4326)
+                extent = get_raster_bounds_geojson(raster_path)
+                if extent is not None:
                     setattr(self, field, extent)
                     logger.info("Populated extent field with {} for {}".format(raster_path, self))
                 else:

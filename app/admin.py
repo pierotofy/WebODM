@@ -10,6 +10,7 @@ from django.contrib import admin
 from django.contrib import messages
 from django.contrib.admin.widgets import AdminFileWidget
 from django.core.files import File
+from app.geoutils import polygon_to_wkt
 from django.http import HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils.html import format_html
@@ -53,24 +54,16 @@ class TaskAdmin(admin.ModelAdmin):
     readonly_fields = ('orthophoto_extent_wkt', 'dsm_extent_wkt', 'dtm_extent_wkt', 'crop_wkt', )
 
     def orthophoto_extent_wkt(self, obj):
-        if obj.orthophoto_extent:
-            return obj.orthophoto_extent.wkt
-        return None
+        return polygon_to_wkt(obj.orthophoto_extent)
     
     def dsm_extent_wkt(self, obj):
-        if obj.dsm_extent:
-            return obj.dsm_extent.wkt
-        return None
+        return polygon_to_wkt(obj.dsm_extent)
     
     def dtm_extent_wkt(self, obj):
-        if obj.dtm_extent:
-            return obj.dtm_extent.wkt
-        return None
+        return polygon_to_wkt(obj.dtm_extent)
     
     def crop_wkt(self, obj):
-        if obj.crop:
-            return obj.crop.wkt
-        return None
+        return polygon_to_wkt(obj.crop)
 
 admin.site.register(Task, TaskAdmin)
 

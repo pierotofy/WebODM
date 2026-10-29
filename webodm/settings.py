@@ -94,7 +94,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django.contrib.gis',
     'django_filters',
     'guardian',
     'rest_framework',
@@ -130,7 +129,7 @@ WSGI_APPLICATION = 'webodm.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': os.environ.get('WO_DATABASE_ENGINE', 'django.contrib.gis.db.backends.postgis'),
+        'ENGINE': os.environ.get('WO_DATABASE_ENGINE', 'django.db.backends.postgresql'),
         'NAME': os.environ.get('WO_DATABASE_NAME', 'webodm_dev'),
         'USER': os.environ.get('WO_DATABASE_USER', 'postgres'),
         'PASSWORD': os.environ.get('WO_DATABASE_PASSWORD', 'postgres'),

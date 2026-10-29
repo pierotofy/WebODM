@@ -25,7 +25,7 @@ from .hsvblend import hsv_blend
 from .hillshade import LightSource
 from .formulas import lookup_formula, get_algorithm_list, get_auto_bands
 from .tasks import TaskNestedView
-from app.geoutils import geom_transform_wkt_bbox, get_rasterio_to_meters_factor
+from app.geoutils import geom_transform_wkt_bbox, get_rasterio_to_meters_factor, polygon_bbox
 from rest_framework import exceptions
 from rest_framework.response import Response
 from worker.tasks import export_raster, export_pointcloud
@@ -129,7 +129,7 @@ class TileJson(TaskNestedView):
             'tiles': [get_tile_url(task, tile_type, self.request.query_params)],
             'minzoom': minzoom - ZOOM_EXTRA_LEVELS,
             'maxzoom': maxzoom + ZOOM_EXTRA_LEVELS,
-            'bounds': get_extent(task, tile_type).extent
+            'bounds': polygon_bbox(get_extent(task, tile_type))
         })
 
 
@@ -142,7 +142,7 @@ class Bounds(TaskNestedView):
 
         return Response({
             'url': get_tile_url(task, tile_type, self.request.query_params),
-            'bounds': get_extent(task, tile_type).extent
+            'bounds': polygon_bbox(get_extent(task, tile_type))
         })
 
 
@@ -714,7 +714,7 @@ class Export(TaskNestedView):
                                                         hillshade=hillshade,
                                                         asset_type=asset_type,
                                                         name=task.name,
-                                                        crop=task.crop.wkt if task.crop is not None else None).task_id
+                                                        crop=task.crop).task_id
                 return Response({'celery_task_id': celery_task_id, 'filename': filename})
         elif asset_type == 'georeferenced_model':
             # Shortcut the process if no processing is required
@@ -725,6 +725,6 @@ class Export(TaskNestedView):
                                                             proj=proj, 
                                                             format=export_format,
                                                             resample=resample,
-                                                            crop=task.crop.wkt if task.crop is not None else None,
+                                                            crop=task.crop,
                                                             crop_reference=task.get_reference_raster() if task.crop is not None else None).task_id
                 return Response({'celery_task_id': celery_task_id, 'filename': filename})

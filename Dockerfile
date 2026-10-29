@@ -5,7 +5,7 @@ LABEL maintainer="Piero Toffanin <pt@masseranolabs.com>"
 # Build-time variables
 ARG DEBIAN_FRONTEND=noninteractive
 ARG NODE_MAJOR=20
-ARG PYTHON_VERSION=3.9
+ARG PYTHON_VERSION=3.14
 ARG RELEASE_CODENAME=jammy
 ARG WORKDIR=/webodm
 

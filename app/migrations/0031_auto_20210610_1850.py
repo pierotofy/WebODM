@@ -4,7 +4,7 @@ import app.models.task
 from app.models import image_directory_path
 import colorfield.fields
 from django.conf import settings
-import django.contrib.gis.db.models.fields
+import django.contrib.postgres.fields.jsonb
 import django.contrib.postgres.fields
 import django.contrib.postgres.fields.jsonb
 from django.db import migrations, models
@@ -210,12 +210,12 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='task',
             name='dsm_extent',
-            field=django.contrib.gis.db.models.fields.GeometryField(blank=True, help_text='Extent of the DSM', null=True, srid=4326, verbose_name='DSM Extent'),
+            field=django.contrib.postgres.fields.jsonb.JSONField(blank=True, help_text='Extent of the DSM', null=True, verbose_name='DSM Extent'),
         ),
         migrations.AlterField(
             model_name='task',
             name='dtm_extent',
-            field=django.contrib.gis.db.models.fields.GeometryField(blank=True, help_text='Extent of the DTM', null=True, srid=4326, verbose_name='DTM Extent'),
+            field=django.contrib.postgres.fields.jsonb.JSONField(blank=True, help_text='Extent of the DTM', null=True, verbose_name='DTM Extent'),
         ),
         migrations.AlterField(
             model_name='task',
@@ -250,7 +250,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='task',
             name='orthophoto_extent',
-            field=django.contrib.gis.db.models.fields.GeometryField(blank=True, help_text='Extent of the orthophoto', null=True, srid=4326, verbose_name='Orthophoto Extent'),
+            field=django.contrib.postgres.fields.jsonb.JSONField(blank=True, help_text='Extent of the orthophoto', null=True, verbose_name='Orthophoto Extent'),
         ),
         migrations.AlterField(
             model_name='task',
