@@ -56,7 +56,11 @@ class ProcessingNodeOption extends React.Component {
   }
 
   setValue(value){
-    this.setState({value: value !== undefined && value !== null ? value : ""});
+    if (value === undefined || value === null) value = "";
+    else if (this.props.type === 'bool') value = value ? true : "";
+    else if (this.isEnumType() && String(value) === String(this.props.defaultValue)) value = "";
+
+    this.setState({value});
   }
 
   setTooltips(domNode){

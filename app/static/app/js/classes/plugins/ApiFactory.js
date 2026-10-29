@@ -65,7 +65,7 @@ export default class ApiFactory{
         args._placeholder = {};
         
         preTrigger(args, responseCb);
-        if (responseCb){
+        if (responseCb && this.events.listeners(`${api.namespace}::${eventName}`).length > 0){
           this.events.addListener(`${api.namespace}::${eventName}::Response`, response => {
             // Give time to all listeners to receive the replies
             // then remove the listener to avoid sending duplicate responses
