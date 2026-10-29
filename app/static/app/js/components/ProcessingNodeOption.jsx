@@ -9,7 +9,9 @@ const warnings = {
 };
 
 class ProcessingNodeOption extends React.Component {
-  static defaultProps = {};
+  static defaultProps = {
+    pluginControls: []
+  };
 
   static propTypes = {
     name: PropTypes.string.isRequired,
@@ -29,14 +31,14 @@ class ProcessingNodeOption extends React.Component {
       PropTypes.array
     ]),
     help: PropTypes.string,
+    pluginControls: PropTypes.array
   };
 
   constructor(props){
     super();
 
     this.state = {
-      value: props.value !== undefined ? props.value : "",
-      pluginControls: [],
+      value: props.value !== undefined ? props.value : ""
     };
 
     this.resetToDefault = this.resetToDefault.bind(this);
@@ -190,7 +192,7 @@ class ProcessingNodeOption extends React.Component {
         <button type="submit" className="btn glyphicon glyphicon glyphicon-repeat btn-default" data-toggle="tooltip" data-placement="top" title={_("Reset to default")} onClick={this.resetToDefault}></button> :
         ""}
 
-        {this.state.pluginControls.map((control, i) => <React.Fragment key={i}>{control}</React.Fragment>)}
+        {this.props.pluginControls.map((control, i) => <React.Fragment key={i}>{control}</React.Fragment>)}
 
         {warningMsg}
       </div>

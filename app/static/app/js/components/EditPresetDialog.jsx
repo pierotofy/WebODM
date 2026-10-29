@@ -288,7 +288,8 @@ class EditPresetDialog extends React.Component {
             showSearch: false,
             collapsedGroups,
             viewMode: 'grouped', // 'grouped' or 'flat',
-            expanded: false
+            expanded: false,
+            pluginControls: {}
         };
 
         this.getFormData = this.getFormData.bind(this);
@@ -299,9 +300,13 @@ class EditPresetDialog extends React.Component {
     }
 
     componentDidMount(){
+        this.triggerPresetDialogOptionsReady();
+    }
+
+    triggerPresetDialogOptionsReady(){
         const { task, getExifData } = this.props;
 
-        PluginsAPI.Dashboard.triggerEditPresetDialogReady({
+        PluginsAPI.Dashboard.triggerPresetDialogOptionsReady({
             task,
             getExifData,
             options: this.options
@@ -310,11 +315,13 @@ class EditPresetDialog extends React.Component {
 
             const { controls } = result;
             if (controls && typeof controls === "object"){
-                for (let opt in controls){
-                    if (this.options[opt]){
-                        this.options[opt].setState(state => ({ pluginControls: state.pluginControls.concat([controls[opt]]) }));
+                this.setState(state => {
+                    const pluginControls = Object.assign({}, state.pluginControls);
+                    for (let opt in controls){
+                        pluginControls[opt] = (pluginControls[opt] || []).concat([controls[opt]]);
                     }
-                }
+                    return { pluginControls };
+                });
             }
         });
     }
@@ -398,6 +405,11 @@ class EditPresetDialog extends React.Component {
         if (this.state.showSearch && this.searchControl){
             this.searchControl.focus();
         }
+
+        if (prevState.viewMode !== this.state.viewMode){
+            this.setState({ pluginControls: {} });
+            this.triggerPresetDialogOptionsReady();
+        }
     }
 
     buildOptionsLookup(options) {
@@ -419,6 +431,7 @@ class EditPresetDialog extends React.Component {
             <ProcessingNodeOption 
                 {...option}
                 key={option.name}
+                pluginControls={this.state.pluginControls[option.name]}
                 ref={this.setOptionRef(option.name)} 
             />
         );
