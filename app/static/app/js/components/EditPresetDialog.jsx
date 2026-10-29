@@ -6,6 +6,7 @@ import PresetUtils from '../classes/PresetUtils';
 import PropTypes from 'prop-types';
 import values from 'object.values';
 import { _ } from '../classes/gettext';
+import PluginsAPI from '../classes/plugins/API';
 
 if (!Object.values) {
     values.shim();
