@@ -9,7 +9,9 @@ const warnings = {
 };
 
 class ProcessingNodeOption extends React.Component {
-  static defaultProps = {};
+  static defaultProps = {
+    pluginControls: []
+  };
 
   static propTypes = {
     name: PropTypes.string.isRequired,
@@ -29,6 +31,7 @@ class ProcessingNodeOption extends React.Component {
       PropTypes.array
     ]),
     help: PropTypes.string,
+    pluginControls: PropTypes.array
   };
 
   constructor(props){
@@ -50,6 +53,14 @@ class ProcessingNodeOption extends React.Component {
 
   getValue(){
     return this.state.value !== "" ? this.state.value : undefined;
+  }
+
+  setValue(value){
+    if (value === undefined || value === null) value = "";
+    else if (this.props.type === 'bool') value = value ? true : "";
+    else if (this.isEnumType() && String(value) === String(this.props.defaultValue)) value = "";
+
+    this.setState({value});
   }
 
   setTooltips(domNode){
@@ -184,6 +195,8 @@ class ProcessingNodeOption extends React.Component {
         {this.state.value !== "" ? 
         <button type="submit" className="btn glyphicon glyphicon glyphicon-repeat btn-default" data-toggle="tooltip" data-placement="top" title={_("Reset to default")} onClick={this.resetToDefault}></button> :
         ""}
+
+        {this.props.pluginControls.map((control, i) => <React.Fragment key={i}>{control}</React.Fragment>)}
 
         {warningMsg}
       </div>

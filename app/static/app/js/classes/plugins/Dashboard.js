@@ -5,7 +5,8 @@ export default {
     "addTaskActionButton",
     "addNewTaskPanelItem",
     "addNewTaskButton",
-    "addImportTaskItem"
+    "addImportTaskItem",
+    "presetDialogOptionsReady"
   ]
 };
 

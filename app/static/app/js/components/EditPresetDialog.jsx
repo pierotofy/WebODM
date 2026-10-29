@@ -6,6 +6,7 @@ import PresetUtils from '../classes/PresetUtils';
 import PropTypes from 'prop-types';
 import values from 'object.values';
 import { _ } from '../classes/gettext';
+import PluginsAPI from '../classes/plugins/API';
 
 if (!Object.values) {
     values.shim();
@@ -255,6 +256,8 @@ const OPTION_GROUP_MAP = {
 
 class EditPresetDialog extends React.Component {
     static defaultProps = {
+        task: null,
+        getExifData: () => []
     };
 
     static propTypes = {
@@ -262,7 +265,9 @@ class EditPresetDialog extends React.Component {
         availableOptions: PropTypes.array.isRequired,
         saveAction: PropTypes.func.isRequired,
         deleteAction: PropTypes.func.isRequired,
-        onHide: PropTypes.func
+        onHide: PropTypes.func,
+        task: PropTypes.object,
+        getExifData: PropTypes.func
     };
 
     constructor(props){
@@ -284,7 +289,8 @@ class EditPresetDialog extends React.Component {
             showSearch: false,
             collapsedGroups,
             viewMode: 'grouped', // 'grouped' or 'flat',
-            expanded: false
+            expanded: false,
+            pluginControls: {}
         };
 
         this.getFormData = this.getFormData.bind(this);
@@ -292,6 +298,37 @@ class EditPresetDialog extends React.Component {
         this.setOptionRef = this.setOptionRef.bind(this);
         this.getOptions = this.getOptions.bind(this);
         this.isCustomPreset = this.isCustomPreset.bind(this);
+    }
+
+    componentDidMount(){
+        this.triggerPresetDialogOptionsReady();
+    }
+
+    triggerPresetDialogOptionsReady(){
+        const { task, getExifData } = this.props;
+
+        PluginsAPI.Dashboard.triggerPresetDialogOptionsReady({
+            task,
+            getExifData,
+            options: this.options
+        }, result => {
+            if (!result || typeof result !== 'object' || this.unmounted) return;
+
+            const { controls } = result;
+            if (controls && typeof controls === "object"){
+                this.setState(state => {
+                    const pluginControls = Object.assign({}, state.pluginControls);
+                    for (let opt in controls){
+                        pluginControls[opt] = (pluginControls[opt] || []).concat([controls[opt]]);
+                    }
+                    return { pluginControls };
+                });
+            }
+        });
+    }
+
+    componentWillUnmount(){
+        this.unmounted = true;
     }
 
     setOptionRef(optionName){
@@ -369,6 +406,11 @@ class EditPresetDialog extends React.Component {
         if (this.state.showSearch && this.searchControl){
             this.searchControl.focus();
         }
+
+        if (prevState.viewMode !== this.state.viewMode){
+            this.setState({ pluginControls: {} });
+            this.triggerPresetDialogOptionsReady();
+        }
     }
 
     buildOptionsLookup(options) {
@@ -390,6 +432,7 @@ class EditPresetDialog extends React.Component {
             <ProcessingNodeOption 
                 {...option}
                 key={option.name}
+                pluginControls={this.state.pluginControls[option.name]}
                 ref={this.setOptionRef(option.name)} 
             />
         );
