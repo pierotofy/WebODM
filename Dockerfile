@@ -67,7 +67,10 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     # Build entwine
     mkdir /staging && cd /staging
     git clone -b webodm https://github.com/WebODM/entwine && cd entwine
-    mkdir build && cd build && cmake .. -DWITH_TESTS=OFF -DWITH_ZSTD=OFF -DCMAKE_INSTALL_PREFIX=/staging/entwine/build/install && make -j6 && make install
+    mkdir build && cd build
+    cmake .. -DWITH_TESTS=OFF -DWITH_ZSTD=OFF -DCMAKE_INSTALL_PREFIX=/staging/entwine/build/install
+    make -j6
+    make install
     cd /webodm
 EOT
 

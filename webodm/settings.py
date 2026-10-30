@@ -45,6 +45,8 @@ DEV = os.environ.get('WO_DEV', 'NO') == 'YES' and not TESTING
 DEV_WATCH_PLUGINS = DEV and os.environ.get('WO_DEV_WATCH_PLUGINS', 'NO') == 'YES'
 SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = os.environ.get('WO_SSL', 'NO') == 'YES'
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_CROSS_ORIGIN_OPENER_POLICY = None
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 INTERNAL_IPS = ['127.0.0.1']
 
 ALLOWED_HOSTS = ['*']
