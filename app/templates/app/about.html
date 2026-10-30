@@ -1,7 +1,8 @@
 {% extends "app/logged_in_base.html" %}
-{% load i18n %}
+{% load i18n settings %}
 
 {% block content %}
+{% theme "header_background" as theme_header_background %}
 
 <style>
 #about-scene{position:fixed;top:50px;left:0;right:0;bottom:0;overflow:hidden}
@@ -52,7 +53,10 @@ container.appendChild(renderer.domElement);
 var scene = new THREE.Scene();
 
 var sky = new THREE.SphereBufferGeometry(300, 16, 10);
-var sp = sky.attributes.position, sc = [], top = new THREE.Color(0x4aa8ec), hor = new THREE.Color(0xbde3f8), tmp = new THREE.Color();
+var skyHsl = {};
+new THREE.Color('{{ theme_header_background|slice:":7" }}').getHSL(skyHsl);
+var skySat = Math.min(1, skyHsl.s + 0.1);
+var sp = sky.attributes.position, sc = [], top = new THREE.Color().setHSL(skyHsl.h, skySat, 0.62), hor = new THREE.Color().setHSL(skyHsl.h, skySat, 0.86), tmp = new THREE.Color();
 for (var i = 0; i < sp.count; i++){
     tmp.copy(top).lerp(hor, 1 - smooth(-0.05, 0.45, sp.getY(i) / 300));
     sc.push(tmp.r, tmp.g, tmp.b);
@@ -282,11 +286,12 @@ function animate(){
         flock.visible = true; birdsT0 = t;
         birdsDir = Math.random() < 0.5 ? 1 : -1;
         birdsY = 18 + Math.random() * 8;
-        flock.rotation.y = Math.atan2(birdsDir * 150, 45);
     }
     if (flock.visible){
-        var bk = (t - birdsT0) / 14;
-        flock.position.set(-birdsDir * 75 + birdsDir * bk * 150, birdsY + Math.sin(t * 0.5) * 1.5, -100 + bk * 45);
+        var bk = (t - birdsT0) / 14, th = Math.tan(camera.fov * Math.PI / 360) * camera.aspect;
+        var bx0 = (camera.position.z + 100) * th + 10, bx1 = (camera.position.z + 55) * th + 10;
+        flock.rotation.y = Math.atan2(birdsDir * (bx0 + bx1), 45);
+        flock.position.set(birdsDir * (bk * (bx0 + bx1) - bx0), birdsY + Math.sin(t * 0.5) * 1.5, -100 + bk * 45);
         for (i = 0; i < wings.length; i++){
             var flap = Math.sin(t * 11.4 + wings[i].phase) * 0.7;
             wings[i].l.rotation.z = -flap; wings[i].r.rotation.z = flap;
