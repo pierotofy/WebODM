@@ -49,4 +49,8 @@ if [ "$1" = 'postgres' ]; then
 
 fi
 
+if [ "$1" = "postgres" ]; then
+	set -- "$@" -c log_checkpoints=off
+fi
+
 exec "$@"

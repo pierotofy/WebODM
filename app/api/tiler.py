@@ -1,5 +1,4 @@
 import json
-import rio_tiler.utils
 from rasterio.enums import ColorInterp
 from rasterio.crs import CRS
 from rasterio.features import bounds as featureBounds
@@ -8,16 +7,15 @@ import urllib
 import os
 from .common import get_asset_download_filename
 from django.http import HttpResponse
-from rio_tiler.errors import TileOutsideBounds
-from rio_tiler.utils import has_alpha_band, \
+from app.vendor.rio_tiler.errors import TileOutsideBounds
+from app.vendor.rio_tiler.utils import has_alpha_band, \
     non_alpha_indexes, render, create_cutline
-from rio_tiler.utils import _stats as raster_stats
-from rio_tiler.models import ImageStatistics, ImageData
-from rio_tiler.models import Metadata as RioMetadata
-from rio_tiler.profiles import img_profiles
-from rio_tiler.colormap import cmap as colormap, apply_cmap
-from rio_tiler.io import COGReader
-from rio_tiler.errors import InvalidColorMapName, AlphaBandWarning
+from app.vendor.rio_tiler.utils import _stats as raster_stats
+from app.vendor.rio_tiler.models import ImageData
+from app.vendor.rio_tiler.profiles import img_profiles
+from app.vendor.rio_tiler.colormap import cmap as colormap, apply_cmap
+from app.vendor.rio_tiler.io import COGReader
+from app.vendor.rio_tiler.errors import InvalidColorMapName, AlphaBandWarning
 import numpy as np
 from .custom_colormaps_helper import custom_colormaps
 from app.raster_utils import extension_for_export_format, ZOOM_EXTRA_LEVELS
@@ -232,12 +230,10 @@ class Metadata(TaskNestedView):
                         str(b + 1): raster_stats(data[b], percentiles=(pmin, pmax), bins=255, range=hrange)
                         for b in range(data.shape[0])
                     }
-                    stats = {b: ImageStatistics(**s) for b, s in stats.items()}
-                    metadata = RioMetadata(statistics=stats, **src.info().dict())
+                    info = {**src.info(), 'statistics': stats}
                 else:
-                    metadata = src.metadata(pmin=pmin, pmax=pmax, hist_options=histogram_options, nodata=nodata,
+                    info = src.metadata(pmin=pmin, pmax=pmax, hist_options=histogram_options, nodata=nodata,
                                             bounds=bounds, vrt_options=vrt_options)
-                info = json.loads(metadata.json())
         except IndexError as e:
             # Caught when trying to get an invalid raster metadata
             # or when the crop area is defined improperly. In order
@@ -455,7 +451,7 @@ class Tiles(TaskNestedView):
                     indexes = non_alpha_indexes(src.dataset)
 
             # Workaround for https://github.com/WebODM/WebODM/issues/894
-            if nodata is None and tile_type == 'orthophoto':
+            if nodata is None and tile_type == 'orthophoto' and not has_alpha:
                 nodata = 0
 
             resampling = "bilinear"

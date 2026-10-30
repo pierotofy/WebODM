@@ -9,12 +9,12 @@ import json
 import time
 from rasterio.enums import ColorInterp
 from rasterio.windows import Window
-from rio_tiler.utils import has_alpha_band, linear_rescale
-from rio_tiler.colormap import cmap as colormap, apply_cmap
-from rio_tiler.errors import InvalidColorMapName
+from app.vendor.rio_tiler.utils import has_alpha_band, linear_rescale
+from app.vendor.rio_tiler.colormap import cmap as colormap, apply_cmap
+from app.vendor.rio_tiler.errors import InvalidColorMapName
 from app.api.hsvblend import hsv_blend
 from app.api.hillshade import LightSource
-from rio_tiler.io import COGReader
+from app.vendor.rio_tiler.io import COGReader
 from webodm import settings
 
 logger = logging.getLogger('app.logger')

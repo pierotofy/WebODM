@@ -600,7 +600,7 @@ class TestApiTask(BootTransactionTestCase):
             # Can download exported orthophoto
             res = client.get("/api/workers/get/{}?filename=odm_orthophoto_NDVI.tif".format(celery_task_id))
             self.assertEqual(res.status_code, status.HTTP_200_OK)
-            self.assertEquals(res.get('Content-Disposition'), "attachment; filename=odm_orthophoto_NDVI.tif")
+            self.assertEqual(res.get('Content-Disposition'), "attachment; filename=odm_orthophoto_NDVI.tif")
             with Image.open(io.BytesIO(res.content)) as i:
                 self.assertEqual(i.width, 212)
                 self.assertEqual(i.height, 212)
