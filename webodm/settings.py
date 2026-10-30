@@ -262,6 +262,7 @@ MEDIA_CACHE = os.path.join(MEDIA_ROOT, 'CACHE')
 MEDIA_GRIDS = os.path.join(MEDIA_ROOT, 'grids')
 
 FILE_UPLOAD_TEMP_DIR = MEDIA_TMP
+SILENCED_SYSTEM_CHECKS = ['files.E001']
 
 TEMPLATES = [
     {
