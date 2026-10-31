@@ -8,16 +8,26 @@
 #about-scene{position:fixed;top:50px;left:0;right:0;bottom:0;overflow:hidden}
 @media(min-width:768px){#about-scene{left:251px}}
 #about-scene canvas{display:block;width:100%;height:100%}
-#about-panel{position:absolute;left:24px;right:24px;bottom:24px;padding:28px 40px;border-radius:12px;background:rgba(255,255,255,0.6);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 8px 32px rgba(40,70,90,0.15);color:#2b3a42;text-align:center}
-#about-panel h2{margin:0 0 14px;color:#2b3a42;font-weight:300;letter-spacing:1px}
+#about-panel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:480px;max-width:calc(100% - 32px);height:300px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;padding:14px 20px;border-radius:12px;background:rgba(255,255,255,0.6);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 8px 32px rgba(40,70,90,0.15);color:#2b3a42;text-align:center;overflow:hidden;transition:width .25s,height .25s,padding .25s,left .25s,top .25s,transform .25s}
+@media(max-width:767px){#about-panel{height:340px;padding:12px 10px}}
+#about-panel h2{margin:0 0 14px;color:#2b3a42;font-weight:bold;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:margin .25s,font-size .25s}
+#about-panel .about-body{max-height:300px;overflow:hidden;transition:max-height .25s,opacity .15s}
 #about-panel .about-license{font-size:90%;opacity:0.9;line-height:1.5}
+#about-min{position:absolute;top:8px;right:10px;border:0;background:none;padding:4px 8px;color:#2b3a42;opacity:0.5;cursor:pointer;transition:opacity .15s}
+#about-min:hover{opacity:1}
+#about-panel.collapsed{width:200px;height:48px;padding:0;cursor:pointer;left:100%;top:100%;transform:translate(calc(-100% - 16px),calc(-100% - 16px))}
+#about-panel.collapsed h2{margin:0;font-size:16px;font-weight:300}
+#about-panel.collapsed .about-body,#about-panel.collapsed #about-min{max-height:0;opacity:0;pointer-events:none}
 </style>
 
 <div id="about-scene">
     <div id="about-panel">
+        <button id="about-min" type="button" title="{% trans 'Minimize' %}"><i class="fa fa-minus"></i></button>
         <h2>WebODM {{ version }}</h2>
-        <div style="margin-bottom: 16px;"><i class="fa fa-globe"></i> <a target="_blank" href="https://webodm.org">https://webodm.org</a></div>
-        <div class="about-license">{% blocktrans with link_start="<a href='https://raw.githubusercontent.com/WebODM/WebODM/master/LICENSE.md' target='_blank'>" link_end='</a>' %}This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. See {{link_start}}the GNU Affero General Public License{{link_end}} for more details.{% endblocktrans %}</div>
+        <div class="about-body">
+            <div style="margin-bottom: 16px;"><i class="fa fa-globe"></i> <a target="_blank" href="https://webodm.org">https://webodm.org</a></div>
+            <div class="about-license">{% blocktrans with link_start="<a href='https://raw.githubusercontent.com/WebODM/WebODM/master/LICENSE.md' target='_blank'>" link_end='</a>' %}This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. See {{link_start}}the GNU Affero General Public License{{link_end}} for more details.{% endblocktrans %}</div>
+        </div>
     </div>
 </div>
 
@@ -110,7 +120,7 @@ scene.add(groundMesh);
 
 var water = new THREE.PlaneBufferGeometry(30, 30, 30, 30);
 water.rotateX(-Math.PI / 2);
-var waterMesh = new THREE.Mesh(water, new THREE.MeshPhongMaterial({ color: 0x46addf, specular: 0xaaccdd, shininess: 25, transparent: true, opacity: 0.85 }));
+var waterMesh = new THREE.Mesh(water, new THREE.MeshLambertMaterial({ color: 0x46addf, transparent: true, opacity: 0.85 }));
 waterMesh.position.y = WATER_Y;
 waterMesh.receiveShadow = true;
 scene.add(waterMesh);
@@ -233,6 +243,10 @@ function splash(x, z, t){
     m.position.set(x, WATER_Y + 0.09, z); m.renderOrder = 2;
     scene.add(m); rings.push({ m: m, t0: t, size: 0.4 + Math.random() });
 }
+var panel = document.getElementById('about-panel');
+document.getElementById('about-min').addEventListener('click', function(e){ e.stopPropagation(); panel.classList.add('collapsed'); });
+panel.addEventListener('click', function(){ panel.classList.remove('collapsed'); });
+
 container.addEventListener('pointerdown', function(e){
     if (e.target.closest('#about-panel')) return;
     var r = container.getBoundingClientRect();
