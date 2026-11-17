@@ -10,6 +10,9 @@ class Toolbar extends React.Component{
     modelType: PropTypes.string.isRequired,
     panel: PropTypes.string,
     onTogglePanel: PropTypes.func.isRequired,
+    hasCameras: PropTypes.bool.isRequired,
+    camerasVisible: PropTypes.bool.isRequired,
+    onToggleCameras: PropTypes.func.isRequired,
     onEnterVR: PropTypes.func
   }
 
@@ -82,11 +85,6 @@ class Toolbar extends React.Component{
             active: this.activeAttribute() === "classification",
             disabled: !pc || !pc.pcoGeometry.pointAttributes.attributes.some(a => a.name === "classification"),
             onClick: () => this.setAttribute("classification") },
-          { icon: "mv-icon mv-icon-adaptive", title: _("Adaptive"),
-            active: !!pc && pc.material.pointSizeType === Potree.PointSizeType.ADAPTIVE,
-            onClick: () => viewer.scene.pointclouds.forEach(p => {
-              p.material.pointSizeType = p.material.pointSizeType === Potree.PointSizeType.ADAPTIVE ? Potree.PointSizeType.FIXED : Potree.PointSizeType.ADAPTIVE;
-            }) },
           { icon: "mv-icon mv-icon-xray", title: _("X-ray"),
             active: !!pc && pc.material.opacity < 1,
             disabled: modelType !== "cloud",
@@ -95,13 +93,10 @@ class Toolbar extends React.Component{
               viewer.scene.pointclouds.forEach(p => { p.material.opacity = xray ? 1 : 0.15; });
               viewer.setEDLEnabled(xray);
             } },
-          { icon: "mv-icon mv-icon-edl", title: _("Eye-Dome Lighting (EDL)"),
-            active: viewer.useEDL,
-            disabled: modelType !== "cloud",
-            onClick: () => {
-              viewer.scene.pointclouds.forEach(p => { p.material.opacity = 1; });
-              viewer.setEDLEnabled(!viewer.useEDL);
-            } }
+          { icon: "mv-icon mv-icon-cameras", title: _("Cameras"),
+            active: this.props.camerasVisible,
+            disabled: !this.props.hasCameras,
+            onClick: this.props.onToggleCameras }
         ]
       },
       {

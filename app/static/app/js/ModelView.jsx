@@ -1059,6 +1059,9 @@ class ModelView extends React.Component {
                         ref={(domNode) => { this.container = domNode; }}></div>
 
                     {viewer ? <Toolbar viewer={viewer} modelType={selectedModelType} panel={panel} onTogglePanel={this.togglePanel}
+                                        hasCameras={this.hasCameras()}
+                                        camerasVisible={this.state.camerasVisible}
+                                        onToggleCameras={this.toggleCameras}
                                         onEnterVR={this.state.vr ? () => this.vrButton.element.click() : null} /> : ""}
 
                     {viewer && panel === "project" ?
