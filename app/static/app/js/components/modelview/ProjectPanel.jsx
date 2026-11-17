@@ -173,7 +173,7 @@ class ProjectPanel extends React.Component{
       else if (obj.showArea) icon = "mv-icon mv-icon-area";
       return {obj, type: "measure", icon, nameKey: "name"};
     }).concat(
-      scene.volumes.map(obj => ({obj, type: "volume", icon: obj.kind === "density" ? "mv-icon mv-icon-density" : (obj.clip ? "mv-icon mv-icon-clipbox" : "mv-icon mv-icon-volume"), nameKey: "name"})),
+      scene.volumes.map(obj => ({obj, type: "volume", icon: obj.clip ? "mv-icon mv-icon-clipbox" : "mv-icon mv-icon-volume", nameKey: "name"})),
       scene.profiles.map(obj => ({obj, type: "profile", icon: "mv-icon mv-icon-profile", nameKey: "name"})),
       scene.cameraAnimations.map(obj => ({obj, type: "animation", icon: "mv-icon mv-icon-video", nameKey: "name"}))
     );
@@ -232,8 +232,7 @@ class ProjectPanel extends React.Component{
         properties.push([_("Azimuth"), `${this.fmt(azimuth)}°`]);
       }
     }else if (selectedItem && selectedItem.type === "volume"){
-      if (selectedItem.obj.kind === "density") properties.push([_("Density"), selectedItem.obj.densityText || ""]);
-      else properties.push([_("Volume"), `${this.fmt(selectedItem.obj.getVolume() * conv * conv * conv)} ${unit}³`]);
+      properties.push([_("Volume"), `${this.fmt(selectedItem.obj.getVolume() * conv * conv * conv)} ${unit}³`]);
     }else if (selectedItem && selectedItem.type === "profile"){
       points = selectedItem.obj.points;
     }else if (selectedItem && selectedItem.type === "animation"){

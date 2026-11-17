@@ -242,39 +242,6 @@ class ModelView extends React.Component {
     viewer.compass.dom.css({top: "12px", left: "12px", right: "", zIndex: 2, cursor: "pointer"});
     viewer.compass.setVisible(this.settings.compass !== false);
 
-    this.densityInterval = setInterval(() => {
-        // Point density inside each density box
-        const conv = viewer.lengthUnitDisplay.unitspermeter / viewer.lengthUnit.unitspermeter;
-        viewer.scene.volumes.forEach(volume => {
-            if (volume.kind !== "density" || !volume.visible) return;
-
-            volume.updateMatrixWorld(true);
-            const inverse = new THREE.Matrix4().copy(volume.matrixWorld).invert();
-            const radius = volume.scale.length() / 2;
-            const toVolume = new THREE.Matrix4();
-            const p = new THREE.Vector3();
-            let count = 0;
-
-            viewer.scene.pointclouds.forEach(pc => pc.visibleNodes.forEach(node => {
-                const geometry = node.geometryNode.geometry;
-                if (geometry.boundingBox){
-                    const box = new THREE.Box3().copy(geometry.boundingBox).applyMatrix4(pc.matrixWorld);
-                    if (box.distanceToPoint(volume.position) > radius) return;
-                }
-
-                const positions = geometry.attributes.position.array;
-                toVolume.multiplyMatrices(inverse, node.sceneNode.matrixWorld);
-                for (let i = 0; i < positions.length; i += 3){
-                    p.set(positions[i], positions[i + 1], positions[i + 2]).applyMatrix4(toVolume);
-                    if (Math.abs(p.x) <= 0.5 && Math.abs(p.y) <= 0.5 && Math.abs(p.z) <= 0.5) count++;
-                }
-            }));
-
-            const density = count / (volume.scale.x * volume.scale.y * conv * conv);
-            volume.densityText = interpolate(_("%(num)s pts/%(unit)s²"), {num: Potree.Utils.addCommas(density.toFixed(0)), unit: viewer.lengthUnitDisplay.code});
-        });
-    }, 1000);
-
     onUnitSystemChanged(this.handleUnitSystemChanged);
     document.addEventListener("keydown", this.handleKeyDown);
 
@@ -600,7 +567,6 @@ class ModelView extends React.Component {
   componentWillUnmount(){
     offUnitSystemChanged(this.handleUnitSystemChanged);
     clearInterval(this.saveSceneInterval);
-    clearInterval(this.densityInterval);
     clearInterval(this.historyInterval);
     document.removeEventListener("keydown", this.handleKeyDown);
     viewer.renderer.domElement.removeEventListener( 'mousedown', this.handleRenderMouseClick );

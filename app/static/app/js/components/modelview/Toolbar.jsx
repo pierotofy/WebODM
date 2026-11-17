@@ -128,16 +128,6 @@ class Toolbar extends React.Component{
             onClick: () => viewer.volumeTool.startInsertion() },
           { icon: "mv-icon mv-icon-sphere", title: _("Sphere volume"),
             onClick: () => viewer.volumeTool.startInsertion({type: Potree.SphereVolume}) },
-          { icon: "mv-icon mv-icon-density", title: _("Density"),
-            onClick: () => {
-              const volume = viewer.volumeTool.startInsertion({name: _("Density")});
-              const setSize = () => {
-                volume.scale.set(1, 1, 1);
-                volume.removeEventListener("drop", setSize);
-              };
-              volume.kind = "density";
-              volume.addEventListener("drop", setSize);
-            } },
           { icon: "mv-icon mv-icon-profile", title: _("Height profile"),
             onClick: () => {
               const profile = viewer.profileTool.startInsertion();
