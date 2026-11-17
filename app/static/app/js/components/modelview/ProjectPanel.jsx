@@ -11,6 +11,8 @@ class ProjectPanel extends React.Component{
     camerasVisible: PropTypes.bool.isRequired,
     onToggleCameras: PropTypes.func.isRequired,
     onCameraScaleChange: PropTypes.func.isRequired,
+    onAddElement: PropTypes.func.isRequired,
+    onRemoveElement: PropTypes.func.isRequired,
     onClose: PropTypes.func.isRequired
   }
 
@@ -27,6 +29,7 @@ class ProjectPanel extends React.Component{
       renaming: null,
       menu: null,
       exportOpen: false,
+      addOpen: false,
       recording: false
     };
   }
@@ -41,8 +44,9 @@ class ProjectPanel extends React.Component{
     document.removeEventListener("click", this.closeMenus);
   }
 
-  closeMenus = () => {
-    if (this.state.menu || this.state.exportOpen) this.setState({menu: null, exportOpen: false});
+  closeMenus = (e) => {
+    if (e.target.closest && e.target.closest(".mv-menu-toggle")) return;
+    if (this.state.menu || this.state.exportOpen || this.state.addOpen) this.setState({menu: null, exportOpen: false, addOpen: false});
   }
 
   fmt = (n) => {
@@ -55,6 +59,7 @@ class ProjectPanel extends React.Component{
     else if (item.type === "volume") scene.removeVolume(item.obj);
     else if (item.type === "profile") scene.removeProfile(item.obj);
     else if (item.type === "animation") scene.removeCameraAnimation(item.obj);
+    else if (item.type === "element") this.props.onRemoveElement(item.obj);
     else scene.removeAnnotation(item.obj);
     if (this.state.selected === item.obj) this.setState({selected: null});
   }
@@ -72,6 +77,7 @@ class ProjectPanel extends React.Component{
     else if (item.type === "profile") box = new THREE.Box3().setFromPoints(item.obj.points);
     else if (item.type === "animation") box = new THREE.Box3().setFromPoints(item.obj.controlPoints.map(cp => cp.position));
     else if (item.type === "annotation") box = new THREE.Box3().setFromPoints([item.obj.position]);
+    else if (item.type === "element") box = new THREE.Box3().setFromObject(item.obj);
     else box = item.obj.boundingBox.clone().applyMatrix4(item.obj.matrixWorld);
 
     if (box.isEmpty()) return;
@@ -85,6 +91,16 @@ class ProjectPanel extends React.Component{
   setVisible = (item, visible) => {
     if (item.type === "animation") item.obj.setVisible(visible);
     else item.obj.visible = visible;
+  }
+
+  vectorField = (label, vector, scale) => {
+    return (<div key={label} className="mv-panel-field mv-panel-vector">
+      <label>{label}</label>
+      {["x", "y", "z"].map(axis =>
+        <input key={axis} type="number" step="any" title={axis}
+               value={Math.round(vector[axis] * scale * 10000) / 10000}
+               onChange={e => { vector[axis] = (parseFloat(e.target.value) || 0) / scale; this.forceUpdate(); }} />)}
+    </div>);
   }
 
   download = (filename, text) => {
@@ -154,7 +170,7 @@ class ProjectPanel extends React.Component{
 
   render(){
     const { viewer } = this.props;
-    const { selected, tab, cameraScale, search, sorted, closed, menu, exportOpen, recording } = this.state;
+    const { selected, tab, cameraScale, search, sorted, closed, menu, exportOpen, addOpen, recording } = this.state;
     const scene = viewer.scene;
     const pc = scene.pointclouds[0];
 
@@ -172,24 +188,27 @@ class ProjectPanel extends React.Component{
       else if (obj.showArea) icon = "mv-icon mv-icon-area";
       return {obj, type: "measure", icon, nameKey: "name"};
     }).concat(
-      scene.volumes.map(obj => ({obj, type: "volume", icon: obj.clip ? "mv-icon mv-icon-clipbox" : "mv-icon mv-icon-volume", nameKey: "name"})),
+      scene.volumes.map(obj => ({obj, type: "volume", icon: obj.kind === "density" ? "mv-icon mv-icon-density" : (obj.clip ? "mv-icon mv-icon-clipbox" : "mv-icon mv-icon-volume"), nameKey: "name"})),
       scene.profiles.map(obj => ({obj, type: "profile", icon: "mv-icon mv-icon-profile", nameKey: "name"})),
-      scene.cameraAnimations.map(obj => ({obj, type: "animation", icon: "mv-icon mv-icon-video", nameKey: "name"}))
+      scene.cameraAnimations.map(obj => ({obj, type: "animation", icon: obj.element ? "mv-icon mv-icon-objanim" : "mv-icon mv-icon-video", nameKey: "name"}))
     );
+    let elements = scene.elements.map(obj => ({obj, type: "element", icon: "mv-icon mv-icon-element", nameKey: "name"}));
     let annotations = scene.annotations.descendants().map(obj => ({obj, type: "annotation", icon: obj.hasView() ? "mv-icon mv-icon-pov" : "mv-icon mv-icon-annotation", nameKey: "title"}));
 
     if (search){
       const matches = item => String(item.obj[item.nameKey]).toLowerCase().indexOf(search.toLowerCase()) !== -1;
       measures = measures.filter(matches);
       annotations = annotations.filter(matches);
+      elements = elements.filter(matches);
     }
     if (sorted){
       const byName = (a, b) => String(a.obj[a.nameKey]).localeCompare(String(b.obj[b.nameKey]));
       measures.sort(byName);
       annotations.sort(byName);
+      elements.sort(byName);
     }
 
-    const selectedItem = measures.concat(annotations).find(item => item.obj === selected);
+    const selectedItem = measures.concat(annotations, elements).find(item => item.obj === selected);
 
     const conv = viewer.lengthUnitDisplay.unitspermeter / viewer.lengthUnit.unitspermeter;
     const unit = viewer.lengthUnitDisplay.code;
@@ -231,7 +250,8 @@ class ProjectPanel extends React.Component{
         properties.push([_("Azimuth"), `${this.fmt(azimuth)}°`]);
       }
     }else if (selectedItem && selectedItem.type === "volume"){
-      properties.push([_("Volume"), `${this.fmt(selectedItem.obj.getVolume() * conv * conv * conv)} ${unit}³`]);
+      if (selectedItem.obj.kind === "density") properties.push([_("Density"), selectedItem.obj.densityText || ""]);
+      else properties.push([_("Volume"), `${this.fmt(selectedItem.obj.getVolume() * conv * conv * conv)} ${unit}³`]);
     }else if (selectedItem && selectedItem.type === "profile"){
       points = selectedItem.obj.points;
     }else if (selectedItem && selectedItem.type === "animation"){
@@ -318,8 +338,10 @@ class ProjectPanel extends React.Component{
         </div>
         <button type="button" className={"mv-panel-btn " + (sorted ? "active" : "")} title={_("Sort by name")}
                 onClick={() => this.setState({sorted: !sorted})}><i className="fa fa-sort-alpha-down"></i></button>
-        <button type="button" className={"mv-panel-btn " + (exportOpen ? "active" : "")} title={_("Export")}
-                onClick={e => { e.stopPropagation(); this.setState({exportOpen: !exportOpen, menu: null}); }}><i className="mv-icon mv-icon-export"></i></button>
+        <button type="button" className={"mv-panel-btn mv-menu-toggle " + (exportOpen ? "active" : "")} title={_("Export")}
+                onClick={e => { e.stopPropagation(); this.setState({exportOpen: !exportOpen, addOpen: false, menu: null}); }}><i className="mv-icon mv-icon-export"></i></button>
+        <button type="button" className={"mv-panel-btn mv-menu-toggle " + (addOpen ? "active" : "")} title={_("Add Element")}
+                onClick={e => { e.stopPropagation(); this.setState({addOpen: !addOpen, exportOpen: false, menu: null}); }}><i className="mv-icon mv-icon-plus"></i></button>
         <button type="button" className="mv-panel-btn" title={_("Close")} onClick={this.props.onClose}><i className="mv-icon mv-icon-close"></i></button>
       </div>
 
@@ -349,6 +371,9 @@ class ProjectPanel extends React.Component{
 
         {this.folder("annotations", _("Annotations"), annotations, true)}
         {!closed.annotations ? annotations.map(this.itemRow) : ""}
+
+        {this.folder("elements", _("Elements"), elements, true)}
+        {!closed.elements ? elements.map(this.itemRow) : ""}
       </div>
 
       {selected === "cameras" ?
@@ -373,7 +398,7 @@ class ProjectPanel extends React.Component{
       <div className="mv-panel-properties">
         <div className="mv-panel-tabs">
           <div className={"mv-panel-tab " + (tab === "properties" ? "active" : "")} onClick={() => this.setState({tab: "properties"})}>{_("Properties / Actions")}</div>
-          {selectedItem.type !== "volume" ?
+          {selectedItem.type !== "volume" && selectedItem.type !== "element" ?
           <div className={"mv-panel-tab " + (tab === "points" ? "active" : "")} onClick={() => this.setState({tab: "points"})}>{_("Points")}</div>
           : ""}
         </div>
@@ -403,6 +428,25 @@ class ProjectPanel extends React.Component{
                     }}><i className="mv-icon mv-icon-profile"></i> {_("Height Profile")}</button>
           </div>] : ""}
 
+          {selectedItem.type === "element" ? [
+          this.vectorField(_("Position"), selectedItem.obj.position, 1),
+          this.vectorField(_("Rotation"), selectedItem.obj.rotation, 180 / Math.PI),
+          this.vectorField(_("Scale"), selectedItem.obj.scale, 1),
+          <div key="color" className="mv-panel-field">
+            <label>{_("Color")}</label>
+            <input type="color" value={"#" + selectedItem.obj.material.color.getHexString()}
+                   onChange={e => { selectedItem.obj.material.color.set(e.target.value); this.forceUpdate(); }} />
+          </div>] : ""}
+
+          {selectedItem.type === "animation" && selectedItem.obj.element ?
+          <div className="mv-panel-field">
+            <label>{_("Object")}</label>
+            <select value={selectedItem.obj.element}
+                    onChange={e => { selectedItem.obj.element = e.target.value; this.forceUpdate(); }}>
+              {scene.elements.map(el => <option key={el.uuid} value={el.uuid}>{el.name}</option>)}
+            </select>
+          </div> : ""}
+
           {selectedItem.type === "animation" ? [
           <div key="duration" className="mv-panel-field">
             <label>{_("Duration")}</label>
@@ -412,13 +456,38 @@ class ProjectPanel extends React.Component{
           <div key="time" className="mv-panel-field">
             <label>{_("Time")}</label>
             <input type="range" min="0" max="1" step="0.001" value={selectedItem.obj.t}
-                   onChange={e => { selectedItem.obj.set(parseFloat(e.target.value)); this.forceUpdate(); }} />
+                   onChange={e => {
+                     const animation = selectedItem.obj;
+                     const element = scene.elements.find(el => el.uuid === animation.element);
+                     animation.set(parseFloat(e.target.value));
+                     if (element) element.position.copy(animation.at(animation.t).position);
+                     this.forceUpdate();
+                   }} />
           </div>,
           <div key="controls" className="mv-panel-controls">
             <button type="button" className="mv-panel-btn" title={_("Play")} disabled={recording}
-                    onClick={() => selectedItem.obj.play()}><i className="fa fa-play"></i></button>
+                    onClick={() => {
+                      const animation = selectedItem.obj;
+                      const element = scene.elements.find(el => el.uuid === animation.element);
+                      if (!animation.element){
+                        animation.play();
+                        return;
+                      }
+                      if (!element) return;
+
+                      const start = performance.now();
+                      const step = () => {
+                        const t = Math.min((performance.now() - start) / 1000 / animation.duration, 1);
+                        animation.t = t;
+                        element.position.copy(animation.at(t).position);
+                        scene.playing = t < 1;
+                        if (t >= 1) viewer.removeEventListener("update", step);
+                      };
+                      viewer.addEventListener("update", step);
+                    }}><i className="fa fa-play"></i></button>
             <button type="button" className="mv-panel-btn" title={_("Rewind")} disabled={recording}
                     onClick={() => { selectedItem.obj.set(0); this.forceUpdate(); }}><i className="fa fa-stop"></i></button>
+            {!selectedItem.obj.element ?
             <button type="button" className="mv-panel-btn mv-danger" title={_("Record movie")} disabled={recording}
                     onClick={() => {
                       const animation = selectedItem.obj;
@@ -443,7 +512,7 @@ class ProjectPanel extends React.Component{
                         animation.play();
                         recorder.start(animation.duration * 1000 + 1000);
                       }, 1000);
-                    }}><i className={recording ? "fa fa-circle-notch fa-spin" : "fa fa-circle"}></i></button>
+                    }}><i className={recording ? "fa fa-circle-notch fa-spin" : "fa fa-circle"}></i></button> : ""}
           </div>] : ""}
 
           {selectedItem.type === "annotation" ? [
@@ -497,6 +566,23 @@ class ProjectPanel extends React.Component{
         <div onClick={() => this.zoomTo(menu.item)}><i className="fa fa-search fa-fw"></i> {_("Zoom to")}</div>
         <div onClick={() => this.setState({renaming: menu.item.obj})}><i className="fa fa-pen fa-fw"></i> {_("Rename")}</div>
         <div onClick={() => this.remove(menu.item)}><i className="fa fa-trash fa-fw"></i> {_("Delete")}</div>
+      </div> : ""}
+
+      {addOpen ?
+      <div className="mv-context-menu mv-export-menu">
+        {[["box", _("Box")], ["sphere", _("Sphere")], ["pyramid", _("Pyramid")], ["torus", _("Torus")]].map(shape =>
+        <div key={shape[0]} onClick={() => {
+          const view = scene.view;
+          const size = Math.max(view.radius / 10, 0.1);
+          this.props.onAddElement({
+            type: shape[0],
+            name: shape[1],
+            color: "#ff7a00",
+            position: view.getPivot().toArray(),
+            rotation: [0, 0, 0],
+            scale: [size, size, size]
+          });
+        }}>{shape[1]}</div>)}
       </div> : ""}
 
       {exportOpen ?

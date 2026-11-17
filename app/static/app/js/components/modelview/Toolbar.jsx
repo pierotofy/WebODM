@@ -132,6 +132,16 @@ class Toolbar extends React.Component{
             onClick: () => viewer.volumeTool.startInsertion() },
           { icon: "mv-icon mv-icon-sphere", title: _("Sphere volume"),
             onClick: () => viewer.volumeTool.startInsertion({type: Potree.SphereVolume}) },
+          { icon: "mv-icon mv-icon-density", title: _("Density"),
+            onClick: () => {
+              const volume = viewer.volumeTool.startInsertion({name: _("Density")});
+              const setSize = () => {
+                volume.scale.set(1, 1, 1);
+                volume.removeEventListener("drop", setSize);
+              };
+              volume.kind = "density";
+              volume.addEventListener("drop", setSize);
+            } },
           { icon: "mv-icon mv-icon-profile", title: _("Height profile"),
             onClick: () => {
               const profile = viewer.profileTool.startInsertion();
@@ -158,6 +168,15 @@ class Toolbar extends React.Component{
           { icon: "mv-icon mv-icon-video", title: _("Video animation"),
             onClick: () => {
               viewer.scene.addCameraAnimation(Potree.CameraAnimation.defaultFromView(viewer));
+              if (this.props.panel !== "project") this.props.onTogglePanel("project");
+            } },
+          { icon: "mv-icon mv-icon-objanim", title: _("Object animation"),
+            disabled: viewer.scene.elements.length === 0,
+            onClick: () => {
+              const animation = Potree.CameraAnimation.defaultFromView(viewer);
+              animation.name = _("Object animation");
+              animation.element = viewer.scene.elements[viewer.scene.elements.length - 1].uuid;
+              viewer.scene.addCameraAnimation(animation);
               if (this.props.panel !== "project") this.props.onTogglePanel("project");
             } }
         ]

@@ -64585,6 +64585,10 @@ void main() {
 			clip: volume.clip,
 		};
 
+		if(volume.kind){
+			data.kind = volume.kind;
+		}
+
 		return data;
 	}
 
@@ -64608,6 +64612,10 @@ void main() {
 			visible: animation.visible,
 			controlPoints: controlPoints,
 		};
+
+		if(animation.element){
+			data.element = animation.element;
+		}
 
 		return data;
 	}
@@ -65433,6 +65441,9 @@ void main() {
 		volume.scale.set(...data.scale);
 		volume.visible = data.visible;
 		volume.clip = data.clip;
+		if(data.kind){
+			volume.kind = data.kind;
+		}
 
 		viewer.scene.addVolume(volume);
 	}
@@ -65452,6 +65463,9 @@ void main() {
 		animation.t = data.t;
 		animation.curveType = data.curveType;
 		animation.visible = data.visible;
+		if(data.element){
+			animation.element = data.element;
+		}
 		animation.controlPoints = [];
 
 		for(const cpdata of data.controlPoints){
@@ -70409,6 +70423,9 @@ void main() {
 				let calculatedVolume = volume.getVolume();
 				calculatedVolume = calculatedVolume / Math.pow(this.viewer.lengthUnit.unitspermeter, 3) * Math.pow(this.viewer.lengthUnitDisplay.unitspermeter, 3);  //convert to cubic meters then to the cubic display unit
 				let text = Utils.addCommas(calculatedVolume.toFixed(3)) + ' ' + this.viewer.lengthUnitDisplay.code + '\u00B3';
+				if(volume.kind === 'density'){
+					text = volume.densityText || '';
+				}
 				label.setText(text);
 			}
 		}

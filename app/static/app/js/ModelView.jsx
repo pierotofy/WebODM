@@ -220,6 +220,8 @@ class ModelView extends React.Component {
       delete json.view;
       delete json.settings;
 
+      json.elements = this.getElementsData();
+
       return json;
   }
 
@@ -241,10 +243,43 @@ class ModelView extends React.Component {
     viewer.setEDLEnabled(true);
     viewer.loadSettingsFromURL();
 
+    viewer.scene.elements = [];
+
     viewer.addEventListener("update", () => { this.frames++; });
     this.fpsInterval = setInterval(() => {
         if (this.settings.performance) this.setState({fps: this.frames});
         this.frames = 0;
+
+        // Point density inside each density box
+        const conv = viewer.lengthUnitDisplay.unitspermeter / viewer.lengthUnit.unitspermeter;
+        viewer.scene.volumes.forEach(volume => {
+            if (volume.kind !== "density" || !volume.visible) return;
+
+            volume.updateMatrixWorld(true);
+            const inverse = new THREE.Matrix4().copy(volume.matrixWorld).invert();
+            const radius = volume.scale.length() / 2;
+            const toVolume = new THREE.Matrix4();
+            const p = new THREE.Vector3();
+            let count = 0;
+
+            viewer.scene.pointclouds.forEach(pc => pc.visibleNodes.forEach(node => {
+                const geometry = node.geometryNode.geometry;
+                if (geometry.boundingBox){
+                    const box = new THREE.Box3().copy(geometry.boundingBox).applyMatrix4(pc.matrixWorld);
+                    if (box.distanceToPoint(volume.position) > radius) return;
+                }
+
+                const positions = geometry.attributes.position.array;
+                toVolume.multiplyMatrices(inverse, node.sceneNode.matrixWorld);
+                for (let i = 0; i < positions.length; i += 3){
+                    p.set(positions[i], positions[i + 1], positions[i + 2]).applyMatrix4(toVolume);
+                    if (Math.abs(p.x) <= 0.5 && Math.abs(p.y) <= 0.5 && Math.abs(p.z) <= 0.5) count++;
+                }
+            }));
+
+            const density = count / (volume.scale.x * volume.scale.y * conv * conv);
+            volume.densityText = interpolate(_("%(num)s pts/%(unit)s²"), {num: Potree.Utils.addCommas(density.toFixed(0)), unit: viewer.lengthUnitDisplay.code});
+        });
     }, 1000);
 
     onUnitSystemChanged(this.handleUnitSystemChanged);
@@ -334,6 +369,7 @@ class ModelView extends React.Component {
             // Load
             const potreeLoadProject = () => {
                 Potree.loadProject(viewer, sceneData);
+                (sceneData.elements || []).forEach(this.addElement);
                 viewer.removeEventListener("update", potreeLoadProject);
             };
             viewer.addEventListener("update", potreeLoadProject);
@@ -390,12 +426,51 @@ class ModelView extends React.Component {
         volumes: json.volumes,
         profiles: json.profiles,
         annotations: json.annotations,
-        cameraAnimations: json.cameraAnimations.map(a => Object.assign({}, a, {t: 0}))
+        cameraAnimations: json.cameraAnimations.map(a => Object.assign({}, a, {t: 0})),
+        elements: this.getElementsData()
     });
   }
 
+  getElementsData = () => {
+    return viewer.scene.elements.map(mesh => ({
+        uuid: mesh.uuid,
+        type: mesh.userData.type,
+        name: mesh.name,
+        color: "#" + mesh.material.color.getHexString(),
+        position: mesh.position.toArray(),
+        rotation: [mesh.rotation.x, mesh.rotation.y, mesh.rotation.z],
+        scale: mesh.scale.toArray()
+    }));
+  }
+
+  addElement = (data) => {
+    let geometry;
+    if (data.type === "sphere") geometry = new THREE.SphereGeometry(0.5, 32, 16);
+    else if (data.type === "pyramid") geometry = new THREE.ConeGeometry(0.5, 1, 4).rotateX(Math.PI / 2);
+    else if (data.type === "torus") geometry = new THREE.TorusGeometry(0.4, 0.15, 16, 48);
+    else geometry = new THREE.BoxGeometry(1, 1, 1);
+
+    const mesh = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({color: data.color}));
+    if (data.uuid) mesh.uuid = data.uuid;
+    mesh.name = data.name;
+    mesh.userData.type = data.type;
+    mesh.position.fromArray(data.position);
+    mesh.rotation.set(...data.rotation);
+    mesh.scale.fromArray(data.scale);
+
+    viewer.scene.scene.add(mesh);
+    viewer.scene.elements.push(mesh);
+  }
+
+  removeElement = (mesh) => {
+    viewer.scene.scene.remove(mesh);
+    viewer.scene.elements = viewer.scene.elements.filter(e => e !== mesh);
+    mesh.geometry.dispose();
+    mesh.material.dispose();
+  }
+
   recordHistory = () => {
-    if (viewer.inputHandler.drag) return;
+    if (viewer.inputHandler.drag || viewer.scene.playing) return;
 
     const data = this.getHistoryData();
     const prevData = this.history[this.historyIndex].data;
@@ -405,7 +480,7 @@ class ModelView extends React.Component {
     const next = JSON.parse(data);
     let label = _("Changed scene");
 
-    for (let key of ["measurements", "volumes", "profiles", "annotations", "cameraAnimations"]){
+    for (let key of ["measurements", "volumes", "profiles", "annotations", "cameraAnimations", "elements"]){
         const added = next[key].find(n => !prev[key].find(p => p.uuid === n.uuid));
         const removed = prev[key].find(p => !next[key].find(n => n.uuid === p.uuid));
         const modified = next[key].find(n => {
@@ -440,8 +515,10 @@ class ModelView extends React.Component {
     scene.removeAllMeasurements();
     scene.annotations.removeAllChildren();
     while (scene.cameraAnimations.length > 0) scene.removeCameraAnimation(scene.cameraAnimations[0]);
+    scene.elements.forEach(this.removeElement);
 
     Potree.loadProject(viewer, data);
+    data.elements.forEach(this.addElement);
 
     this.historyIndex = index;
     this.forceUpdate();
@@ -1051,6 +1128,8 @@ class ModelView extends React.Component {
 
                     {viewer && panel === "project" ?
                     <ProjectPanel viewer={viewer}
+                                onAddElement={this.addElement}
+                                onRemoveElement={this.removeElement}
                                 hasCameras={this.hasCameras()}
                                 camerasVisible={this.state.camerasVisible}
                                 onToggleCameras={this.toggleCameras}

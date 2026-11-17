@@ -308,6 +308,27 @@
         }
     }
 
+    .mv-panel-vector{
+        flex-wrap: nowrap;
+        gap: 6px;
+
+        label{
+            flex: 0 0 76px;
+        }
+        input[type="number"]{
+            padding: 0 6px;
+            height: 32px;
+        }
+    }
+
+    .mv-panel-field input[type="color"]{
+        width: 60px;
+        height: 32px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+    }
+
     .mv-panel-action{
         flex: 1 1 100%;
         height: 40px;
