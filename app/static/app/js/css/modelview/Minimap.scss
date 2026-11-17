@@ -13,7 +13,7 @@
     &.open{
         padding: 4px;
         border: 2px solid #6f8a95;
-        border-radius: 12px;
+        border-radius: 4px;
         background: #000;
         overflow: hidden;
     }
@@ -33,7 +33,7 @@
         height: 49px;
         padding: 0;
         border: 2px solid #6f8a95;
-        border-radius: 12px;
+        border-radius: 4px;
         background: #2c3a40;
         color: #fff;
     }
@@ -44,38 +44,35 @@
         width: 38px;
         height: 38px;
         border: 0;
-        border-radius: 6px;
+        border-radius: 4px;
         background: #33434a;
     }
 
     .mv-minimap-sizes{
         position: absolute;
-        top: 0;
-        right: 0;
+        left: 54px;
+        bottom: 10px;
         display: flex;
-        gap: 4px;
-        padding: 6px 8px;
-        border-bottom-left-radius: 8px;
-        background: #2c3a40;
+        gap: 6px;
 
         button{
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 24px;
-            height: 24px;
+            width: 38px;
+            height: 38px;
             padding: 0;
             border: 0;
-            border-radius: 50%;
-            background: transparent;
+            border-radius: 4px;
+            background: #33434a;
             color: #fff;
 
             &:hover{
-                background: rgba(255, 255, 255, 0.15);
+                background: #5b737d;
             }
             &:disabled{
                 opacity: 0.4;
-                background: transparent;
+                background: #33434a;
             }
         }
     }

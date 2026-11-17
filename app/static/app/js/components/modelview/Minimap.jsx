@@ -153,9 +153,9 @@ class Minimap extends React.Component{
       {open ?
       <div className="mv-minimap-sizes">
         <button type="button" title={_("Smaller")} disabled={size === 0}
-                onClick={() => this.setState({size: size - 1})}><i className="mv-icon mv-icon-shrink"></i></button>
+                onClick={() => this.setState({size: size - 1})}><i className="mv-icon mv-icon-minus"></i></button>
         <button type="button" title={_("Larger")} disabled={size === SIZES.length - 1}
-                onClick={() => this.setState({size: size + 1})}><i className="mv-icon mv-icon-enlarge"></i></button>
+                onClick={() => this.setState({size: size + 1})}><i className="mv-icon mv-icon-plus"></i></button>
       </div> : ""}
       <button type="button" className="mv-minimap-toggle" title={_("Minimap")}
               onClick={() => this.setState({open: !open})}><i className="mv-icon mv-icon-map"></i></button>
