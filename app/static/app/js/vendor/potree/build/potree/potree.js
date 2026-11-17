@@ -64613,10 +64613,6 @@ void main() {
 			controlPoints: controlPoints,
 		};
 
-		if(animation.element){
-			data.element = animation.element;
-		}
-
 		return data;
 	}
 
@@ -65463,9 +65459,6 @@ void main() {
 		animation.t = data.t;
 		animation.curveType = data.curveType;
 		animation.visible = data.visible;
-		if(data.element){
-			animation.element = data.element;
-		}
 		animation.controlPoints = [];
 
 		for(const cpdata of data.controlPoints){

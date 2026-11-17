@@ -107,6 +107,8 @@ class Toolbar extends React.Component{
       {
         id: "measures", icon: "mv-icon mv-icon-ruler", title: _("Measurements"),
         items: [
+          { icon: "mv-icon mv-icon-point", title: _("Point"),
+            onClick: () => this.measure({showDistances: false, showAngles: false, showCoordinates: true, showArea: false, closed: true, maxMarkers: 1, name: _("Point")}) },
           { icon: "mv-icon mv-icon-distance", title: _("Distance"),
             onClick: () => this.measure({showDistances: true, showArea: false, closed: false, name: _("Distance")}) },
           { icon: "mv-icon mv-icon-deltas", title: _("Deltas"),
@@ -115,8 +117,6 @@ class Toolbar extends React.Component{
             onClick: () => this.measure({showDistances: true, showArea: false, closed: false, name: _("Ground distance")}, "ground") },
           { icon: "mv-icon mv-icon-height", title: _("Height"),
             onClick: () => this.measure({showDistances: false, showHeight: true, showArea: false, closed: false, maxMarkers: 2, name: _("Height")}) },
-          { icon: "mv-icon mv-icon-point", title: _("Point"),
-            onClick: () => this.measure({showDistances: false, showAngles: false, showCoordinates: true, showArea: false, closed: true, maxMarkers: 1, name: _("Point")}) },
           { icon: "mv-icon mv-icon-angle", title: _("Angle"),
             onClick: () => this.measure({showDistances: false, showAngles: true, showArea: false, closed: true, maxMarkers: 3, name: _("Angle")}) },
           { icon: "mv-icon mv-icon-circle", title: _("Circle"),
@@ -169,15 +169,6 @@ class Toolbar extends React.Component{
           { icon: "mv-icon mv-icon-video", title: _("Video animation"),
             onClick: () => {
               viewer.scene.addCameraAnimation(Potree.CameraAnimation.defaultFromView(viewer));
-              if (this.props.panel !== "project") this.props.onTogglePanel("project");
-            } },
-          { icon: "mv-icon mv-icon-objanim", title: _("Object animation"),
-            disabled: viewer.scene.elements.length === 0,
-            onClick: () => {
-              const animation = Potree.CameraAnimation.defaultFromView(viewer);
-              animation.name = _("Object animation");
-              animation.element = viewer.scene.elements[viewer.scene.elements.length - 1].uuid;
-              viewer.scene.addCameraAnimation(animation);
               if (this.props.panel !== "project") this.props.onTogglePanel("project");
             } }
         ]

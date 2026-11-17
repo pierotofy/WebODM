@@ -218,8 +218,6 @@ class ModelView extends React.Component {
       delete json.view;
       delete json.settings;
 
-      json.elements = this.getElementsData();
-
       return json;
   }
 
@@ -240,8 +238,6 @@ class ModelView extends React.Component {
     }
     viewer.setEDLEnabled(true);
     viewer.loadSettingsFromURL();
-
-    viewer.scene.elements = [];
 
     viewer.compass.dom.css({top: "12px", left: "12px", right: "", zIndex: 2, cursor: "pointer"});
     viewer.compass.setVisible(this.settings.compass !== false);
@@ -359,7 +355,6 @@ class ModelView extends React.Component {
             // Load
             const potreeLoadProject = () => {
                 Potree.loadProject(viewer, sceneData);
-                (sceneData.elements || []).forEach(this.addElement);
                 viewer.removeEventListener("update", potreeLoadProject);
             };
             viewer.addEventListener("update", potreeLoadProject);
@@ -416,51 +411,12 @@ class ModelView extends React.Component {
         volumes: json.volumes,
         profiles: json.profiles,
         annotations: json.annotations,
-        cameraAnimations: json.cameraAnimations.map(a => Object.assign({}, a, {t: 0})),
-        elements: this.getElementsData()
+        cameraAnimations: json.cameraAnimations.map(a => Object.assign({}, a, {t: 0}))
     });
   }
 
-  getElementsData = () => {
-    return viewer.scene.elements.map(mesh => ({
-        uuid: mesh.uuid,
-        type: mesh.userData.type,
-        name: mesh.name,
-        color: "#" + mesh.material.color.getHexString(),
-        position: mesh.position.toArray(),
-        rotation: [mesh.rotation.x, mesh.rotation.y, mesh.rotation.z],
-        scale: mesh.scale.toArray()
-    }));
-  }
-
-  addElement = (data) => {
-    let geometry;
-    if (data.type === "sphere") geometry = new THREE.SphereGeometry(0.5, 32, 16);
-    else if (data.type === "pyramid") geometry = new THREE.ConeGeometry(0.5, 1, 4).rotateX(Math.PI / 2);
-    else if (data.type === "torus") geometry = new THREE.TorusGeometry(0.4, 0.15, 16, 48);
-    else geometry = new THREE.BoxGeometry(1, 1, 1);
-
-    const mesh = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({color: data.color}));
-    if (data.uuid) mesh.uuid = data.uuid;
-    mesh.name = data.name;
-    mesh.userData.type = data.type;
-    mesh.position.fromArray(data.position);
-    mesh.rotation.set(...data.rotation);
-    mesh.scale.fromArray(data.scale);
-
-    viewer.scene.scene.add(mesh);
-    viewer.scene.elements.push(mesh);
-  }
-
-  removeElement = (mesh) => {
-    viewer.scene.scene.remove(mesh);
-    viewer.scene.elements = viewer.scene.elements.filter(e => e !== mesh);
-    mesh.geometry.dispose();
-    mesh.material.dispose();
-  }
-
   recordHistory = () => {
-    if (viewer.inputHandler.drag || viewer.scene.playing) return;
+    if (viewer.inputHandler.drag) return;
 
     const data = this.getHistoryData();
     const prevData = this.history[this.historyIndex].data;
@@ -470,7 +426,7 @@ class ModelView extends React.Component {
     const next = JSON.parse(data);
     let label = _("Changed scene");
 
-    for (let key of ["measurements", "volumes", "profiles", "annotations", "cameraAnimations", "elements"]){
+    for (let key of ["measurements", "volumes", "profiles", "annotations", "cameraAnimations"]){
         const added = next[key].find(n => !prev[key].find(p => p.uuid === n.uuid));
         const removed = prev[key].find(p => !next[key].find(n => n.uuid === p.uuid));
         const modified = next[key].find(n => {
@@ -505,10 +461,8 @@ class ModelView extends React.Component {
     scene.removeAllMeasurements();
     scene.annotations.removeAllChildren();
     while (scene.cameraAnimations.length > 0) scene.removeCameraAnimation(scene.cameraAnimations[0]);
-    scene.elements.forEach(this.removeElement);
 
     Potree.loadProject(viewer, data);
-    data.elements.forEach(this.addElement);
 
     this.historyIndex = index;
     this.forceUpdate();
@@ -1109,8 +1063,6 @@ class ModelView extends React.Component {
 
                     {viewer && panel === "project" ?
                     <ProjectPanel viewer={viewer}
-                                onAddElement={this.addElement}
-                                onRemoveElement={this.removeElement}
                                 hasCameras={this.hasCameras()}
                                 camerasVisible={this.state.camerasVisible}
                                 onToggleCameras={this.toggleCameras}
