@@ -22,6 +22,7 @@ import Magnifier from './components/modelview/Magnifier';
 import ProfilePanel from './components/modelview/ProfilePanel';
 import HistoryPanel from './components/modelview/HistoryPanel';
 import Gizmo from './components/modelview/Gizmo';
+import Minimap from './components/modelview/Minimap';
 
 require('./vendor/OBJLoader');
 require('./vendor/MTLLoader');
@@ -69,7 +70,6 @@ class ModelView extends React.Component {
       pluginActionButtons: [],
       viewer: null,
       panel: null,
-      mapOpen: false,
       vr: false
     };
 
@@ -243,7 +243,7 @@ class ModelView extends React.Component {
 
     viewer.scene.elements = [];
 
-    viewer.compass.dom.css({top: "12px", left: "20px", right: "", zIndex: 2, cursor: "pointer"});
+    viewer.compass.dom.css({top: "12px", left: "12px", right: "", zIndex: 2, cursor: "pointer"});
     viewer.compass.setVisible(this.settings.compass !== false);
 
     this.densityInterval = setInterval(() => {
@@ -282,9 +282,6 @@ class ModelView extends React.Component {
     onUnitSystemChanged(this.handleUnitSystemChanged);
     document.addEventListener("keydown", this.handleKeyDown);
 
-    viewer.mapView = new Potree.MapView(viewer);
-    viewer.mapView.init();
-
     Potree.VRButton.createButton(viewer.renderer).then(vrButton => {
         if (!vrButton) return;
 
@@ -321,10 +318,6 @@ class ModelView extends React.Component {
             this.toggleSplats(true);
           }
     
-          // Potree's proj4 only knows a few EPSG codes, the minimap
-          // and compass need the model's projection as a proj string
-          if (this.props.task.srs.proj4) e.pointcloud.projection = this.props.task.srs.proj4;
-
           let scene = viewer.scene;
           scene.addPointCloud(e.pointcloud);
 
@@ -599,12 +592,6 @@ class ModelView extends React.Component {
     else if (key === "edlRadius") viewer.setEDLRadius(value);
     else if (key === "hq") viewer.useHQ = value;
     else if (key === "compass") viewer.compass.setVisible(value);
-    else if (key === "minimap"){
-        if (!value && this.state.mapOpen){
-            viewer.mapView.toggle();
-            this.setState({mapOpen: false});
-        }
-    }
     else if (key === "smoothness"){
         const factor = {smooth: 0.5, standard: 1, snappy: 2.5}[value] || 1;
         viewer.orbitControls.fadeFactor = 20 * factor;
@@ -1153,14 +1140,7 @@ class ModelView extends React.Component {
 
                     {viewer && this.settings.gizmo === true ? <Gizmo viewer={viewer} shifted={panel === "project" || panel === "history"} /> : ""}
 
-                    {viewer && this.settings.minimap !== false && task.epsg ?
-                    <button type="button" title={_("Minimap")}
-                            className={"mv-map-btn " + (this.state.mapOpen ? "active" : "")}
-                            onClick={() => {
-                                viewer.mapView.toggle();
-                                this.setState({mapOpen: !this.state.mapOpen});
-                            }}><i className="mv-icon mv-icon-map"></i></button>
-                    : ""}
+                    {viewer && this.settings.minimap !== false ? <Minimap viewer={viewer} /> : ""}
 
                     {viewer && this.settings.magnifier !== false ? <Magnifier viewer={viewer} /> : ""}
 

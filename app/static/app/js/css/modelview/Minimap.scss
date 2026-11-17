@@ -1,0 +1,82 @@
+.mv-minimap{
+    position: absolute;
+    z-index: 3;
+    left: 20px;
+    bottom: 20px;
+    width: 49px;
+    height: 49px;
+
+    button:focus{
+        outline: none;
+    }
+
+    &.open{
+        padding: 4px;
+        border: 2px solid #6f8a95;
+        border-radius: 12px;
+        background: #000;
+        overflow: hidden;
+    }
+
+    canvas{
+        display: block;
+    }
+
+    .mv-minimap-toggle{
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 49px;
+        height: 49px;
+        padding: 0;
+        border: 2px solid #6f8a95;
+        border-radius: 12px;
+        background: #2c3a40;
+        color: #fff;
+    }
+
+    &.open .mv-minimap-toggle{
+        left: 10px;
+        bottom: 10px;
+        width: 38px;
+        height: 38px;
+        border: 0;
+        border-radius: 6px;
+        background: #33434a;
+    }
+
+    .mv-minimap-sizes{
+        position: absolute;
+        top: 0;
+        right: 0;
+        display: flex;
+        gap: 4px;
+        padding: 6px 8px;
+        border-bottom-left-radius: 8px;
+        background: #2c3a40;
+
+        button{
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            border: 0;
+            border-radius: 50%;
+            background: transparent;
+            color: #fff;
+
+            &:hover{
+                background: rgba(255, 255, 255, 0.15);
+            }
+            &:disabled{
+                opacity: 0.4;
+                background: transparent;
+            }
+        }
+    }
+}

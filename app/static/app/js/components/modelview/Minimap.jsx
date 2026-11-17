@@ -1,0 +1,144 @@
+import React from 'react';
+import PropTypes from 'prop-types';
+import '../../css/modelview/Minimap.scss';
+import { _ } from '../../classes/gettext';
+
+const SIZES = [[248, 192], [308, 210], [616, 318]];
+
+class Minimap extends React.Component{
+  static propTypes = {
+    viewer: PropTypes.object.isRequired
+  }
+
+  constructor(props){
+    super(props);
+
+    this.state = {
+      open: false,
+      size: 0
+    };
+
+    this.image = null;
+    this.transform = null;
+  }
+
+  componentDidMount(){
+    this.props.viewer.addEventListener("update", this.draw);
+    this.buildInterval = setInterval(this.buildImage, 3000);
+  }
+
+  componentWillUnmount(){
+    this.props.viewer.removeEventListener("update", this.draw);
+    clearInterval(this.buildInterval);
+  }
+
+  componentDidUpdate(prevProps, prevState){
+    if (this.state.open && (!prevState.open || prevState.size !== this.state.size)) this.buildImage();
+  }
+
+  buildImage = () => {
+    const pc = this.props.viewer.scene.pointclouds[0];
+    if (!this.state.open || !this.canvas || !pc) return;
+
+    const width = this.canvas.width;
+    const height = this.canvas.height;
+    const box = pc.pcoGeometry.tightBoundingBox || pc.boundingBox;
+    const minX = box.min.x + pc.position.x;
+    const maxY = box.max.y + pc.position.y;
+    const sizeX = box.max.x - box.min.x;
+    const sizeY = box.max.y - box.min.y;
+    const scale = Math.min(width / sizeX, height / sizeY) * 0.9;
+    const offsetX = (width - sizeX * scale) / 2;
+    const offsetY = (height - sizeY * scale) / 2;
+
+    const image = new ImageData(width, height);
+    const pixels = image.data;
+    const depth = new Float32Array(width * height).fill(-Infinity);
+    const dot = scale > 4 ? 2 : 1;
+
+    for (let i = 3; i < pixels.length; i += 4) pixels[i] = 255;
+
+    pc.visibleNodes.forEach(node => {
+      const attributes = node.geometryNode.geometry.attributes;
+      if (!attributes.position || !attributes.rgba) return;
+
+      const positions = attributes.position.array;
+      const colors = attributes.rgba.array;
+      const m = node.sceneNode.matrixWorld.elements;
+
+      for (let i = 0, c = 0; i < positions.length; i += 3, c += 4){
+        const px = Math.floor(offsetX + (positions[i] + m[12] - minX) * scale);
+        const py = Math.floor(offsetY + (maxY - positions[i + 1] - m[13]) * scale);
+        const z = positions[i + 2] + m[14];
+
+        for (let dy = 0; dy < dot; dy++){
+          for (let dx = 0; dx < dot; dx++){
+            const x = px + dx;
+            const y = py + dy;
+            if (x < 0 || y < 0 || x >= width || y >= height) continue;
+
+            const idx = y * width + x;
+            if (z < depth[idx]) continue;
+
+            depth[idx] = z;
+            pixels[idx * 4] = colors[c];
+            pixels[idx * 4 + 1] = colors[c + 1];
+            pixels[idx * 4 + 2] = colors[c + 2];
+          }
+        }
+      }
+    });
+
+    this.image = image;
+    this.transform = {minX, maxY, scale, offsetX, offsetY};
+  }
+
+  draw = () => {
+    if (!this.state.open || !this.canvas || !this.image) return;
+    if (this.image.width !== this.canvas.width || this.image.height !== this.canvas.height) return;
+
+    const { viewer } = this.props;
+    const view = viewer.scene.view;
+    const { minX, maxY, scale, offsetX, offsetY } = this.transform;
+    const ctx = this.canvas.getContext("2d");
+    const x = Math.min(Math.max(offsetX + (view.position.x - minX) * scale, 6), this.canvas.width - 6);
+    const y = Math.min(Math.max(offsetY + (maxY - view.position.y) * scale, 6), this.canvas.height - 6);
+    const direction = view.direction;
+    const angle = Math.atan2(-direction.y, direction.x);
+    const spread = viewer.getFOV() * Math.PI / 360;
+
+    ctx.putImageData(this.image, 0, 0);
+
+    ctx.fillStyle = "rgba(255, 221, 51, 0.6)";
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.arc(x, y, 36, angle - spread, angle + spread);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = "#1f3fff";
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  render(){
+    const { open, size } = this.state;
+    const [ width, height ] = SIZES[size];
+
+    return (<div className={"mv-minimap " + (open ? "open" : "")} style={open ? {width, height} : {}}>
+      {open ? <canvas width={width - 12} height={height - 12} ref={domNode => { this.canvas = domNode; }}></canvas> : ""}
+      {open ?
+      <div className="mv-minimap-sizes">
+        <button type="button" title={_("Smaller")} disabled={size === 0}
+                onClick={() => this.setState({size: size - 1})}><i className="mv-icon mv-icon-shrink"></i></button>
+        <button type="button" title={_("Larger")} disabled={size === SIZES.length - 1}
+                onClick={() => this.setState({size: size + 1})}><i className="mv-icon mv-icon-enlarge"></i></button>
+      </div> : ""}
+      <button type="button" className="mv-minimap-toggle" title={_("Minimap")}
+              onClick={() => this.setState({open: !open})}><i className="mv-icon mv-icon-map"></i></button>
+    </div>);
+  }
+}
+
+export default Minimap;

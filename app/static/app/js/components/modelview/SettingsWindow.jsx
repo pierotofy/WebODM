@@ -120,7 +120,7 @@ class SettingsWindow extends React.Component{
                    value={background === "gradient" ? "#4f4f4f" : background}
                    onChange={e => this.change("background", e.target.value)} />
           </div>),
-        this.row(_("Show Minimap"), _("Shows or hides the minimap button in the bottom-left corner of the viewer. Requires a georeferenced model."),
+        this.row(_("Show Minimap"), _("Shows or hides the minimap button in the bottom-left corner of the viewer."),
           this.toggle("minimap", settings.minimap !== false)),
         this.row(_("Field of View"), _("Change your camera's field of view."),
           this.slider("fov", viewer.getFOV(), 20, 100, 1, `${Math.round(viewer.getFOV())}°`))
