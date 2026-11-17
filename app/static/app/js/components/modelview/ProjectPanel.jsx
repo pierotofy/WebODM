@@ -366,7 +366,7 @@ class ProjectPanel extends React.Component{
         </div> : ""
         ] : ""}
 
-        {this.folder("measures", _("Measures"), measures, true)}
+        {this.folder("measures", _("Measurements"), measures, true)}
         {!closed.measures ? measures.map(this.itemRow) : ""}
 
         {this.folder("annotations", _("Annotations"), annotations, true)}

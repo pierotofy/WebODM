@@ -105,7 +105,7 @@ class Toolbar extends React.Component{
         ]
       },
       {
-        id: "measures", icon: "mv-icon mv-icon-ruler", title: _("Measures"),
+        id: "measures", icon: "mv-icon mv-icon-ruler", title: _("Measurements"),
         items: [
           { icon: "mv-icon mv-icon-distance", title: _("Distance"),
             onClick: () => this.measure({showDistances: true, showArea: false, closed: false, name: _("Distance")}) },
