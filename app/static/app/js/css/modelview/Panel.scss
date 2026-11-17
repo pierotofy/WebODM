@@ -51,6 +51,109 @@
         }
     }
 
+    .mv-panel-btn.active{
+        background: #6a6a6a;
+    }
+
+    .mv-danger{
+        color: #ff5c5c;
+    }
+
+    .mv-panel-toolbar{
+        flex: none;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 8px 8px 0 8px;
+    }
+
+    .mv-panel-search{
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 40px;
+        padding: 0 12px;
+        border-radius: 6px;
+        background: #3c3c3c;
+
+        input{
+            flex: 1 1 auto;
+            min-width: 0;
+            border: 0;
+            background: transparent;
+            color: #fff;
+            &:focus{
+                outline: none;
+            }
+        }
+    }
+
+    .mv-tree-folder{
+        padding-left: 8px !important;
+    }
+
+    .mv-tree-child{
+        padding-left: 28px !important;
+    }
+
+    .mv-tree-rename{
+        flex: 1 1 auto;
+        min-width: 0;
+        height: 28px;
+        border: 1px solid #fff;
+        border-radius: 4px;
+        background: #1c1c1c;
+        color: #fff;
+        padding: 0 4px;
+    }
+
+    .mv-panel-property{
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 6px 8px;
+        font-size: 16px;
+    }
+
+    .mv-panel-points{
+        max-height: 220px;
+        overflow: auto;
+        padding: 0 8px;
+
+        table{
+            width: 100%;
+        }
+        th, td{
+            padding: 4px 6px;
+            text-align: right;
+            white-space: nowrap;
+        }
+        th{
+            color: #999;
+            font-weight: normal;
+        }
+    }
+
+    .mv-context-menu{
+        position: absolute;
+        z-index: 1;
+        min-width: 140px;
+        padding: 4px 0;
+        border-radius: 6px;
+        background: #111;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+
+        & > div{
+            padding: 7px 12px;
+            cursor: pointer;
+            &:hover{
+                background: #444;
+            }
+        }
+    }
+
     .mv-panel-body{
         flex: 1 1 auto;
         min-height: 0;
@@ -120,6 +223,17 @@
             font-weight: normal;
         }
 
+        input[type="number"]{
+            flex: 1 1 0;
+            min-width: 0;
+            height: 40px;
+            padding: 0 12px;
+            border: 0;
+            border-radius: 6px;
+            background: #1c1c1c;
+            color: #fff;
+        }
+
         input[type="range"]{
             flex: 1 1 0;
             min-width: 0;
@@ -148,6 +262,10 @@
 
         &:disabled{
             opacity: 0.6;
+        }
+        &.mv-danger{
+            background: #8c1c1c;
+            color: #fff;
         }
     }
 
