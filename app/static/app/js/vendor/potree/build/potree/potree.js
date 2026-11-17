@@ -52303,14 +52303,14 @@
 			this._modifiable = true;
 
 			this.sphereGeometry = new SphereGeometry(0.4, 10, 10);
-			this.color = new Color(0xff0000);
-			this.lineColor = new Color(0xff0000);
+			this.color = new Color(0x4287f5);
+			this.lineColor = new Color(0x4287f5);
 		}
 
 		createSphereMaterial () {
 			let sphereMaterial = new MeshLambertMaterial({
 				//shading: THREE.SmoothShading,
-				color: 0xff0000,
+				color: 0x4287f5,
 				depthTest: false,
 				depthWrite: false}
 			);
@@ -52385,7 +52385,7 @@
 				this.edges.push(edge);
 
 				let boxGeometry = new BoxGeometry(1, 1, 1);
-				let boxMaterial = new MeshBasicMaterial({color: 0xff0000, transparent: true, opacity: 0.2});
+				let boxMaterial = new MeshBasicMaterial({color: 0x4287f5, transparent: true, opacity: 0.2});
 				let box = new Mesh(boxGeometry, boxMaterial);
 				box.visible = false;
 
@@ -53653,7 +53653,7 @@
 		]);
 
 		const lineMaterial = new LineMaterial({ 
-			color: 0xff0000, 
+			color: 0x4287f5, 
 			linewidth: 2, 
 			resolution:  new Vector2(1000, 1000),
 			gapSize: 1,
@@ -53698,7 +53698,7 @@
 		geometry.setPositions(coordinates);
 
 		const material = new LineMaterial({ 
-			color: 0xff0000, 
+			color: 0x4287f5, 
 			dashSize: 5, 
 			gapSize: 2,
 			linewidth: 2, 
@@ -53733,7 +53733,7 @@
 		]);
 
 		const material = new LineMaterial({ 
-			color: 0xff0000, 
+			color: 0x4287f5, 
 			linewidth: 2, 
 			resolution:  new Vector2(1000, 1000),
 			gapSize: 1,
@@ -53778,7 +53778,7 @@
 		geometry.setPositions(coordinates);
 
 		const material = new LineMaterial({ 
-			color: 0xff0000, 
+			color: 0x4287f5, 
 			dashSize: 5, 
 			gapSize: 2,
 			linewidth: 2, 
@@ -53871,7 +53871,7 @@
 			this.maxMarkers = Number.MAX_SAFE_INTEGER;
 
 			this.sphereGeometry = new SphereGeometry(0.4, 10, 10);
-			this.color = new Color(0xff0000);
+			this.color = new Color(0x4287f5);
 
 			this.spheres = [];
 			this.edges = [];
@@ -53935,7 +53935,7 @@
 				]);
 
 				let lineMaterial = new LineMaterial({
-					color: 0xff0000, 
+					color: 0x4287f5, 
 					linewidth: 2, 
 					resolution:  new Vector2(1000, 1000),
 				});
@@ -54161,6 +54161,37 @@
 			return Math.sqrt(areaVectorX * areaVectorX + areaVectorY * areaVectorY + areaVectorZ * areaVectorZ) / 2.0;
 		};
 
+		getHorizontalArea () {
+			let area = 0;
+			let j = this.points.length - 1;
+
+			for (let i = 0; i < this.points.length; i++) {
+				let p1 = this.points[i].position;
+				let p2 = this.points[j].position;
+				area += (p2.x + p1.x) * (p1.y - p2.y);
+				j = i;
+			}
+
+			return Math.abs(area / 2);
+		};
+
+		getPerpendicularDistance () {
+			if (this.points.length < 3) {
+				return 0;
+			}
+
+			const a = this.points[0].position;
+			const b = this.points[1].position;
+			const c = this.points[2].position;
+			const ab = new Vector3().subVectors(b, a);
+			const length = ab.length();
+			if (length === 0) {
+				return c.distanceTo(a);
+			}
+
+			return new Vector3().crossVectors(ab, new Vector3().subVectors(c, a)).length() / length;
+		};
+
 		getTotalDistance () {
 			if (this.points.length === 0) {
 				return 0;
@@ -54299,6 +54330,9 @@
 					center.add(nextPoint.position);
 					center = center.multiplyScalar(0.5);
 					let distance = point.position.distanceTo(nextPoint.position);
+					if(this.kind === 'ground'){
+						distance = Math.hypot(point.position.x - nextPoint.position.x, point.position.y - nextPoint.position.y);
+					}
 
 					edgeLabel.position.copy(center);
 
@@ -54446,7 +54480,7 @@
 			{ // update area label
 				this.areaLabel.position.copy(centroid);
 				this.areaLabel.visible = this.showArea && this.points.length >= 3;
-				let area = this.getArea();
+				let area = this.kind === 'area-plane' ? this.getHorizontalArea() : this.getArea();
 
 				let suffix = "";
 				if(this.lengthUnit != null && this.lengthUnitDisplay != null){
@@ -54457,6 +54491,18 @@
 				let txtArea = Utils.addCommas(area.toFixed(1));
 				let msg =  `${txtArea} ${suffix}\u00B2`;
 				this.areaLabel.setText(msg);
+
+				if(this.kind === 'perpendicular'){
+					this.areaLabel.visible = this.points.length === 3;
+					if(this.points.length === 3){
+						let distance = this.getPerpendicularDistance();
+						if(this.lengthUnit != null && this.lengthUnitDisplay != null){
+							distance = distance / this.lengthUnit.unitspermeter * this.lengthUnitDisplay.unitspermeter;
+						}
+						this.areaLabel.position.copy(this.points[2].position);
+						this.areaLabel.setText(`${Utils.addCommas(distance.toFixed(2))} ${suffix}`);
+					}
+				}
 			}
 
 			// this.updateAzimuth();
@@ -64584,6 +64630,10 @@ void main() {
 			color: measurement.color.toArray(),
 		};
 
+		if(measurement.kind){
+			data.kind = measurement.kind;
+		}
+
 		return data;
 	}
 
@@ -65353,6 +65403,9 @@ void main() {
 		measure.showCircle = data.showCircle;
 		measure.showAzimuth = data.showAzimuth;
 		measure.showEdges = data.showEdges;
+		if(data.kind){
+			measure.kind = data.kind;
+		}
 		// color
 
 		for(const point of data.points){

@@ -20,8 +20,9 @@ class Toolbar extends React.Component{
     };
   }
 
-  measure = (args) => {
-    this.props.viewer.measuringTool.startInsertion(args);
+  measure = (args, kind) => {
+    const measurement = this.props.viewer.measuringTool.startInsertion(args);
+    if (kind) measurement.kind = kind;
   }
 
   setAttribute = (name) => {
@@ -106,6 +107,10 @@ class Toolbar extends React.Component{
         items: [
           { icon: "mv-icon mv-icon-distance", title: _("Distance"),
             onClick: () => this.measure({showDistances: true, showArea: false, closed: false, name: _("Distance")}) },
+          { icon: "mv-icon mv-icon-deltas", title: _("Deltas"),
+            onClick: () => this.measure({showDistances: true, showHeight: true, showArea: false, closed: false, maxMarkers: 2, name: _("Deltas")}, "deltas") },
+          { icon: "mv-icon mv-icon-ground", title: _("Ground distance"),
+            onClick: () => this.measure({showDistances: true, showArea: false, closed: false, name: _("Ground distance")}, "ground") },
           { icon: "mv-icon mv-icon-height", title: _("Height"),
             onClick: () => this.measure({showDistances: false, showHeight: true, showArea: false, closed: false, maxMarkers: 2, name: _("Height")}) },
           { icon: "mv-icon mv-icon-point", title: _("Point"),
@@ -116,8 +121,12 @@ class Toolbar extends React.Component{
             onClick: () => this.measure({showDistances: false, showHeight: false, showArea: false, showCircle: true, showEdges: false, closed: false, maxMarkers: 3, name: _("Circle")}) },
           { icon: "mv-icon mv-icon-azimuth", title: _("Azimuth"),
             onClick: () => this.measure({showDistances: false, showHeight: false, showArea: false, showCircle: false, showEdges: false, showAzimuth: true, closed: false, maxMarkers: 2, name: _("Azimuth")}) },
+          { icon: "mv-icon mv-icon-perpendicular", title: _("Perpendicular distance"),
+            onClick: () => this.measure({showDistances: false, showArea: false, closed: false, maxMarkers: 3, name: _("Perpendicular distance")}, "perpendicular") },
           { icon: "mv-icon mv-icon-area", title: _("Surface area"),
             onClick: () => this.measure({showDistances: true, showArea: true, closed: true, name: _("Area")}) },
+          { icon: "mv-icon mv-icon-areaplane", title: _("Area plane"),
+            onClick: () => this.measure({showDistances: true, showArea: true, closed: true, name: _("Area plane")}, "area-plane") },
           { icon: "mv-icon mv-icon-volume", title: _("Volume"),
             onClick: () => viewer.volumeTool.startInsertion() },
           { icon: "mv-icon mv-icon-sphere", title: _("Sphere volume"),
@@ -166,6 +175,11 @@ class Toolbar extends React.Component{
         onClick: () => this.props.onTogglePanel("project")
       },
       {
+        id: "history", icon: "mv-icon mv-icon-history", title: _("Action history"),
+        active: this.props.panel === "history",
+        onClick: () => this.props.onTogglePanel("history")
+      },
+      {
         id: "settings", icon: "mv-icon mv-icon-settings", title: _("Settings"),
         active: this.props.panel === "settings",
         onClick: () => this.props.onTogglePanel("settings")
@@ -178,7 +192,7 @@ class Toolbar extends React.Component{
       <div className="mv-toolbar">
         {groups.map((g, i) => g.separator ?
           <div key={i} className="mv-toolbar-separator"></div> :
-          <button key={g.id} type="button" title={g.title}
+          <button key={g.id} type="button" title={g.title} disabled={!!g.disabled}
                   className={"mv-toolbar-btn " + (open === g.id || g.active ? "active" : "")}
                   onClick={() => {
                     if (g.items) this.setState({open: open === g.id ? null : g.id});

@@ -20,6 +20,7 @@ import ProjectPanel from './components/modelview/ProjectPanel';
 import SettingsWindow from './components/modelview/SettingsWindow';
 import Magnifier from './components/modelview/Magnifier';
 import ProfilePanel from './components/modelview/ProfilePanel';
+import HistoryPanel from './components/modelview/HistoryPanel';
 
 require('./vendor/OBJLoader');
 require('./vendor/MTLLoader');
@@ -77,6 +78,8 @@ class ModelView extends React.Component {
         console.warn("Cannot read 3D view settings", e);
     }
     this.frames = 0;
+    this.history = [];
+    this.historyIndex = 0;
 
     this.prevSceneData = null;
     this.saveSceneReq = null;
@@ -242,6 +245,7 @@ class ModelView extends React.Component {
     }, 1000);
 
     onUnitSystemChanged(this.handleUnitSystemChanged);
+    document.addEventListener("keydown", this.handleKeyDown);
 
     this.setState({viewer});
 
@@ -315,6 +319,14 @@ class ModelView extends React.Component {
 
             this.prevSceneData = JSON.stringify(this.getSceneData());
 
+            // Give Potree a moment to load the saved scene before
+            // taking the first undo snapshot
+            setTimeout(() => {
+                this.history = [{label: "", data: this.getHistoryData()}];
+                this.historyIndex = 0;
+                this.historyInterval = setInterval(this.recordHistory, 500);
+            }, 1000);
+
             // Every 3 seconds, check if the scene has changed
             // if it has, save the changes server-side
             // Unfortunately Potree does not have reliable events
@@ -345,6 +357,86 @@ class ModelView extends React.Component {
         pluginActionButtons: {$push: [button]}
       }));
     });
+  }
+
+  getHistoryData = () => {
+    const json = Potree.saveProject(viewer);
+
+    return JSON.stringify({
+        type: json.type,
+        version: json.version,
+        measurements: json.measurements,
+        volumes: json.volumes,
+        profiles: json.profiles,
+        annotations: json.annotations,
+        cameraAnimations: json.cameraAnimations.map(a => Object.assign({}, a, {t: 0}))
+    });
+  }
+
+  recordHistory = () => {
+    if (viewer.inputHandler.drag) return;
+
+    const data = this.getHistoryData();
+    const prevData = this.history[this.historyIndex].data;
+    if (data === prevData) return;
+
+    const prev = JSON.parse(prevData);
+    const next = JSON.parse(data);
+    let label = _("Changed scene");
+
+    for (let key of ["measurements", "volumes", "profiles", "annotations", "cameraAnimations"]){
+        const added = next[key].find(n => !prev[key].find(p => p.uuid === n.uuid));
+        const removed = prev[key].find(p => !next[key].find(n => n.uuid === p.uuid));
+        const modified = next[key].find(n => {
+            const p = prev[key].find(p => p.uuid === n.uuid);
+            return p && JSON.stringify(p) !== JSON.stringify(n);
+        });
+
+        if (added) label = interpolate(_("Added %(name)s"), {name: added.name || added.title});
+        else if (removed) label = interpolate(_("Removed %(name)s"), {name: removed.name || removed.title});
+        else if (modified) label = interpolate(_("Modified %(name)s"), {name: modified.name || modified.title});
+
+        if (added || removed || modified) break;
+    }
+
+    this.history = this.history.slice(Math.max(0, this.historyIndex - 49), this.historyIndex + 1).concat([{label, data}]);
+    this.historyIndex = this.history.length - 1;
+    this.forceUpdate();
+  }
+
+  restoreHistory = (index) => {
+    if (index < 0 || index >= this.history.length || viewer.inputHandler.drag) return;
+
+    const scene = viewer.scene;
+    const live = Potree.saveProject(viewer);
+    const data = JSON.parse(this.history[index].data);
+    data.view = live.view;
+    data.settings = live.settings;
+    data.classification = live.classification;
+    data.pointclouds = [];
+
+    viewer.inputHandler.deselectAll();
+    scene.removeAllMeasurements();
+    scene.annotations.removeAllChildren();
+    while (scene.cameraAnimations.length > 0) scene.removeCameraAnimation(scene.cameraAnimations[0]);
+
+    Potree.loadProject(viewer, data);
+
+    this.historyIndex = index;
+    this.forceUpdate();
+  }
+
+  handleKeyDown = (e) => {
+    if (!(e.ctrlKey || e.metaKey) || ["INPUT", "TEXTAREA", "SELECT"].indexOf(e.target.tagName) !== -1) return;
+
+    const key = e.key.toLowerCase();
+    if (key === "z" && !e.shiftKey){
+        e.preventDefault();
+        this.restoreHistory(this.historyIndex - 1);
+    }else if (key === "y" || (key === "z" && e.shiftKey)){
+        e.preventDefault();
+        this.restoreHistory(this.historyIndex + 1);
+    }
   }
 
   canEdit = () => {
@@ -470,6 +562,8 @@ class ModelView extends React.Component {
     offUnitSystemChanged(this.handleUnitSystemChanged);
     clearInterval(this.saveSceneInterval);
     clearInterval(this.fpsInterval);
+    clearInterval(this.historyInterval);
+    document.removeEventListener("keydown", this.handleKeyDown);
     viewer.renderer.domElement.removeEventListener( 'mousedown', this.handleRenderMouseClick );
     viewer.renderer.domElement.removeEventListener( 'mousemove', this.handleRenderMouseMove );
     viewer.renderer.domElement.removeEventListener( 'touchstart', this.handleRenderTouchStart );
@@ -936,6 +1030,13 @@ class ModelView extends React.Component {
                                 onClose={() => this.setState({panel: null})} />
                     : ""}
 
+                    {viewer && panel === "history" ?
+                    <HistoryPanel history={this.history}
+                                index={this.historyIndex}
+                                onRestore={this.restoreHistory}
+                                onClose={() => this.setState({panel: null})} />
+                    : ""}
+
                     {viewer && panel === "settings" ?
                     <SettingsWindow viewer={viewer}
                                 task={task}
@@ -959,7 +1060,7 @@ class ModelView extends React.Component {
                     progress={initializingSplats ? this.state.splatsLoadProgress : this.state.texModelLoadProgress}
                     />
 
-                    <div className={"model-action-buttons " + (this.state.modalOpen ? "modal-open" : "") + (panel === "project" ? " panel-open" : "") + (panel === "settings" ? " hide" : "")}>
+                    <div className={"model-action-buttons " + (this.state.modalOpen ? "modal-open" : "") + (panel === "project" || panel === "history" ? " panel-open" : "") + (panel === "settings" ? " hide" : "")}>
                         <UnitSelector />
                         <AssetDownloadButtons 
                                         task={this.props.task} 
