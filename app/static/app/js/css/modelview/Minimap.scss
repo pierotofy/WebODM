@@ -48,32 +48,33 @@
         background: #33434a;
     }
 
-    .mv-minimap-sizes{
+    .mv-minimap-resize-n{
         position: absolute;
-        left: 54px;
-        bottom: 10px;
-        display: flex;
-        gap: 6px;
+        top: 0;
+        left: 0;
+        right: 12px;
+        height: 8px;
+        cursor: ns-resize;
+        touch-action: none;
+    }
 
-        button{
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 38px;
-            height: 38px;
-            padding: 0;
-            border: 0;
-            border-radius: 4px;
-            background: #33434a;
-            color: #fff;
+    .mv-minimap-resize-e{
+        position: absolute;
+        top: 12px;
+        right: 0;
+        bottom: 0;
+        width: 8px;
+        cursor: ew-resize;
+        touch-action: none;
+    }
 
-            &:hover{
-                background: #5b737d;
-            }
-            &:disabled{
-                opacity: 0.4;
-                background: #33434a;
-            }
-        }
+    .mv-minimap-resize-ne{
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 12px;
+        height: 12px;
+        cursor: nesw-resize;
+        touch-action: none;
     }
 }

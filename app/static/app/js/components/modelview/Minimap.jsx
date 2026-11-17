@@ -3,8 +3,6 @@ import PropTypes from 'prop-types';
 import '../../css/modelview/Minimap.scss';
 import { _ } from '../../classes/gettext';
 
-const SIZES = [[248, 192], [308, 210], [616, 318]];
-
 class Minimap extends React.Component{
   static propTypes = {
     viewer: PropTypes.object.isRequired
@@ -15,7 +13,8 @@ class Minimap extends React.Component{
 
     this.state = {
       open: false,
-      size: 0
+      width: 248,
+      height: 192
     };
 
     this.image = null;
@@ -33,7 +32,7 @@ class Minimap extends React.Component{
   }
 
   componentDidUpdate(prevProps, prevState){
-    if (this.state.open && (!prevState.open || prevState.size !== this.state.size)) this.buildImage();
+    if (this.state.open && !prevState.open) this.buildImage();
   }
 
   buildImage = () => {
@@ -94,6 +93,30 @@ class Minimap extends React.Component{
     this.transform = {minX, maxY, scale, offsetX, offsetY};
   }
 
+  startResize = (e, horizontal, vertical) => {
+    e.preventDefault();
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const { width, height } = this.state;
+    const parent = this.root.parentElement.getBoundingClientRect();
+
+    const move = (ev) => {
+      this.setState({
+        width: horizontal ? Math.min(Math.max(width + ev.clientX - startX, 248), parent.width - 40) : width,
+        height: vertical ? Math.min(Math.max(height + startY - ev.clientY, 192), parent.height - 40) : height
+      });
+    };
+    const up = () => {
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", up);
+      this.buildImage();
+    };
+
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", up);
+  }
+
   handleDoubleClick = (e) => {
     if (!this.image) return;
 
@@ -143,20 +166,18 @@ class Minimap extends React.Component{
   }
 
   render(){
-    const { open, size } = this.state;
-    const [ width, height ] = SIZES[size];
+    const { open, width, height } = this.state;
 
-    return (<div className={"mv-minimap " + (open ? "open" : "")} style={open ? {width, height} : {}}>
+    return (<div className={"mv-minimap " + (open ? "open" : "")} style={open ? {width, height} : {}}
+                 ref={domNode => { this.root = domNode; }}>
       {open ? <canvas width={width - 12} height={height - 12} title={_("Double-click to move here")}
                        onDoubleClick={this.handleDoubleClick}
                        ref={domNode => { this.canvas = domNode; }}></canvas> : ""}
-      {open ?
-      <div className="mv-minimap-sizes">
-        <button type="button" title={_("Smaller")} disabled={size === 0}
-                onClick={() => this.setState({size: size - 1})}><i className="mv-icon mv-icon-minus"></i></button>
-        <button type="button" title={_("Larger")} disabled={size === SIZES.length - 1}
-                onClick={() => this.setState({size: size + 1})}><i className="mv-icon mv-icon-plus"></i></button>
-      </div> : ""}
+      {open ? [
+      <div key="n" className="mv-minimap-resize-n" onPointerDown={e => this.startResize(e, false, true)}></div>,
+      <div key="e" className="mv-minimap-resize-e" onPointerDown={e => this.startResize(e, true, false)}></div>,
+      <div key="ne" className="mv-minimap-resize-ne" onPointerDown={e => this.startResize(e, true, true)}></div>
+      ] : ""}
       <button type="button" className="mv-minimap-toggle" title={_("Minimap")}
               onClick={() => this.setState({open: !open})}><i className="mv-icon mv-icon-map"></i></button>
     </div>);
