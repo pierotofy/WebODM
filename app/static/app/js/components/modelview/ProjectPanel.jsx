@@ -176,7 +176,7 @@ class ProjectPanel extends React.Component{
       scene.profiles.map(obj => ({obj, type: "profile", icon: "mv-icon mv-icon-profile", nameKey: "name"})),
       scene.cameraAnimations.map(obj => ({obj, type: "animation", icon: "mv-icon mv-icon-video", nameKey: "name"}))
     );
-    let annotations = scene.annotations.descendants().map(obj => ({obj, type: "annotation", icon: "mv-icon mv-icon-annotation", nameKey: "title"}));
+    let annotations = scene.annotations.descendants().map(obj => ({obj, type: "annotation", icon: obj.hasView() ? "mv-icon mv-icon-pov" : "mv-icon mv-icon-annotation", nameKey: "title"}));
 
     if (search){
       const matches = item => String(item.obj[item.nameKey]).toLowerCase().indexOf(search.toLowerCase()) !== -1;

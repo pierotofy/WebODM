@@ -9,7 +9,8 @@ class Toolbar extends React.Component{
     viewer: PropTypes.object.isRequired,
     modelType: PropTypes.string.isRequired,
     panel: PropTypes.string,
-    onTogglePanel: PropTypes.func.isRequired
+    onTogglePanel: PropTypes.func.isRequired,
+    onEnterVR: PropTypes.func
   }
 
   constructor(props){
@@ -142,11 +143,24 @@ class Toolbar extends React.Component{
         ]
       },
       {
-        id: "animation", icon: "mv-icon mv-icon-video", title: _("Video animation"),
-        onClick: () => {
-          viewer.scene.addCameraAnimation(Potree.CameraAnimation.defaultFromView(viewer));
-          if (this.props.panel !== "project") this.props.onTogglePanel("project");
-        }
+        id: "camera", icon: "mv-icon mv-icon-camera", title: _("Camera"),
+        items: [
+          { icon: "mv-icon mv-icon-pov", title: _("Point of View"),
+            onClick: () => {
+              const view = viewer.scene.view;
+              viewer.scene.addAnnotation(view.getPivot(), {
+                title: _("Point of View"),
+                cameraPosition: view.position.clone(),
+                cameraTarget: view.getPivot()
+              });
+              if (this.props.panel !== "project") this.props.onTogglePanel("project");
+            } },
+          { icon: "mv-icon mv-icon-video", title: _("Video animation"),
+            onClick: () => {
+              viewer.scene.addCameraAnimation(Potree.CameraAnimation.defaultFromView(viewer));
+              if (this.props.panel !== "project") this.props.onTogglePanel("project");
+            } }
+        ]
       },
       {
         id: "clipping", icon: "mv-icon mv-icon-clip", title: _("Clipping"),
@@ -185,6 +199,13 @@ class Toolbar extends React.Component{
         onClick: () => this.props.onTogglePanel("settings")
       }
     ];
+
+    if (this.props.onEnterVR){
+      groups.push({
+        id: "vr", icon: "mv-icon mv-icon-vr", title: _("VR"),
+        onClick: this.props.onEnterVR
+      });
+    }
 
     const openGroup = groups.find(g => g.id === open);
 

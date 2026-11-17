@@ -93,6 +93,8 @@ class SettingsWindow extends React.Component{
           this.toggle("magnifier", settings.magnifier !== false)),
         this.row(_("Coordinate Unit"), _("Unit used by the point cloud coordinates. Detected from the task's coordinate system."),
           <span>{task.srs.units || "m"}</span>),
+        this.row(_("Orientation Indicator"), _("Shows the X / Y / Z indicator in the top-right corner. Click an axis to look along it."),
+          this.toggle("gizmo", settings.gizmo !== false)),
         this.row(_("Navigation Compass"), _("Shows a compass that points north."),
           this.toggle("compass", viewer.compass.isVisible()))
       ];
@@ -120,6 +122,8 @@ class SettingsWindow extends React.Component{
                    value={background === "gradient" ? "#4f4f4f" : background}
                    onChange={e => this.change("background", e.target.value)} />
           </div>),
+        this.row(_("Show Minimap"), _("Shows or hides the minimap button in the bottom-left corner of the viewer. Requires a georeferenced model."),
+          this.toggle("minimap", settings.minimap !== false)),
         this.row(_("Field of View"), _("Change your camera's field of view."),
           this.slider("fov", viewer.getFOV(), 20, 100, 1, `${Math.round(viewer.getFOV())}°`))
       ];

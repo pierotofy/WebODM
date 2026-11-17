@@ -21,6 +21,7 @@ import SettingsWindow from './components/modelview/SettingsWindow';
 import Magnifier from './components/modelview/Magnifier';
 import ProfilePanel from './components/modelview/ProfilePanel';
 import HistoryPanel from './components/modelview/HistoryPanel';
+import Gizmo from './components/modelview/Gizmo';
 
 require('./vendor/OBJLoader');
 require('./vendor/MTLLoader');
@@ -68,7 +69,9 @@ class ModelView extends React.Component {
       pluginActionButtons: [],
       viewer: null,
       panel: null,
-      fps: null
+      fps: null,
+      mapOpen: false,
+      vr: false
     };
 
     this.settings = {};
@@ -247,6 +250,19 @@ class ModelView extends React.Component {
     onUnitSystemChanged(this.handleUnitSystemChanged);
     document.addEventListener("keydown", this.handleKeyDown);
 
+    viewer.mapView = new Potree.MapView(viewer);
+    viewer.mapView.init();
+
+    Potree.VRButton.createButton(viewer.renderer).then(vrButton => {
+        if (!vrButton) return;
+
+        viewer.renderer.xr.enabled = true;
+        vrButton.onStart(() => viewer.dispatchEvent({type: "vr_start"}));
+        vrButton.onEnd(() => viewer.dispatchEvent({type: "vr_end"}));
+        this.vrButton = vrButton;
+        this.setState({vr: true});
+    });
+
     this.setState({viewer});
 
     viewer.scene.scene.add( new THREE.AmbientLight( 0x404040, 2.0 ) ); // soft white light );
@@ -273,8 +289,13 @@ class ModelView extends React.Component {
             this.toggleSplats(true);
           }
     
+          // Potree's proj4 only knows a few EPSG codes, the minimap
+          // and compass need the model's projection as a proj string
+          if (this.props.task.srs.proj4) e.pointcloud.projection = this.props.task.srs.proj4;
+
           let scene = viewer.scene;
           scene.addPointCloud(e.pointcloud);
+
           this.pointCloud = e.pointcloud;
     
           let material = e.pointcloud.material;
@@ -504,6 +525,12 @@ class ModelView extends React.Component {
     else if (key === "edlRadius") viewer.setEDLRadius(value);
     else if (key === "hq") viewer.useHQ = value;
     else if (key === "compass") viewer.compass.setVisible(value);
+    else if (key === "minimap"){
+        if (!value && this.state.mapOpen){
+            viewer.mapView.toggle();
+            this.setState({mapOpen: false});
+        }
+    }
     else if (key === "performance"){
         if (!value) this.setState({fps: null});
     }
@@ -1019,7 +1046,8 @@ class ModelView extends React.Component {
                     <div id="potree_render_area"
                         ref={(domNode) => { this.container = domNode; }}></div>
 
-                    {viewer ? <Toolbar viewer={viewer} modelType={selectedModelType} panel={panel} onTogglePanel={this.togglePanel} /> : ""}
+                    {viewer ? <Toolbar viewer={viewer} modelType={selectedModelType} panel={panel} onTogglePanel={this.togglePanel}
+                                        onEnterVR={this.state.vr ? () => this.vrButton.element.click() : null} /> : ""}
 
                     {viewer && panel === "project" ?
                     <ProjectPanel viewer={viewer}
@@ -1049,6 +1077,17 @@ class ModelView extends React.Component {
                     : ""}
 
                     {viewer ? <ProfilePanel viewer={viewer} /> : ""}
+
+                    {viewer && this.settings.gizmo !== false ? <Gizmo viewer={viewer} shifted={panel === "project" || panel === "history"} /> : ""}
+
+                    {viewer && this.settings.minimap !== false && task.epsg ?
+                    <button type="button" title={_("Minimap")}
+                            className={"mv-map-btn " + (this.state.mapOpen ? "active" : "")}
+                            onClick={() => {
+                                viewer.mapView.toggle();
+                                this.setState({mapOpen: !this.state.mapOpen});
+                            }}><i className="mv-icon mv-icon-map"></i></button>
+                    : ""}
 
                     {viewer && this.settings.magnifier !== false ? <Magnifier viewer={viewer} /> : ""}
 

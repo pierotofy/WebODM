@@ -276,24 +276,24 @@ def get_raster_bounds_geojson(raster_path, target_srs="EPSG:4326"):
 @lru_cache(maxsize=1000)
 def get_srs_name_units_from_epsg_or_wkt(epsg, wkt):
     if epsg is None and wkt is None:
-        return {'name': '', 'units': 'm'}
+        return {'name': '', 'units': 'm', 'proj4': ''}
     
     srs = osr.SpatialReference()
 
     if epsg is not None:
         if srs.ImportFromEPSG(epsg) != 0:
-            return {'name': '', 'units': 'm'}
+            return {'name': '', 'units': 'm', 'proj4': ''}
     
     if wkt is not None:
         if srs.ImportFromWkt(wkt) != 0:
-            return {'name': '', 'units': 'm'}
+            return {'name': '', 'units': 'm', 'proj4': ''}
 
     name = srs.GetAttrValue("PROJCS")
     if name is None:
         name = srs.GetAttrValue("GEOGCS")
     
     if name is None:
-        return {'name': '', 'units': 'm'}
+        return {'name': '', 'units': 'm', 'proj4': ''}
     
     if name == "unknown" and wkt is not None:
         try:
@@ -309,7 +309,13 @@ def get_srs_name_units_from_epsg_or_wkt(epsg, wkt):
     elif units not in SUPPORTED_UNITS:
         units = 'm' # Unsupported
 
-    return {'name': name, 'units': units}
+    proj4 = ''
+    try:
+        proj4 = srs.ExportToProj4() or ''
+    except:
+        pass
+
+    return {'name': name, 'units': units, 'proj4': proj4}
 
 def get_rasterio_to_meters_factor(rasterio_ds):
     if isinstance(rasterio_ds, str):
