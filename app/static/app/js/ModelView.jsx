@@ -245,6 +245,9 @@ class ModelView extends React.Component {
 
     viewer.scene.elements = [];
 
+    viewer.compass.dom.css({top: "12px", left: "20px", right: "", zIndex: 2, cursor: "pointer"});
+    viewer.compass.setVisible(this.settings.compass !== false);
+
     viewer.addEventListener("update", () => { this.frames++; });
     this.fpsInterval = setInterval(() => {
         if (this.settings.performance) this.setState({fps: this.frames});
