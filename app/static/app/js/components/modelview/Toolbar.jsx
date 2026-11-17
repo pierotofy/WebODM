@@ -93,7 +93,7 @@ class Toolbar extends React.Component{
               viewer.scene.pointclouds.forEach(p => { p.material.opacity = xray ? 1 : 0.15; });
               viewer.setEDLEnabled(xray);
             } },
-          { icon: "mv-icon mv-icon-cameras", title: _("Cameras"),
+          { icon: "mv-icon mv-icon-camera", title: _("Cameras"),
             active: this.props.camerasVisible,
             disabled: !this.props.hasCameras,
             onClick: this.props.onToggleCameras }
