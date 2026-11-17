@@ -90,7 +90,27 @@ class Minimap extends React.Component{
     });
 
     this.image = image;
+    this.depth = depth;
     this.transform = {minX, maxY, scale, offsetX, offsetY};
+  }
+
+  handleDoubleClick = (e) => {
+    if (!this.image) return;
+
+    const { viewer } = this.props;
+    const rect = this.canvas.getBoundingClientRect();
+    const px = Math.floor(e.clientX - rect.left);
+    const py = Math.floor(e.clientY - rect.top);
+    const z = this.depth[py * this.image.width + px];
+    if (z === undefined || z === -Infinity) return;
+
+    const { minX, maxY, scale, offsetX, offsetY } = this.transform;
+    const view = viewer.scene.view;
+    const eyeHeight = 1.7 * viewer.lengthUnit.unitspermeter;
+
+    view.position.set(minX + (px - offsetX) / scale, maxY - (py - offsetY) / scale, z + eyeHeight);
+    view.pitch = 0;
+    view.radius = 5 * viewer.lengthUnit.unitspermeter;
   }
 
   draw = () => {
@@ -116,7 +136,7 @@ class Minimap extends React.Component{
     ctx.closePath();
     ctx.fill();
 
-    ctx.fillStyle = "#1f3fff";
+    ctx.fillStyle = "#ff0000";
     ctx.beginPath();
     ctx.arc(x, y, 4, 0, Math.PI * 2);
     ctx.fill();
@@ -127,7 +147,9 @@ class Minimap extends React.Component{
     const [ width, height ] = SIZES[size];
 
     return (<div className={"mv-minimap " + (open ? "open" : "")} style={open ? {width, height} : {}}>
-      {open ? <canvas width={width - 12} height={height - 12} ref={domNode => { this.canvas = domNode; }}></canvas> : ""}
+      {open ? <canvas width={width - 12} height={height - 12} title={_("Double-click to move here")}
+                       onDoubleClick={this.handleDoubleClick}
+                       ref={domNode => { this.canvas = domNode; }}></canvas> : ""}
       {open ?
       <div className="mv-minimap-sizes">
         <button type="button" title={_("Smaller")} disabled={size === 0}
