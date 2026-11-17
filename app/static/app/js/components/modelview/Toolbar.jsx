@@ -7,7 +7,9 @@ import { _ } from '../../classes/gettext';
 class Toolbar extends React.Component{
   static propTypes = {
     viewer: PropTypes.object.isRequired,
-    modelType: PropTypes.string.isRequired
+    modelType: PropTypes.string.isRequired,
+    panel: PropTypes.string,
+    onTogglePanel: PropTypes.func.isRequired
   }
 
   constructor(props){
@@ -82,10 +84,21 @@ class Toolbar extends React.Component{
             onClick: () => viewer.scene.pointclouds.forEach(p => {
               p.material.pointSizeType = p.material.pointSizeType === Potree.PointSizeType.ADAPTIVE ? Potree.PointSizeType.FIXED : Potree.PointSizeType.ADAPTIVE;
             }) },
+          { icon: "mv-icon mv-icon-xray", title: _("X-ray"),
+            active: !!pc && pc.material.opacity < 1,
+            disabled: modelType !== "cloud",
+            onClick: () => {
+              const xray = pc.material.opacity < 1;
+              viewer.scene.pointclouds.forEach(p => { p.material.opacity = xray ? 1 : 0.15; });
+              viewer.setEDLEnabled(xray);
+            } },
           { icon: "mv-icon mv-icon-edl", title: _("Eye-Dome Lighting (EDL)"),
             active: viewer.useEDL,
             disabled: modelType !== "cloud",
-            onClick: () => viewer.setEDLEnabled(!viewer.useEDL) }
+            onClick: () => {
+              viewer.scene.pointclouds.forEach(p => { p.material.opacity = 1; });
+              viewer.setEDLEnabled(!viewer.useEDL);
+            } }
         ]
       },
       {
@@ -108,12 +121,7 @@ class Toolbar extends React.Component{
           { icon: "mv-icon mv-icon-volume", title: _("Volume"),
             onClick: () => viewer.volumeTool.startInsertion() },
           { icon: "mv-icon mv-icon-sphere", title: _("Sphere volume"),
-            onClick: () => viewer.volumeTool.startInsertion({type: Potree.SphereVolume}) }
-        ]
-      },
-      {
-        id: "tools", icon: "mv-icon mv-icon-tools", title: _("Tools"),
-        items: [
+            onClick: () => viewer.volumeTool.startInsertion({type: Potree.SphereVolume}) },
           { icon: "mv-icon mv-icon-profile", title: _("Height profile"),
             onClick: () => {
               const profile = viewer.profileTool.startInsertion();
@@ -121,6 +129,17 @@ class Toolbar extends React.Component{
               viewer.profileWindowController.setProfile(profile);
             } }
         ]
+      },
+      { separator: true },
+      {
+        id: "project", icon: "mv-icon mv-icon-project", title: _("Project"),
+        active: this.props.panel === "project",
+        onClick: () => this.props.onTogglePanel("project")
+      },
+      {
+        id: "settings", icon: "mv-icon mv-icon-settings", title: _("Settings"),
+        active: this.props.panel === "settings",
+        onClick: () => this.props.onTogglePanel("settings")
       }
     ];
 
@@ -131,7 +150,7 @@ class Toolbar extends React.Component{
         {groups.map((g, i) => g.separator ?
           <div key={i} className="mv-toolbar-separator"></div> :
           <button key={g.id} type="button" title={g.title}
-                  className={"mv-toolbar-btn " + (open === g.id ? "active" : "")}
+                  className={"mv-toolbar-btn " + (open === g.id || g.active ? "active" : "")}
                   onClick={() => {
                     if (g.items) this.setState({open: open === g.id ? null : g.id});
                     else g.onClick();

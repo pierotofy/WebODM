@@ -1,0 +1,303 @@
+.mv-settings{
+    position: absolute;
+    z-index: 6;
+    top: 20px;
+    left: 40px;
+    right: 40px;
+    bottom: 20px;
+    max-width: 1060px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    border-radius: 8px;
+    background: #1f282c;
+    color: #efeff0;
+    font-size: 14px;
+    overflow: hidden;
+
+    button:focus{
+        outline: none;
+    }
+
+    .mv-settings-header{
+        flex: none;
+        display: flex;
+        align-items: center;
+        height: 72px;
+        padding: 0 16px;
+        border-bottom: 1px solid #44575f;
+    }
+
+    .mv-settings-title{
+        flex: 1 1 auto;
+        font-size: 16px;
+        font-weight: bold;
+    }
+
+    .mv-settings-close{
+        width: 40px;
+        height: 40px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: #fff;
+        font-size: 18px;
+        &:hover{
+            background: rgba(255, 255, 255, 0.15);
+        }
+    }
+
+    .mv-settings-body{
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+    }
+
+    .mv-settings-tabs{
+        flex: none;
+        width: 196px;
+        padding: 16px 8px;
+        border-right: 1px solid #44575f;
+        overflow-y: auto;
+
+        button{
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            height: 32px;
+            margin-bottom: 8px;
+            padding: 0 8px;
+            border: 0;
+            border-radius: 6px;
+            background: transparent;
+            color: #efeff0;
+            font-size: 16px;
+            text-align: left;
+
+            i{
+                flex: none;
+                width: 20px;
+                text-align: center;
+            }
+
+            &:hover{
+                background: rgba(255, 255, 255, 0.1);
+            }
+            &.active{
+                background: #111a1d;
+            }
+        }
+    }
+
+    .mv-settings-content{
+        flex: 1 1 auto;
+        min-width: 0;
+        padding: 8px 24px 16px 16px;
+        overflow-y: auto;
+    }
+
+    .mv-settings-section{
+        margin: 16px 0 4px 0;
+        font-size: 16px;
+        font-weight: bold;
+    }
+
+    .mv-settings-row{
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        padding: 12px 0;
+    }
+
+    .mv-settings-text{
+        flex: 1 1 60%;
+        min-width: 0;
+    }
+
+    .mv-settings-name{
+        font-size: 16px;
+        font-weight: bold;
+    }
+
+    .mv-settings-description{
+        color: #a9b7bc;
+    }
+
+    .mv-settings-control{
+        flex: 0 1 262px;
+        display: flex;
+        justify-content: flex-end;
+        min-width: 0;
+
+        select{
+            width: 100%;
+            height: 36px;
+            border: 0;
+            border-radius: 6px;
+            background: #2c3a40;
+            color: #fff;
+        }
+    }
+
+    .mv-switch{
+        position: relative;
+        width: 36px;
+        height: 20px;
+        padding: 0;
+        border: 2px solid #8b9aa0;
+        border-radius: 10px;
+        background: transparent;
+
+        span{
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #8b9aa0;
+            transition: left 0.1s;
+        }
+
+        &.on{
+            border-color: #b9c9cf;
+            background: #b9c9cf;
+            span{
+                left: 18px;
+                background: #1f282c;
+            }
+        }
+        &:disabled{
+            opacity: 0.4;
+        }
+    }
+
+    .mv-settings-slider{
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+
+        span{
+            flex: none;
+            min-width: 44px;
+            text-align: right;
+        }
+
+        input{
+            flex: 1 1 auto;
+            min-width: 0;
+            accent-color: #b9c9cf;
+        }
+    }
+
+    .mv-segmented{
+        display: flex;
+        padding: 3px;
+        border-radius: 6px;
+        background: #2c3a40;
+
+        button{
+            height: 28px;
+            padding: 0 10px;
+            border: 0;
+            border-radius: 4px;
+            background: transparent;
+            color: #a9b7bc;
+
+            &.active{
+                background: #111a1d;
+                color: #fff;
+            }
+        }
+    }
+
+    .mv-settings-backgrounds{
+        display: flex;
+        gap: 8px;
+
+        button, input{
+            width: 96px;
+            height: 54px;
+            padding: 0;
+            border: 2px solid transparent;
+            border-radius: 6px;
+            cursor: pointer;
+
+            &.active{
+                border-color: #fff;
+            }
+        }
+
+        .mv-background-gradient{
+            background: radial-gradient(ellipse at center, #23363d 0%, #0d1316 100%);
+        }
+    }
+
+    .mv-settings-action{
+        height: 36px;
+        padding: 0 16px;
+        border: 0;
+        border-radius: 6px;
+        background: #fff;
+        color: #111;
+
+        &:disabled{
+            opacity: 0.6;
+        }
+    }
+
+    .mv-settings-shortcut{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        border-top: 1px solid #2c3a40;
+
+        kbd{
+            margin-left: 6px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background: #2c3a40;
+            color: #e0e0e0;
+            box-shadow: none;
+            font-family: inherit;
+            font-size: 12px;
+        }
+    }
+
+    @media screen and (max-width: 700px){
+        left: 8px;
+        right: 8px;
+        top: 8px;
+        bottom: 8px;
+
+        .mv-settings-tabs{
+            width: 52px;
+            button span{
+                display: none;
+            }
+        }
+        .mv-settings-row{
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .mv-settings-control{
+            flex: 1 1 100%;
+            justify-content: flex-start;
+        }
+    }
+}
+
+.mv-fps{
+    position: absolute;
+    z-index: 3;
+    top: 10px;
+    left: 10px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: #1f282c;
+    color: #fff;
+    font-size: 12px;
+}

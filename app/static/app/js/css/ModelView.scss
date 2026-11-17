@@ -39,19 +39,13 @@
     }
 
     .container{
-        background: rgb(79,79,79);
-        background: -moz-radial-gradient(center, ellipse cover, rgba(79,79,79,1) 0%, rgba(22,22,22,1) 100%);
-        background: -webkit-gradient(radial, center center, 0px, center center, 100%, color-stop(0%,rgba(79,79,79,1)), color-stop(100%,rgba(22,22,22,1)));
-        background: -webkit-radial-gradient(center, ellipse cover, rgba(79,79,79,1) 0%,rgba(22,22,22,1) 100%);
-        background: -o-radial-gradient(center, ellipse cover, rgba(79,79,79,1) 0%,rgba(22,22,22,1) 100%);
-        background: -ms-radial-gradient(center, ellipse cover, rgba(79,79,79,1) 0%,rgba(22,22,22,1) 100%);
         background: radial-gradient(ellipse at center, rgba(79,79,79,1) 0%,rgba(22,22,22,1) 100%);
-        filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#4f4f4f', endColorstr='#161616',GradientType=1 );
-    	position: relative;
-    	padding: 0;
+        position: relative;
+        padding: 0;
         flex: 1 1 auto;
         min-height: 0;
     }
+
     .mv-body{
         flex: 1 1 auto;
         min-height: 0;
@@ -61,63 +55,6 @@
     input[type="checkbox"]{
         position: relative;
         top: 2px;
-    }
-
-    .mv-rail{
-        flex: none;
-        position: relative;
-        z-index: 5;
-        width: 56px;
-        padding: 12px 8px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 8px;
-        background: #1b1b1b;
-
-        .mv-rail-btn{
-            flex: none;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 40px;
-            height: 40px;
-            padding: 0;
-            border: 0;
-            border-radius: 6px;
-            background: transparent;
-            color: #fff;
-            font-size: 18px;
-
-            .mv-icon{
-                width: 18px;
-                height: 18px;
-            }
-
-            &:hover{
-                background: rgba(255, 255, 255, 0.15);
-            }
-            &.active{
-                background: #8a8a8a;
-            }
-            &:focus{
-                outline: none;
-            }
-        }
-
-        .mv-save{
-            background: #1faa4b;
-            &:hover{
-                background: #24c257;
-            }
-            &.error{
-                background: #c0392b;
-            }
-        }
-
-        .mv-rail-spacer{
-            flex: 1 1 auto;
-        }
     }
 
     .asset-download-buttons{
@@ -211,7 +148,7 @@
         top: 20px;
         left: 20px;
         z-index: 10;
-        background: #2a2a2a;
+        background: #1f282c;
         border-color: #a6a9aa;
         color: #ccccff;
         .close-thumb{

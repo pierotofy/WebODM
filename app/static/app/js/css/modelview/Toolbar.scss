@@ -20,7 +20,7 @@
         overflow-x: auto;
         overflow-y: hidden;
         border-radius: 8px;
-        background: #484848;
+        background: #33434a;
         scrollbar-width: none;
 
         &.mv-toolbar-sub{
@@ -52,7 +52,7 @@
             background: rgba(255, 255, 255, 0.15);
         }
         &.active{
-            background: #8a8a8a;
+            background: #6f8a95;
         }
         &:disabled{
             opacity: 0.4;

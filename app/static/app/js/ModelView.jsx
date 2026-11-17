@@ -16,7 +16,8 @@ import { _, interpolate } from './classes/gettext';
 import { getUnitSystem, onUnitSystemChanged, offUnitSystemChanged } from './classes/Units';
 import Toolbar from './components/modelview/Toolbar';
 import ProjectPanel from './components/modelview/ProjectPanel';
-import SettingsPanel from './components/modelview/SettingsPanel';
+import SettingsWindow from './components/modelview/SettingsWindow';
+import Magnifier from './components/modelview/Magnifier';
 
 require('./vendor/OBJLoader');
 require('./vendor/MTLLoader');
@@ -64,8 +65,16 @@ class ModelView extends React.Component {
       pluginActionButtons: [],
       viewer: null,
       panel: null,
-      saveStatus: "saved"
+      fps: null
     };
+
+    this.settings = {};
+    try{
+        this.settings = JSON.parse(localStorage.getItem("modelview_settings")) || {};
+    }catch(e){
+        console.warn("Cannot read 3D view settings", e);
+    }
+    this.frames = 0;
 
     this.prevSceneData = null;
     this.saveSceneReq = null;
@@ -225,6 +234,12 @@ class ModelView extends React.Component {
     viewer.setEDLEnabled(true);
     viewer.loadSettingsFromURL();
 
+    viewer.addEventListener("update", () => { this.frames++; });
+    this.fpsInterval = setInterval(() => {
+        if (this.settings.performance) this.setState({fps: this.frames});
+        this.frames = 0;
+    }, 1000);
+
     onUnitSystemChanged(this.handleUnitSystemChanged);
 
     $('<div>').load(new URL(Potree.scriptPath + '/profile.html').href, function(){
@@ -273,6 +288,8 @@ class ModelView extends React.Component {
           viewer.fitToScreen();
         
           this.handleUnitSystemChanged();
+
+          for (let k in this.settings) this.setSetting(k, this.settings[k]);
 
           // Load saved scene (if any)
           $.ajax({
@@ -351,7 +368,6 @@ class ModelView extends React.Component {
 
     if (this.saveSceneReq) this.saveSceneReq.abort();
 
-    this.setState({saveStatus: "saving"});
     this.saveSceneReq = $.ajax({
         url: `${this.basePath()}/3d/scene`,
         contentType: 'application/json',
@@ -362,13 +378,12 @@ class ModelView extends React.Component {
         if (result.success){
             this.saveSceneErrors = 0;
             this.prevSceneData = sceneData;
-            this.setState({saveStatus: "saved"});
         }else{
-            this.setState({saveStatus: "error"});
+            console.warn("Cannot save Potree scene");
         }
     }).fail((xhr, status) => {
         if (status === "abort") return;
-        this.setState({saveStatus: "error"});
+        console.error("Cannot save Potree scene");
         if (++this.saveSceneErrors === 5) clearInterval(this.saveSceneInterval);
     });
   }
@@ -385,6 +400,44 @@ class ModelView extends React.Component {
     }).fail(() => {
         cb(_("Cannot set initial camera view"));
     });
+  }
+
+  setSetting = (key, value) => {
+    const pointclouds = viewer.scene.pointclouds;
+
+    if (key === "background"){
+        viewer.setBackground(value === "gradient" ? "gradient" : null);
+        this.container.style.background = value === "gradient" ? "" : value;
+    }
+    else if (key === "fov") viewer.setFOV(value);
+    else if (key === "pointBudget") viewer.setPointBudget(value);
+    else if (key === "pointSizeType") pointclouds.forEach(pc => { pc.material.pointSizeType = Potree.PointSizeType[value]; });
+    else if (key === "pointShape") pointclouds.forEach(pc => { pc.material.shape = Potree.PointShape[value]; });
+    else if (key === "pointSize") pointclouds.forEach(pc => { pc.material.size = value; });
+    else if (key === "edlEnabled"){
+        if (this.getCurrentModelType() === "cloud") viewer.setEDLEnabled(value);
+    }
+    else if (key === "edlStrength") viewer.setEDLStrength(value);
+    else if (key === "edlRadius") viewer.setEDLRadius(value);
+    else if (key === "hq") viewer.useHQ = value;
+    else if (key === "compass") viewer.compass.setVisible(value);
+    else if (key === "performance"){
+        if (!value) this.setState({fps: null});
+    }
+    else if (key === "smoothness"){
+        const factor = {smooth: 0.5, standard: 1, snappy: 2.5}[value] || 1;
+        viewer.orbitControls.fadeFactor = 20 * factor;
+        viewer.earthControls.fadeFactor = 20 * factor;
+        viewer.fpControls.fadeFactor = 50 * factor;
+    }
+    else if (key === "moveSpeed"){
+        viewer.setMoveSpeed(Math.pow(10, value));
+        return;
+    }
+
+    this.settings[key] = value;
+    localStorage.setItem("modelview_settings", JSON.stringify(this.settings));
+    this.forceUpdate();
   }
 
   togglePanel = (panel) => {
@@ -425,6 +478,7 @@ class ModelView extends React.Component {
   componentWillUnmount(){
     offUnitSystemChanged(this.handleUnitSystemChanged);
     clearInterval(this.saveSceneInterval);
+    clearInterval(this.fpsInterval);
     viewer.renderer.domElement.removeEventListener( 'mousedown', this.handleRenderMouseClick );
     viewer.renderer.domElement.removeEventListener( 'mousemove', this.handleRenderMouseMove );
     viewer.renderer.domElement.removeEventListener( 'touchstart', this.handleRenderTouchStart );
@@ -850,18 +904,7 @@ class ModelView extends React.Component {
     const selectedModelType = this.getCurrentModelType();
     const initializing = initializingModel || initializingSplats;
 
-    const { viewer, panel, saveStatus } = this.state;
-    const saveTitles = {
-        saved: _("All changes saved"),
-        saving: _("Saving..."),
-        error: _("Cannot save changes. Click to retry")
-    };
-    const saveIcons = {
-        saved: "mv-icon mv-icon-save",
-        saving: "fa fa-circle-notch fa-spin",
-        error: "fa fa-exclamation-triangle"
-    };
-
+    const { viewer, panel } = this.state;
     return (<div className="model-view">
           <ErrorMessage bind={[this, "error"]} />
 
@@ -891,7 +934,7 @@ class ModelView extends React.Component {
                     <div id="potree_render_area"
                         ref={(domNode) => { this.container = domNode; }}></div>
 
-                    {viewer ? <Toolbar viewer={viewer} modelType={selectedModelType} /> : ""}
+                    {viewer ? <Toolbar viewer={viewer} modelType={selectedModelType} panel={panel} onTogglePanel={this.togglePanel} /> : ""}
 
                     {viewer && panel === "project" ?
                     <ProjectPanel viewer={viewer}
@@ -904,9 +947,19 @@ class ModelView extends React.Component {
                     : ""}
 
                     {viewer && panel === "settings" ?
-                    <SettingsPanel onSetInitialCameraView={this.props.public ? null : this.setInitialCameraView}
+                    <SettingsWindow viewer={viewer}
+                                task={task}
+                                title={this.props.title}
+                                settings={this.settings}
+                                modelType={selectedModelType}
+                                onChange={this.setSetting}
+                                onSetInitialCameraView={this.props.public ? null : this.setInitialCameraView}
                                 onClose={() => this.setState({panel: null})} />
                     : ""}
+
+                    {viewer && this.settings.magnifier !== false ? <Magnifier viewer={viewer} /> : ""}
+
+                    {this.state.fps !== null ? <div className="mv-fps">{interpolate(_("%(num)s FPS"), {num: this.state.fps})}</div> : ""}
 
                     <Standby
                     message={initializingSplats ? _("Loading splats...") : _("Loading textured model...")}
@@ -914,7 +967,7 @@ class ModelView extends React.Component {
                     progress={initializingSplats ? this.state.splatsLoadProgress : this.state.texModelLoadProgress}
                     />
 
-                    <div className={"model-action-buttons " + (this.state.modalOpen ? "modal-open" : "") + (panel ? " panel-open" : "")}>
+                    <div className={"model-action-buttons " + (this.state.modalOpen ? "modal-open" : "") + (panel === "project" ? " panel-open" : "") + (panel === "settings" ? " hide" : "")}>
                         <AssetDownloadButtons 
                                         task={this.props.task} 
                                         direction="up" 
@@ -944,22 +997,6 @@ class ModelView extends React.Component {
                     </div> : ""}
             </div>
 
-            <div className="mv-rail">
-                <button type="button" title={_("Project")}
-                        className={"mv-rail-btn " + (panel === "project" ? "active" : "")}
-                        onClick={() => this.togglePanel("project")}><i className="mv-icon mv-icon-project"></i></button>
-
-                <div className="mv-rail-spacer"></div>
-
-                <button type="button" title={_("Settings")}
-                        className={"mv-rail-btn " + (panel === "settings" ? "active" : "")}
-                        onClick={() => this.togglePanel("settings")}><i className="mv-icon mv-icon-settings"></i></button>
-                {this.canEdit() ?
-                <button type="button" title={saveTitles[saveStatus]}
-                        className={"mv-rail-btn mv-save " + saveStatus}
-                        onClick={this.saveScene}><i className={saveIcons[saveStatus]}></i></button>
-                : ""}
-            </div>
           </div>
       </div>);
   }

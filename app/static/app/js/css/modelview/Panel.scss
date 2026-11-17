@@ -9,7 +9,7 @@
     display: flex;
     flex-direction: column;
     border-radius: 8px;
-    background: #2a2a2a;
+    background: #1f282c;
     color: #efeff0;
     font-size: 14px;
     overflow: hidden;
@@ -21,7 +21,7 @@
         gap: 8px;
         height: 56px;
         padding: 8px;
-        border-bottom: 1px solid #555;
+        border-bottom: 1px solid #44575f;
     }
 
     .mv-panel-title{
@@ -52,7 +52,7 @@
     }
 
     .mv-panel-btn.active{
-        background: #6a6a6a;
+        background: #5b737d;
     }
 
     .mv-danger{
@@ -76,7 +76,7 @@
         height: 40px;
         padding: 0 12px;
         border-radius: 6px;
-        background: #3c3c3c;
+        background: #2c3a40;
 
         input{
             flex: 1 1 auto;
@@ -104,7 +104,7 @@
         height: 28px;
         border: 1px solid #fff;
         border-radius: 4px;
-        background: #1c1c1c;
+        background: #162024;
         color: #fff;
         padding: 0 4px;
     }
@@ -131,7 +131,7 @@
             white-space: nowrap;
         }
         th{
-            color: #999;
+            color: #8b9aa0;
             font-weight: normal;
         }
     }
@@ -142,7 +142,7 @@
         min-width: 140px;
         padding: 4px 0;
         border-radius: 6px;
-        background: #111;
+        background: #111a1d;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 
         & > div{
@@ -170,10 +170,10 @@
         cursor: pointer;
 
         &:hover{
-            background: #1c1c1c;
+            background: #162024;
         }
         &.selected{
-            background: #6a6a6a;
+            background: #5b737d;
         }
 
         .mv-tree-label{
@@ -186,13 +186,13 @@
 
     .mv-panel-properties{
         flex: none;
-        border-top: 1px solid #555;
+        border-top: 1px solid #44575f;
         padding-bottom: 12px;
     }
 
     .mv-panel-tabs{
         display: flex;
-        border-bottom: 2px solid #555;
+        border-bottom: 2px solid #44575f;
         margin-bottom: 12px;
     }
 
@@ -200,7 +200,7 @@
         flex: 1 1 0;
         padding: 12px 8px;
         text-align: center;
-        color: #999;
+        color: #8b9aa0;
 
         &.active{
             color: #fff;
@@ -230,14 +230,14 @@
             padding: 0 12px;
             border: 0;
             border-radius: 6px;
-            background: #1c1c1c;
+            background: #162024;
             color: #fff;
         }
 
         input[type="range"]{
             flex: 1 1 0;
             min-width: 0;
-            accent-color: #bbb;
+            accent-color: #b9c9cf;
         }
 
         select{
@@ -246,7 +246,7 @@
             height: 40px;
             border: 0;
             border-radius: 6px;
-            background: #3c3c3c;
+            background: #2c3a40;
             color: #fff;
         }
     }
