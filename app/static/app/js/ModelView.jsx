@@ -857,7 +857,7 @@ class ModelView extends React.Component {
         error: _("Cannot save changes. Click to retry")
     };
     const saveIcons = {
-        saved: "far fa-save",
+        saved: "mv-icon mv-icon-save",
         saving: "fa fa-circle-notch fa-spin",
         error: "fa fa-exclamation-triangle"
     };
@@ -914,50 +914,51 @@ class ModelView extends React.Component {
                     progress={initializingSplats ? this.state.splatsLoadProgress : this.state.texModelLoadProgress}
                     />
 
+                    <div className={"model-action-buttons " + (this.state.modalOpen ? "modal-open" : "") + (panel ? " panel-open" : "")}>
+                        <AssetDownloadButtons 
+                                        task={this.props.task} 
+                                        direction="up" 
+                                        showLabel={false}
+                                        buttonClass="btn-secondary"
+                                        onModalOpen={() => this.setState({modalOpen: true})}
+                                        onModalClose={() => this.setState({modalOpen: false})} />
+                        {this.state.pluginActionButtons.map((button, i) => <div key={i}>{button}</div>)}
+                        {(this.props.shareButtons && !this.props.public) ? 
+                        <ShareButton 
+                            ref={(ref) => { this.shareButton = ref; }}
+                            task={this.props.task} 
+                            popupPlacement="top"
+                            linksTarget="3d"
+                            queryParams={queryParams}
+                        />
+                        : ""}
+                        <SwitchModeButton 
+                            public={this.props.public}
+                            task={this.props.task}
+                            type="modelToMap" />
+                    </div>
+
                     {selectedCamera ? <div className="thumbnail">
                         <a className="close-thumb" href="javascript:void(0)" onClick={this.closeThumb}><i className="fa fa-window-close"></i></a>
                         <ImagePopup feature={selectedCamera._feat} task={task} />
                     </div> : ""}
             </div>
 
-            <div className={"mv-rail " + (this.state.modalOpen ? "modal-open" : "")}>
-                {this.canEdit() ?
-                <button type="button" title={saveTitles[saveStatus]}
-                        className={"mv-rail-btn mv-save " + saveStatus}
-                        onClick={this.saveScene}><i className={saveIcons[saveStatus]}></i></button>
-                : ""}
+            <div className="mv-rail">
                 <button type="button" title={_("Project")}
                         className={"mv-rail-btn " + (panel === "project" ? "active" : "")}
-                        onClick={() => this.togglePanel("project")}><i className="fa fa-sitemap"></i></button>
-
-                <div className="mv-rail-separator"></div>
-
-                <AssetDownloadButtons 
-                                task={this.props.task} 
-                                showLabel={false}
-                                buttonClass="mv-rail-btn"
-                                onModalOpen={() => this.setState({modalOpen: true})}
-                                onModalClose={() => this.setState({modalOpen: false})} />
-                {this.state.pluginActionButtons.map((button, i) => <div key={i} className="mv-rail-plugin">{button}</div>)}
-                {(this.props.shareButtons && !this.props.public) ? 
-                <ShareButton 
-                    ref={(ref) => { this.shareButton = ref; }}
-                    task={this.props.task} 
-                    popupPlacement="bottom"
-                    linksTarget="3d"
-                    queryParams={queryParams}
-                />
-                : ""}
-                <SwitchModeButton 
-                    public={this.props.public}
-                    task={this.props.task}
-                    type="modelToMap" />
+                        onClick={() => this.togglePanel("project")}><i className="mv-icon mv-icon-project"></i></button>
 
                 <div className="mv-rail-spacer"></div>
 
                 <button type="button" title={_("Settings")}
                         className={"mv-rail-btn " + (panel === "settings" ? "active" : "")}
-                        onClick={() => this.togglePanel("settings")}><i className="fa fa-cog"></i></button>
+                        onClick={() => this.togglePanel("settings")}><i className="mv-icon mv-icon-settings"></i></button>
+                {this.canEdit() ?
+                <button type="button" title={saveTitles[saveStatus]}
+                        className={"mv-rail-btn mv-save " + saveStatus}
+                        onClick={this.saveScene}><i className={saveIcons[saveStatus]}></i></button>
+                : ""}
             </div>
           </div>
       </div>);

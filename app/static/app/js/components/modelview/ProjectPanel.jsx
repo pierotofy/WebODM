@@ -74,14 +74,14 @@ class ProjectPanel extends React.Component{
       let icon = "mv-icon mv-icon-distance";
       if (obj.showAngles) icon = "mv-icon mv-icon-angle";
       else if (obj.showCoordinates) icon = "mv-icon mv-icon-point";
-      else if (obj.showCircle) icon = "far fa-circle";
-      else if (obj.showAzimuth) icon = "fa fa-compass";
-      else if (obj.showHeight) icon = "fa fa-ruler-vertical";
-      else if (obj.showArea) icon = "fa fa-vector-square";
+      else if (obj.showCircle) icon = "mv-icon mv-icon-circle";
+      else if (obj.showAzimuth) icon = "mv-icon mv-icon-azimuth";
+      else if (obj.showHeight) icon = "mv-icon mv-icon-height";
+      else if (obj.showArea) icon = "mv-icon mv-icon-area";
       return {obj, type: "measure", icon};
     }).concat(
-      scene.volumes.filter(obj => !obj.clip).map(obj => ({obj, type: "volume", icon: "fa fa-cube"})),
-      scene.profiles.map(obj => ({obj, type: "profile", icon: "fa fa-chart-area"}))
+      scene.volumes.filter(obj => !obj.clip).map(obj => ({obj, type: "volume", icon: "mv-icon mv-icon-volume"})),
+      scene.profiles.map(obj => ({obj, type: "profile", icon: "mv-icon mv-icon-profile"}))
     );
 
     if (search) items = items.filter(item => item.obj.name.toLowerCase().indexOf(search.toLowerCase()) !== -1);
@@ -172,7 +172,7 @@ class ProjectPanel extends React.Component{
                const rect = e.currentTarget.parentElement.parentElement.getBoundingClientRect();
                this.setState({menu: {item, x: e.clientX - rect.left, y: e.clientY - rect.top}});
              }}>
-          <i className={item.icon + " fa-fw"}></i>
+          <i className={item.icon}></i>
           {renaming === item.obj ?
           <input type="text" className="mv-tree-rename" autoFocus defaultValue={item.obj.name}
                  onClick={e => e.stopPropagation()}

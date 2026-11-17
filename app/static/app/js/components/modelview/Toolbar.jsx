@@ -1,6 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import '../../css/modelview/Toolbar.scss';
+import '../../css/modelview/Icons.scss';
 import { _ } from '../../classes/gettext';
 
 class Toolbar extends React.Component{
@@ -40,48 +41,48 @@ class Toolbar extends React.Component{
 
     const groups = [
       {
-        id: "navigation", icon: "fa fa-location-arrow", title: _("Navigation"),
+        id: "navigation", icon: "mv-icon mv-icon-navigation", title: _("Navigation"),
         items: [
-          { icon: "fa fa-mouse-pointer", title: _("Orbit"),
+          { icon: "mv-icon mv-icon-orbit", title: _("Orbit"),
             active: viewer.controls === viewer.orbitControls,
             onClick: () => viewer.setControls(viewer.orbitControls) },
-          { icon: "fa fa-paper-plane", title: _("Fly"),
+          { icon: "mv-icon mv-icon-fly", title: _("Fly"),
             active: viewer.controls === fp && !fp.lockElevation,
             onClick: () => { viewer.setControls(fp); fp.lockElevation = false; } },
-          { icon: "fa fa-walking", title: _("Walk"),
+          { icon: "mv-icon mv-icon-walk", title: _("Walk"),
             active: viewer.controls === fp && fp.lockElevation,
             onClick: () => { viewer.setControls(fp); fp.lockElevation = true; } },
-          { icon: "fa fa-globe", title: _("Earth"),
+          { icon: "mv-icon mv-icon-earth", title: _("Earth"),
             active: viewer.controls === viewer.earthControls,
             onClick: () => viewer.setControls(viewer.earthControls) }
         ]
       },
       {
-        id: "viewpoint", icon: "fa fa-expand-arrows-alt", title: _("Viewpoint"),
+        id: "viewpoint", icon: "mv-icon mv-icon-viewpoint", title: _("Viewpoint"),
         onClick: () => viewer.fitToScreen()
       },
       { separator: true },
       {
-        id: "display", icon: "fa fa-paint-brush", title: _("Display"),
+        id: "display", icon: "mv-icon mv-icon-display", title: _("Display"),
         items: [
-          { icon: "fa fa-binoculars", title: _("Orthographic"),
+          { icon: "mv-icon mv-icon-ortho", title: _("Orthographic"),
             active: viewer.scene.cameraMode === Potree.CameraMode.ORTHOGRAPHIC,
             onClick: () => viewer.setCameraMode(viewer.scene.cameraMode === Potree.CameraMode.ORTHOGRAPHIC ? Potree.CameraMode.PERSPECTIVE : Potree.CameraMode.ORTHOGRAPHIC) },
-          { icon: "fa fa-palette", title: _("RGBA"),
+          { icon: "mv-icon mv-icon-rgba", title: _("RGBA"),
             active: this.activeAttribute() === "rgba",
             onClick: () => this.setAttribute("rgba") },
-          { icon: "fa fa-highlighter", title: _("Intensity"),
+          { icon: "mv-icon mv-icon-intensity", title: _("Intensity"),
             active: this.activeAttribute() === "intensity",
             onClick: () => this.setAttribute("intensity") },
-          { icon: "fa fa-chart-area", title: _("Elevation"),
+          { icon: "mv-icon mv-icon-elevation", title: _("Elevation"),
             active: this.activeAttribute() === "elevation",
             onClick: () => this.setAttribute("elevation") },
-          { icon: "fa fa-ruler-combined", title: _("Adaptive"),
+          { icon: "mv-icon mv-icon-adaptive", title: _("Adaptive"),
             active: !!pc && pc.material.pointSizeType === Potree.PointSizeType.ADAPTIVE,
             onClick: () => viewer.scene.pointclouds.forEach(p => {
               p.material.pointSizeType = p.material.pointSizeType === Potree.PointSizeType.ADAPTIVE ? Potree.PointSizeType.FIXED : Potree.PointSizeType.ADAPTIVE;
             }) },
-          { icon: "fa fa-sun", title: _("Eye-Dome Lighting (EDL)"),
+          { icon: "mv-icon mv-icon-edl", title: _("Eye-Dome Lighting (EDL)"),
             active: viewer.useEDL,
             disabled: modelType !== "cloud",
             onClick: () => viewer.setEDLEnabled(!viewer.useEDL) }
@@ -92,28 +93,28 @@ class Toolbar extends React.Component{
         items: [
           { icon: "mv-icon mv-icon-distance", title: _("Distance"),
             onClick: () => this.measure({showDistances: true, showArea: false, closed: false, name: _("Distance")}) },
-          { icon: "fa fa-ruler-vertical", title: _("Height"),
+          { icon: "mv-icon mv-icon-height", title: _("Height"),
             onClick: () => this.measure({showDistances: false, showHeight: true, showArea: false, closed: false, maxMarkers: 2, name: _("Height")}) },
           { icon: "mv-icon mv-icon-point", title: _("Point"),
             onClick: () => this.measure({showDistances: false, showAngles: false, showCoordinates: true, showArea: false, closed: true, maxMarkers: 1, name: _("Point")}) },
           { icon: "mv-icon mv-icon-angle", title: _("Angle"),
             onClick: () => this.measure({showDistances: false, showAngles: true, showArea: false, closed: true, maxMarkers: 3, name: _("Angle")}) },
-          { icon: "far fa-circle", title: _("Circle"),
+          { icon: "mv-icon mv-icon-circle", title: _("Circle"),
             onClick: () => this.measure({showDistances: false, showHeight: false, showArea: false, showCircle: true, showEdges: false, closed: false, maxMarkers: 3, name: _("Circle")}) },
-          { icon: "fa fa-compass", title: _("Azimuth"),
+          { icon: "mv-icon mv-icon-azimuth", title: _("Azimuth"),
             onClick: () => this.measure({showDistances: false, showHeight: false, showArea: false, showCircle: false, showEdges: false, showAzimuth: true, closed: false, maxMarkers: 2, name: _("Azimuth")}) },
-          { icon: "fa fa-vector-square", title: _("Surface area"),
+          { icon: "mv-icon mv-icon-area", title: _("Surface area"),
             onClick: () => this.measure({showDistances: true, showArea: true, closed: true, name: _("Area")}) },
-          { icon: "fa fa-cube", title: _("Volume"),
+          { icon: "mv-icon mv-icon-volume", title: _("Volume"),
             onClick: () => viewer.volumeTool.startInsertion() },
-          { icon: "fa fa-globe-americas", title: _("Sphere volume"),
+          { icon: "mv-icon mv-icon-sphere", title: _("Sphere volume"),
             onClick: () => viewer.volumeTool.startInsertion({type: Potree.SphereVolume}) }
         ]
       },
       {
-        id: "tools", icon: "fa fa-search", title: _("Tools"),
+        id: "tools", icon: "mv-icon mv-icon-tools", title: _("Tools"),
         items: [
-          { icon: "fa fa-chart-area", title: _("Height profile"),
+          { icon: "mv-icon mv-icon-profile", title: _("Height profile"),
             onClick: () => {
               const profile = viewer.profileTool.startInsertion();
               viewer.profileWindow.show();
