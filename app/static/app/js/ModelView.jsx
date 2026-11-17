@@ -69,7 +69,6 @@ class ModelView extends React.Component {
       pluginActionButtons: [],
       viewer: null,
       panel: null,
-      fps: null,
       mapOpen: false,
       vr: false
     };
@@ -80,7 +79,6 @@ class ModelView extends React.Component {
     }catch(e){
         console.warn("Cannot read 3D view settings", e);
     }
-    this.frames = 0;
     this.history = [];
     this.historyIndex = 0;
 
@@ -248,11 +246,7 @@ class ModelView extends React.Component {
     viewer.compass.dom.css({top: "12px", left: "20px", right: "", zIndex: 2, cursor: "pointer"});
     viewer.compass.setVisible(this.settings.compass !== false);
 
-    viewer.addEventListener("update", () => { this.frames++; });
-    this.fpsInterval = setInterval(() => {
-        if (this.settings.performance) this.setState({fps: this.frames});
-        this.frames = 0;
-
+    this.densityInterval = setInterval(() => {
         // Point density inside each density box
         const conv = viewer.lengthUnitDisplay.unitspermeter / viewer.lengthUnit.unitspermeter;
         viewer.scene.volumes.forEach(volume => {
@@ -611,9 +605,6 @@ class ModelView extends React.Component {
             this.setState({mapOpen: false});
         }
     }
-    else if (key === "performance"){
-        if (!value) this.setState({fps: null});
-    }
     else if (key === "smoothness"){
         const factor = {smooth: 0.5, standard: 1, snappy: 2.5}[value] || 1;
         viewer.orbitControls.fadeFactor = 20 * factor;
@@ -668,7 +659,7 @@ class ModelView extends React.Component {
   componentWillUnmount(){
     offUnitSystemChanged(this.handleUnitSystemChanged);
     clearInterval(this.saveSceneInterval);
-    clearInterval(this.fpsInterval);
+    clearInterval(this.densityInterval);
     clearInterval(this.historyInterval);
     document.removeEventListener("keydown", this.handleKeyDown);
     viewer.renderer.domElement.removeEventListener( 'mousedown', this.handleRenderMouseClick );
@@ -1160,7 +1151,7 @@ class ModelView extends React.Component {
 
                     {viewer ? <ProfilePanel viewer={viewer} /> : ""}
 
-                    {viewer && this.settings.gizmo !== false ? <Gizmo viewer={viewer} shifted={panel === "project" || panel === "history"} /> : ""}
+                    {viewer && this.settings.gizmo === true ? <Gizmo viewer={viewer} shifted={panel === "project" || panel === "history"} /> : ""}
 
                     {viewer && this.settings.minimap !== false && task.epsg ?
                     <button type="button" title={_("Minimap")}
@@ -1172,8 +1163,6 @@ class ModelView extends React.Component {
                     : ""}
 
                     {viewer && this.settings.magnifier !== false ? <Magnifier viewer={viewer} /> : ""}
-
-                    {this.state.fps !== null ? <div className="mv-fps">{interpolate(_("%(num)s FPS"), {num: this.state.fps})}</div> : ""}
 
                     <Standby
                     message={initializingSplats ? _("Loading splats...") : _("Loading textured model...")}

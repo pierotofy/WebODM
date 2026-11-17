@@ -87,14 +87,12 @@ class SettingsWindow extends React.Component{
 
     if (tab === "general"){
       content = [
-        this.row(_("Show Performance"), _("Shows or hides the performance indicator, which helps you adjust these settings to your device."),
-          this.toggle("performance", !!settings.performance)),
         this.row(_("Magnifier"), _("Shows a zoomed-in view for greater precision when placing measurement points."),
           this.toggle("magnifier", settings.magnifier !== false)),
         this.row(_("Coordinate Unit"), _("Unit used by the point cloud coordinates. Detected from the task's coordinate system."),
           <span>{task.srs.units || "m"}</span>),
         this.row(_("Orientation Indicator"), _("Shows the X / Y / Z indicator in the top-right corner. Click an axis to look along it."),
-          this.toggle("gizmo", settings.gizmo !== false)),
+          this.toggle("gizmo", settings.gizmo === true)),
         this.row(_("Navigation Compass"), _("Shows a compass that points north."),
           this.toggle("compass", viewer.compass.isVisible()))
       ];
