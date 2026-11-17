@@ -24,7 +24,6 @@ class HistoryPanel extends React.Component{
       </div>
 
       <div className="mv-panel-body">
-        <div className="mv-panel-heading">{_("Current timeline")}</div>
         {history.length <= 1 ? <div className="mv-panel-empty">{_("No actions recorded yet.")}</div> : ""}
         {history.map((entry, i) => i === 0 ? null :
         <div key={i} className={"mv-tree-row mv-history-row " + (i === index ? "selected" : "") + (i > index ? " undone" : "")}
