@@ -103,8 +103,8 @@ class Minimap extends React.Component{
 
     const move = (ev) => {
       this.setState({
-        width: horizontal ? Math.min(Math.max(width + ev.clientX - startX, 248), parent.width - 40) : width,
-        height: vertical ? Math.min(Math.max(height + startY - ev.clientY, 192), parent.height - 40) : height
+        width: horizontal ? Math.min(Math.max(width + ev.clientX - startX, 248), parent.width - 24) : width,
+        height: vertical ? Math.min(Math.max(height + startY - ev.clientY, 192), parent.height - 24) : height
       });
     };
     const up = () => {
@@ -178,8 +178,8 @@ class Minimap extends React.Component{
       <div key="e" className="mv-minimap-resize-e" onPointerDown={e => this.startResize(e, true, false)}></div>,
       <div key="ne" className="mv-minimap-resize-ne" onPointerDown={e => this.startResize(e, true, true)}></div>
       ] : ""}
-      <button type="button" className="mv-minimap-toggle" title={_("Minimap")}
-              onClick={() => this.setState({open: !open})}><i className="mv-icon mv-icon-map"></i></button>
+      <button type="button" className="mv-minimap-toggle btn btn-sm btn-secondary" title={_("Minimap")}
+              onClick={() => this.setState({open: !open})}><i className="fa fa-map"></i></button>
     </div>);
   }
 }
