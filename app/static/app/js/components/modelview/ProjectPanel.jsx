@@ -1,5 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import * as THREE from 'THREE';
 import '../../css/modelview/Panel.scss';
 import { _, interpolate } from '../../classes/gettext';
 
@@ -57,7 +58,17 @@ class ProjectPanel extends React.Component{
   }
 
   zoomTo = (item) => {
-    this.props.viewer.zoomTo(item.obj, 2, 500);
+    let box;
+    if (item.type === "measure") box = new THREE.Box3().setFromPoints(item.obj.points.map(p => p.position));
+    else if (item.type === "profile") box = new THREE.Box3().setFromPoints(item.obj.points);
+    else box = item.obj.boundingBox.clone().applyMatrix4(item.obj.matrixWorld);
+
+    if (box.isEmpty()) return;
+    if (box.getSize(new THREE.Vector3()).length() === 0) box.expandByScalar(5);
+
+    const node = new THREE.Object3D();
+    node.boundingBox = box;
+    this.props.viewer.zoomTo(node, 2, 500);
   }
 
   toggleVisible = (item) => {
@@ -140,6 +151,25 @@ class ProjectPanel extends React.Component{
       </div>
 
       <div className="mv-panel-body">
+        {this.props.hasCameras ? [
+        <div key="layers" className="mv-tree-row mv-tree-folder" onClick={() => this.setState({layersOpen: !layersOpen})}>
+          <i className={"fa fa-fw " + (layersOpen ? "fa-caret-down" : "fa-caret-right")}></i>
+          <i className="far fa-folder fa-fw"></i>
+          <span className="mv-tree-label">{_("Layers")}</span>
+        </div>,
+        layersOpen ?
+        <div key="cameras" className={"mv-tree-row mv-tree-child " + (selected === "cameras" ? "selected" : "")}
+             onClick={() => this.setState({selected: selected === "cameras" ? null : "cameras"})}>
+          <i className="fa fa-camera fa-fw"></i>
+          <span className="mv-tree-label">{_("Cameras")}</span>
+          <button type="button" className="mv-panel-btn"
+                  title={this.props.camerasVisible ? _("Hide") : _("Show")}
+                  onClick={e => { e.stopPropagation(); this.props.onToggleCameras(); }}>
+            <i className={this.props.camerasVisible ? "far fa-eye" : "far fa-eye-slash"}></i>
+          </button>
+        </div> : ""
+        ] : ""}
+
         <div className="mv-tree-row mv-tree-folder" onClick={() => this.setState({measuresOpen: !measuresOpen})}>
           <i className={"fa fa-fw " + (measuresOpen ? "fa-caret-down" : "fa-caret-right")}></i>
           <i className="far fa-folder fa-fw"></i>
@@ -188,25 +218,6 @@ class ProjectPanel extends React.Component{
             <i className={item.obj.visible ? "far fa-eye" : "far fa-eye-slash"}></i>
           </button>
         </div>) : ""}
-
-        {this.props.hasCameras ? [
-        <div key="layers" className="mv-tree-row mv-tree-folder" onClick={() => this.setState({layersOpen: !layersOpen})}>
-          <i className={"fa fa-fw " + (layersOpen ? "fa-caret-down" : "fa-caret-right")}></i>
-          <i className="far fa-folder fa-fw"></i>
-          <span className="mv-tree-label">{_("Layers")}</span>
-        </div>,
-        layersOpen ?
-        <div key="cameras" className={"mv-tree-row mv-tree-child " + (selected === "cameras" ? "selected" : "")}
-             onClick={() => this.setState({selected: selected === "cameras" ? null : "cameras"})}>
-          <i className="fa fa-camera fa-fw"></i>
-          <span className="mv-tree-label">{_("Cameras")}</span>
-          <button type="button" className="mv-panel-btn"
-                  title={this.props.camerasVisible ? _("Hide") : _("Show")}
-                  onClick={e => { e.stopPropagation(); this.props.onToggleCameras(); }}>
-            <i className={this.props.camerasVisible ? "far fa-eye" : "far fa-eye-slash"}></i>
-          </button>
-        </div> : ""
-        ] : ""}
       </div>
 
       {selected === "cameras" ?
