@@ -52303,14 +52303,14 @@
 			this._modifiable = true;
 
 			this.sphereGeometry = new SphereGeometry(0.4, 10, 10);
-			this.color = new Color(0x4287f5);
-			this.lineColor = new Color(0x4287f5);
+			this.color = new Color(0x1f5fd0);
+			this.lineColor = new Color(0x1f5fd0);
 		}
 
 		createSphereMaterial () {
 			let sphereMaterial = new MeshLambertMaterial({
 				//shading: THREE.SmoothShading,
-				color: 0x4287f5,
+				color: 0x1f5fd0,
 				depthTest: false,
 				depthWrite: false}
 			);
@@ -52385,7 +52385,7 @@
 				this.edges.push(edge);
 
 				let boxGeometry = new BoxGeometry(1, 1, 1);
-				let boxMaterial = new MeshBasicMaterial({color: 0x4287f5, transparent: true, opacity: 0.2});
+				let boxMaterial = new MeshBasicMaterial({color: 0x1f5fd0, transparent: true, opacity: 0.2});
 				let box = new Mesh(boxGeometry, boxMaterial);
 				box.visible = false;
 
@@ -53653,7 +53653,7 @@
 		]);
 
 		const lineMaterial = new LineMaterial({ 
-			color: 0x4287f5, 
+			color: 0x1f5fd0, 
 			linewidth: 2, 
 			resolution:  new Vector2(1000, 1000),
 			gapSize: 1,
@@ -53698,7 +53698,7 @@
 		geometry.setPositions(coordinates);
 
 		const material = new LineMaterial({ 
-			color: 0x4287f5, 
+			color: 0x1f5fd0, 
 			dashSize: 5, 
 			gapSize: 2,
 			linewidth: 2, 
@@ -53733,7 +53733,7 @@
 		]);
 
 		const material = new LineMaterial({ 
-			color: 0x4287f5, 
+			color: 0x1f5fd0, 
 			linewidth: 2, 
 			resolution:  new Vector2(1000, 1000),
 			gapSize: 1,
@@ -53778,7 +53778,7 @@
 		geometry.setPositions(coordinates);
 
 		const material = new LineMaterial({ 
-			color: 0x4287f5, 
+			color: 0x1f5fd0, 
 			dashSize: 5, 
 			gapSize: 2,
 			linewidth: 2, 
@@ -53871,7 +53871,7 @@
 			this.maxMarkers = Number.MAX_SAFE_INTEGER;
 
 			this.sphereGeometry = new SphereGeometry(0.4, 10, 10);
-			this.color = new Color(0x4287f5);
+			this.color = new Color(0x1f5fd0);
 
 			this.spheres = [];
 			this.edges = [];
@@ -53935,7 +53935,7 @@
 				]);
 
 				let lineMaterial = new LineMaterial({
-					color: 0x4287f5, 
+					color: 0x1f5fd0, 
 					linewidth: 2, 
 					resolution:  new Vector2(1000, 1000),
 				});
