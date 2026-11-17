@@ -178,8 +178,11 @@ class Minimap extends React.Component{
       <div key="e" className="mv-minimap-resize-e" onPointerDown={e => this.startResize(e, true, false)}></div>,
       <div key="ne" className="mv-minimap-resize-ne" onPointerDown={e => this.startResize(e, true, true)}></div>
       ] : ""}
+      {open ?
+      <button type="button" className="mv-minimap-close" title={_("Close")}
+              onClick={() => this.setState({open: false})}><i className="fa fa-times"></i></button> :
       <button type="button" className="mv-minimap-toggle btn btn-sm btn-secondary" title={_("Minimap")}
-              onClick={() => this.setState({open: !open})}><i className="fa fa-map"></i></button>
+              onClick={() => this.setState({open: true})}><i className="fa fa-map"></i></button>}
     </div>);
   }
 }
