@@ -38,16 +38,6 @@
         }
     }
 
-    .asset-download-buttons{
-        button{
-            padding: 5px 9px;
-            i{
-                left: 0;
-                margin: 0;
-            }
-        }
-    }
-
     .container{
         background: rgb(79,79,79);
         background: -moz-radial-gradient(center, ellipse cover, rgba(79,79,79,1) 0%, rgba(22,22,22,1) 100%);
@@ -62,16 +52,10 @@
         flex: 1 1 auto;
         min-height: 0;
     }
-    .dg{
-	    &.main{
-		    position: absolute;
-		    right: 0px;
-	    }
-	    .c{
-	    	select{
-	    		color: black;
-	    	}
-	    }
+    .mv-body{
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
     }
 
     input[type="checkbox"]{
@@ -79,55 +63,104 @@
         top: 2px;
     }
 
-    .action-buttons{
-        padding: 12px;
-        background-color: #19282c;
-
-        .textured-model-chkbox-container{
-            margin-bottom: 8px;
-        }
-
-        label{
-            color: #7a8184;
-        }
-
-        .asset-download-buttons{
-            margin-right: 8px;
-            &.open{
-                button{
-                    outline: none;
-                }
-            }
-        }
-
-    }
-    .model-action-buttons{
-        position: absolute;
-        z-index: 1;
-        bottom: 12px;
-        right: 6px;
+    .mv-rail{
+        flex: none;
+        position: relative;
+        z-index: 5;
+        width: 56px;
+        padding: 12px 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        background: #1b1b1b;
 
         &.modal-open{
             z-index: 999999;
         }
 
-        .switchModeButton{
-            position: initial;
-        }
-        .asset-download-buttons{
-            .dropdown-menu{
-                left: -125px;
+        .mv-rail-btn, .mv-rail-plugin > .btn, .shareButton > .btn, .switchModeButton{
+            flex: none;
+            width: 40px;
+            height: 40px;
+            padding: 0 !important;
+            margin: 0;
+            border: 0;
+            border-radius: 6px;
+            background: transparent;
+            color: #fff;
+            font-size: 0;
+            box-shadow: none;
+
+            i{
+                position: static;
+                margin: 0;
+                font-size: 18px;
+                line-height: 40px;
+            }
+
+            &:hover{
+                background: rgba(255, 255, 255, 0.15);
+            }
+            &.active, &.btn-primary{
+                background: #8a8a8a;
+            }
+            &:focus{
+                outline: none;
+            }
+            &:disabled{
+                opacity: 0.5;
             }
         }
 
-        & > *{
-            display: inline-block;
-            margin-right: 8px;
+        .mv-save{
+            background: #1faa4b;
+            &:hover{
+                background: #24c257;
+            }
+            &.error{
+                background: #c0392b;
+            }
         }
 
-        @media screen and (max-width: 400px){
-            .unit-selector{
-                display: none;
+        .mv-rail-separator{
+            flex: none;
+            align-self: stretch;
+            height: 1px;
+            margin: 0 -8px;
+            background: #555;
+        }
+
+        .mv-rail-spacer{
+            flex: 1 1 auto;
+        }
+
+        .asset-download-buttons, .shareButton{
+            position: relative;
+        }
+
+        .asset-download-buttons .dropdown-menu{
+            top: 0;
+            left: auto;
+            right: 100%;
+            margin: 0 12px 0 0;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .sharePopup{
+            top: 0;
+            right: 100%;
+            margin-right: 12px;
+
+            .sharePopupContainer.bottom{
+                top: 0;
+                left: 0;
+                margin: 0;
+
+                & > .arrow{
+                    display: none;
+                }
             }
         }
     }
@@ -154,35 +187,6 @@
         display: none
     }
 
-    #potree_menu{
-        h3{
-            box-shadow: none;
-        }
-
-        input{
-            color: buttontext;
-        }
-        legend{
-            display: initial !important;
-            width: initial !important;
-            padding: initial !important;
-            margin-bottom: initial !important;
-            font-size: inherit !important;
-            line-height: initial !important;
-            color: inherit !important;
-            border: initial !important;
-            border-bottom: initial !important;
-        }
-
-        #show_2d_profile{
-            color: initial !important;
-        }
-        
-        h3{
-            font-size: 14px;
-        }
-    }
-
     #potree_map_header{
         position: absolute; 
         width: 100%; 
@@ -204,65 +208,16 @@
         box-sizing: border-box;
     }
 
-    &.sidebar-open #potree_sidebar_container{
-        z-index: 2;
-    }
-
-    #potree_sidebar_container{
-        overflow-y: auto;
-        background-color: #19282c;
-
-        a{
-            color: #111;
-        }  
-
-        #sidebar_root{
-            width: 300px;
-
-            .pv-menu-list{
-                padding-right: 12px;
-
-                .divider{
-                    padding: 10px 0px 15px 0px;
-                }
-
-                a{
-                    color: #8Aa1c4;
-                } 
-            }
-
-            .measurement-panel-remove:hover{
-                cursor: pointer;
-            }
-
-            position: absolute; 
-            min-height: 100%; 
-            height: 100%;
-
-            .potree_sidebar_brand{
-                display: flex; 
-                flex-direction: row;
-            }
-
-            #potree_version_number{
-                color: #9AA1A4; 
-                font-size: 80%; 
-                font-weight: 100;
-            }
-        }
-    }
-
-    
     #potree_download_profile_ortho_link, #potree_download_profile_link{
         color: black;
     }
 
     .thumbnail{
         position: absolute;
-        top: 8px;
-        right: 8px;
+        top: 20px;
+        left: 20px;
         z-index: 10;
-        background: #19282c;
+        background: #2a2a2a;
         border-color: #a6a9aa;
         color: #ccccff;
         .close-thumb{

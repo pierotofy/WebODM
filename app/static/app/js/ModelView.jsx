@@ -13,113 +13,15 @@ import update from 'immutability-helper';
 import * as THREE from 'THREE';
 import $ from 'jquery';
 import { _, interpolate } from './classes/gettext';
-import UnitSelector from './components/UnitSelector';
-import { getUnitSystem, setUnitSystem, onUnitSystemChanged, offUnitSystemChanged } from './classes/Units';
+import { getUnitSystem, onUnitSystemChanged, offUnitSystemChanged } from './classes/Units';
+import Toolbar from './components/modelview/Toolbar';
+import ProjectPanel from './components/modelview/ProjectPanel';
+import SettingsPanel from './components/modelview/SettingsPanel';
 
 require('./vendor/OBJLoader');
 require('./vendor/MTLLoader');
 require('./vendor/GLTFLoader');
 require('./vendor/DRACOLoader');
-
-class SetCameraView extends React.Component{
-    static propTypes = {
-        viewer: PropTypes.object.isRequired,
-        task: PropTypes.object.isRequired
-    }
-
-    constructor(props){
-        super(props);
-        
-        this.state = {
-            error: "",
-            showOk: false
-        }
-    }
-
-    handleClick = () => {
-        const { view } = Potree.saveProject(this.props.viewer);
-        const showError = () => {
-            this.setState({error: _("Cannot set initial camera view")});
-            setTimeout(() => this.setState({error: ""}), 3000);
-        };
-        const showOk = () => {
-            this.setState({showOk: true});
-            setTimeout(() => this.setState({showOk: false}), 2000);
-        }
-
-        $.ajax({
-            url: `/api/projects/${this.props.task.project}/tasks/${this.props.task.id}/3d/cameraview`,
-            contentType: 'application/json',
-            data: JSON.stringify(view),
-            dataType: 'json',
-            type: 'POST'
-          }).done(result => {
-            if (result.success) showOk();
-            else showError();
-          }).fail(() => {
-            showError();
-          });
-    }
-
-    render(){
-        return ([<input key="btn" type="button" onClick={this.handleClick} 
-                    style={{marginBottom: 12, display: 'inline-block'}} name="set_camera_view" 
-                    value={_("set initial camera view")} />,
-                this.state.showOk ? (<div key="ok" style={{color: 'lightgreen', display: 'inline-block', marginLeft: 12}}>✓</div>) : "",
-                this.state.error ? (<div key="error" style={{color: 'red'}}>{this.state.error}</div>) : ""
-                ]
-        );
-    }
-}
-
-class CamerasMenu extends React.Component{
-    static propTypes = {
-        toggleCameras: PropTypes.func.isRequired,
-        changeCameraScale: PropTypes.func.isRequired
-    }
-
-    constructor(props){
-        super(props);
-
-        this.state = {
-            showCameras: false
-        }
-
-        // Translations
-        _("Cameras");
-    }
-
-    componentDidMount(){
-        if (this.sldCameraSize){
-            $(this.sldCameraSize).slider({
-                min: 0.1, max: 4, step: 0.1,
-                value: 1.0,
-                slide: (event, ui) => {
-                    this.props.changeCameraScale(ui.value);
-                }
-            });
-        }
-    }
-
-    handleClick = (e) => {
-        this.setState({showCameras: e.target.checked});
-        this.props.toggleCameras(e);
-    }
-
-    render(){
-        return (<div>
-            <div><label><input type="checkbox" 
-                    checked={this.state.showCameras}
-                    onChange={this.handleClick}
-                /> {_("Show Cameras")}</label>
-            </div>
-            <div style={{marginTop: 12}}>
-                <span>{_("Size")}</span>
-                <div ref={domNode => this.sldCameraSize = domNode}></div>
-            </div>
-            </div>);
-    }
-}
 
 const CAMERA_SCALES = {
     'm': 1.0,
@@ -157,10 +59,18 @@ class ModelView extends React.Component {
       splatsLoadProgress: null,
       selectedCamera: null,
       modalOpen: false,
-      sidebarOpen: false,
       cameraScale: CAMERA_SCALES[props.task.srs.units] || 1.0,
-      pluginActionButtons: []
+      camerasVisible: false,
+      pluginActionButtons: [],
+      viewer: null,
+      panel: null,
+      saveStatus: "saved"
     };
+
+    this.prevSceneData = null;
+    this.saveSceneReq = null;
+    this.saveSceneInterval = null;
+    this.saveSceneErrors = 0;
 
     this.pointCloud = null;
     this.modelReference = null;
@@ -305,14 +215,6 @@ class ModelView extends React.Component {
     viewer.setEDLEnabled(true);
     viewer.setFOV(60);
 
-    // Potree signals the sidebar state by setting the "left" offset
-    // of the render area (0px when closed, 300px when open)
-    this.sidebarObserver = new MutationObserver(() => {
-        const sidebarOpen = container.style.left !== "" && container.style.left !== "0px";
-        if (sidebarOpen !== this.state.sidebarOpen) this.setState({sidebarOpen});
-    });
-    this.sidebarObserver.observe(container, {attributes: true, attributeFilter: ['style']});
-
     if (Utils.isIOS()){
         viewer.setPointBudget(1000*1000);
     }else if (Utils.isMobile()){
@@ -323,42 +225,19 @@ class ModelView extends React.Component {
     viewer.setEDLEnabled(true);
     viewer.loadSettingsFromURL();
 
-    const origSetUnit = viewer.setLengthUnitAndDisplayUnit;
     onUnitSystemChanged(this.handleUnitSystemChanged);
 
-    viewer.setLengthUnitAndDisplayUnit = (lengthUnit, displayUnit) => {
-        if (displayUnit === 'm') setUnitSystem('metric');
-        else if (displayUnit === 'ft') setUnitSystem("imperial");
-        else if (displayUnit === 'ft (US)') setUnitSystem("imperialUS");
-
-        origSetUnit.call(viewer, lengthUnit, displayUnit);
-    };
-        
-    viewer.loadGUI(() => {
-      viewer.setLanguage('en');
-      $("#menu_tools").next().show();
-
-    // Don't open sidebar on small screens
-    if (window.innerWidth > 600) {
-        viewer.toggleSidebar();
-    }
-
-      if (this.hasCameras()){
-          window.ReactDOM.render(<CamerasMenu 
-                toggleCameras={this.toggleCameras}
-                changeCameraScale={this.changeCameraScale}
-            />, $("#cameras_button").get(0));
-      }else{
-          $("#cameras").hide();
-          $("#cameras_container").hide();
-      }
-
-      if (!this.props.public){
-          const $scv = $("<div id='set-camera-view'></div>");
-          $scv.prependTo($("#scene_export").parent());
-          window.ReactDOM.render(<SetCameraView viewer={viewer} task={this.props.task} />, $scv.get(0));
-      }
+    $('<div>').load(new URL(Potree.scriptPath + '/profile.html').href, function(){
+        $(document.body).append($(this).children());
+        $("#profile_window_title").text(_("Height profile"));
+        $('#profile_window [data-i18n="profile.nb_points"]').text(_("Number of Points"));
+        viewer.profileWindow = new Potree.ProfileWindow(viewer);
+        viewer.profileWindowController = new Potree.ProfileWindowController(viewer);
+        $('#profile_window').draggable({handle: $('#profile_titlebar'), containment: $(document.body)});
+        $('#profile_window').resizable({containment: $(document.body), handles: 'n, e, s, w'});
     });
+
+    this.setState({viewer});
 
     viewer.scene.scene.add( new THREE.AmbientLight( 0x404040, 2.0 ) ); // soft white light );
     viewer.scene.scene.add( new THREE.DirectionalLight( 0xcccccc, 0.5 ) );
@@ -370,7 +249,7 @@ class ModelView extends React.Component {
     this.pointCloudFilePath(pointCloudPath =>{ 
         Potree.loadPointCloud(pointCloudPath, "Point Cloud", e => {
           if (e.type == "loading_failed"){
-            this.setState({error: "Could not load point cloud. This task doesn't seem to have one. Try processing the task again."});
+            this.setState({error: _("Could not load point cloud. This task doesn't seem to have one. Try processing the task again.")});
             return;
           }
           
@@ -426,52 +305,21 @@ class ModelView extends React.Component {
             };
             viewer.addEventListener("update", potreeLoadProject);
 
+            this.prevSceneData = JSON.stringify(this.getSceneData());
+
             // Every 3 seconds, check if the scene has changed
             // if it has, save the changes server-side
             // Unfortunately Potree does not have reliable events
             // for trivially detecting changes in measurements
-            let saveSceneReq = null;
-            let saveSceneInterval = null;
-            let saveSceneErrors = 0;
-            let prevSceneData = JSON.stringify(this.getSceneData());
-            
-            const postSceneData = (sceneData) => {
-                if (saveSceneReq){
-                    saveSceneReq.abort();
-                    saveSceneReq = null;
-                }
-    
-                saveSceneReq = $.ajax({
-                    url: `/api/projects/${this.props.task.project}/tasks/${this.props.task.id}/3d/scene`,
-                    contentType: 'application/json',
-                    data: sceneData,
-                    dataType: 'json',
-                    type: 'POST'
-                    }).done(result => {
-                        if (result.success){
-                            saveSceneErrors = 0;
-                            prevSceneData = sceneData;
-                        }else{
-                            console.warn("Cannot save Potree scene");
-                        }
-                    }).fail(() => {
-                        console.error("Cannot save Potree scene");
-                        if (++saveSceneErrors === 5) clearInterval(saveSceneInterval);
-                    });
-            };
+            this.saveSceneInterval = setInterval(() => {
+                if (this.canEdit()) this.saveScene();
 
-            const checkScene = () => {
-                const sceneData = JSON.stringify(this.getSceneData());
-                if (sceneData !== prevSceneData) postSceneData(sceneData);
-                
                 // Potree is a bit strange, sometimes fitToScreen does
                 // not work, so we check whether the camera position is still
                 // at zero and recall fitToScreen
                 const pos = viewer.scene.view.position;
                 if (pos.x === 0 && pos.y === 0 && pos.z === 0) viewer.fitToScreen();
-            };
-
-            saveSceneInterval = setInterval(checkScene, 3000);
+            }, 3000);
           }).fail(e => {
             console.error("Cannot load 3D scene information", e);
           });
@@ -489,6 +337,58 @@ class ModelView extends React.Component {
         pluginActionButtons: {$push: [button]}
       }));
     });
+  }
+
+  canEdit = () => {
+    return !this.props.public || !!this.props.task.public_edit;
+  }
+
+  saveScene = () => {
+    if (this.prevSceneData === null) return;
+
+    const sceneData = JSON.stringify(this.getSceneData());
+    if (sceneData === this.prevSceneData) return;
+
+    if (this.saveSceneReq) this.saveSceneReq.abort();
+
+    this.setState({saveStatus: "saving"});
+    this.saveSceneReq = $.ajax({
+        url: `${this.basePath()}/3d/scene`,
+        contentType: 'application/json',
+        data: sceneData,
+        dataType: 'json',
+        type: 'POST'
+    }).done(result => {
+        if (result.success){
+            this.saveSceneErrors = 0;
+            this.prevSceneData = sceneData;
+            this.setState({saveStatus: "saved"});
+        }else{
+            this.setState({saveStatus: "error"});
+        }
+    }).fail((xhr, status) => {
+        if (status === "abort") return;
+        this.setState({saveStatus: "error"});
+        if (++this.saveSceneErrors === 5) clearInterval(this.saveSceneInterval);
+    });
+  }
+
+  setInitialCameraView = (cb) => {
+    $.ajax({
+        url: `${this.basePath()}/3d/cameraview`,
+        contentType: 'application/json',
+        data: JSON.stringify(Potree.saveProject(viewer).view),
+        dataType: 'json',
+        type: 'POST'
+    }).done(result => {
+        cb(result.success ? "" : _("Cannot set initial camera view"));
+    }).fail(() => {
+        cb(_("Cannot set initial camera view"));
+    });
+  }
+
+  togglePanel = (panel) => {
+    this.setState({panel: this.state.panel === panel ? null : panel});
   }
 
   handleUnitSystemChanged = () => {
@@ -524,7 +424,7 @@ class ModelView extends React.Component {
 
   componentWillUnmount(){
     offUnitSystemChanged(this.handleUnitSystemChanged);
-    if (this.sidebarObserver) this.sidebarObserver.disconnect();
+    clearInterval(this.saveSceneInterval);
     viewer.renderer.domElement.removeEventListener( 'mousedown', this.handleRenderMouseClick );
     viewer.renderer.domElement.removeEventListener( 'mousemove', this.handleRenderMouseMove );
     viewer.renderer.domElement.removeEventListener( 'touchstart', this.handleRenderTouchStart );
@@ -680,7 +580,9 @@ class ModelView extends React.Component {
     }
   }
 
-  toggleCameras = (e) => {
+  toggleCameras = () => {
+    this.setState({camerasVisible: !this.state.camerasVisible});
+
     if (this.cameraMeshes.length === 0){
         this.loadCameras();
         if (this.cameraMeshes.length === 0) return;
@@ -948,7 +850,19 @@ class ModelView extends React.Component {
     const selectedModelType = this.getCurrentModelType();
     const initializing = initializingModel || initializingSplats;
 
-    return (<div className={"model-view " + (this.state.sidebarOpen ? "sidebar-open" : "")}>
+    const { viewer, panel, saveStatus } = this.state;
+    const saveTitles = {
+        saved: _("All changes saved"),
+        saving: _("Saving..."),
+        error: _("Cannot save changes. Click to retry")
+    };
+    const saveIcons = {
+        saved: "far fa-save",
+        saving: "fa fa-circle-notch fa-spin",
+        error: "fa fa-exclamation-triangle"
+    };
+
+    return (<div className="model-view">
           <ErrorMessage bind={[this, "error"]} />
 
           {(this.props.title || modelTypeButtons.length > 0) ?
@@ -970,67 +884,86 @@ class ModelView extends React.Component {
           </div>
           : ""}
 
-          <div className="container potree_container"
-             style={{width: "100%", position: "relative"}}
-             onContextMenu={(e) => {e.preventDefault();}}>
-                <div id="potree_render_area"
-                    ref={(domNode) => { this.container = domNode; }}></div>
-                <div id="potree_sidebar_container"> </div>
+          <div className="mv-body">
+            <div className="container potree_container"
+                style={{width: "100%", position: "relative"}}
+                onContextMenu={(e) => {e.preventDefault();}}>
+                    <div id="potree_render_area"
+                        ref={(domNode) => { this.container = domNode; }}></div>
 
-                <Standby
-                  message={initializingSplats ? _("Loading splats...") : _("Loading textured model...")}
-                  show={initializing}
-                  progress={initializingSplats ? this.state.splatsLoadProgress : this.state.texModelLoadProgress}
-                  />
+                    {viewer ? <Toolbar viewer={viewer} modelType={selectedModelType} /> : ""}
+
+                    {viewer && panel === "project" ?
+                    <ProjectPanel title={this.props.title || _("Project")}
+                                hasCameras={this.hasCameras()}
+                                camerasVisible={this.state.camerasVisible}
+                                onToggleCameras={this.toggleCameras}
+                                onCameraScaleChange={this.changeCameraScale}
+                                onClose={() => this.setState({panel: null})} />
+                    : ""}
+
+                    {viewer && panel === "settings" ?
+                    <SettingsPanel onSetInitialCameraView={this.props.public ? null : this.setInitialCameraView}
+                                onClose={() => this.setState({panel: null})} />
+                    : ""}
+
+                    <Standby
+                    message={initializingSplats ? _("Loading splats...") : _("Loading textured model...")}
+                    show={initializing}
+                    progress={initializingSplats ? this.state.splatsLoadProgress : this.state.texModelLoadProgress}
+                    />
+
+                    {selectedCamera ? <div className="thumbnail">
+                        <a className="close-thumb" href="javascript:void(0)" onClick={this.closeThumb}><i className="fa fa-window-close"></i></a>
+                        <ImagePopup feature={selectedCamera._feat} task={task} />
+                    </div> : ""}
+            </div>
+
+            <div className={"mv-rail " + (this.state.modalOpen ? "modal-open" : "")}>
+                {this.canEdit() ?
+                <button type="button" title={saveTitles[saveStatus]}
+                        className={"mv-rail-btn mv-save " + saveStatus}
+                        onClick={this.saveScene}><i className={saveIcons[saveStatus]}></i></button>
+                : ""}
+                <button type="button" title={_("Project")}
+                        className={"mv-rail-btn " + (panel === "project" ? "active" : "")}
+                        onClick={() => this.togglePanel("project")}><i className="fa fa-sitemap"></i></button>
+
+                <div className="mv-rail-separator"></div>
+
+                <AssetDownloadButtons 
+                                task={this.props.task} 
+                                showLabel={false}
+                                buttonClass="mv-rail-btn"
+                                onModalOpen={() => this.setState({modalOpen: true})}
+                                onModalClose={() => this.setState({modalOpen: false})} />
+                {this.state.pluginActionButtons.map((button, i) => <div key={i} className="mv-rail-plugin">{button}</div>)}
+                {(this.props.shareButtons && !this.props.public) ? 
+                <ShareButton 
+                    ref={(ref) => { this.shareButton = ref; }}
+                    task={this.props.task} 
+                    popupPlacement="bottom"
+                    linksTarget="3d"
+                    queryParams={queryParams}
+                />
+                : ""}
+                <SwitchModeButton 
+                    public={this.props.public}
+                    task={this.props.task}
+                    type="modelToMap" />
+
+                <div className="mv-rail-spacer"></div>
+
+                <button type="button" title={_("Settings")}
+                        className={"mv-rail-btn " + (panel === "settings" ? "active" : "")}
+                        onClick={() => this.togglePanel("settings")}><i className="fa fa-cog"></i></button>
+            </div>
           </div>
-
-          <div className={"model-action-buttons " + (this.state.modalOpen ? "modal-open" : "")}>
-            <UnitSelector />
-            <AssetDownloadButtons 
-                            task={this.props.task} 
-                            direction="up" 
-                            showLabel={false}
-                            buttonClass="btn-secondary"
-                            onModalOpen={() => this.setState({modalOpen: true})}
-                            onModalClose={() => this.setState({modalOpen: false})} />
-            {this.state.pluginActionButtons.map((button, i) => <div key={i}>{button}</div>)}
-            {(this.props.shareButtons && !this.props.public) ? 
-            <ShareButton 
-                ref={(ref) => { this.shareButton = ref; }}
-                task={this.props.task} 
-                popupPlacement="top"
-                linksTarget="3d"
-                queryParams={queryParams}
-            />
-            : ""}
-            <SwitchModeButton 
-                public={this.props.public}
-                task={this.props.task}
-                type="modelToMap" />
-        </div>
-
-        {selectedCamera ? <div className="thumbnail">
-            <a className="close-thumb" href="javascript:void(0)" onClick={this.closeThumb}><i className="fa fa-window-close"></i></a>
-            <ImagePopup feature={selectedCamera._feat} task={task} />
-        </div> : ""}
       </div>);
   }
 }
 
 $(function(){
-    // Use gettext for translations
-    const oldInit = i18n.init;
-    i18n.addPostProcessor("gettext", function(v, k, opts){
-        if (v){
-            return _(v);
-        }else return v;
-    });
-    i18n.init = function(opts, cb){
-        opts.preload = ['en'];
-        opts.postProcess = "gettext";
-        oldInit(opts, cb);
-    };
-
     $("[data-modelview]").each(function(){
         let props = $(this).data();
         delete(props.modelview);

@@ -73086,8 +73086,6 @@ void main() {
 			this.initListeners();
 
 			this.pRenderer = new Renderer(this.renderer);
-
-			this.elRoot.i18n();
 		}
 
 		initListeners () {
@@ -90747,6 +90745,10 @@ ENDSEC
 	exports.TreeType = TreeType;
 	exports.Utils = Utils;
 	exports.VRControls = VRControls;
+	exports.VRButton = VRButton;
+	exports.ProfileWindow = ProfileWindow;
+	exports.ProfileWindowController = ProfileWindowController;
+	exports.MapView = MapView;
 	exports.Version = Version;
 	exports.Viewer = Viewer;
 	exports.Volume = Volume;
