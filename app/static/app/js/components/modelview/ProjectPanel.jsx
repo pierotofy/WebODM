@@ -328,11 +328,6 @@ class ProjectPanel extends React.Component{
       <div className="mv-panel-body">
         {this.folder("layers", _("Layers"), [], false)}
         {!closed.layers ? [
-        <div key="pointcloud" className={"mv-tree-row mv-tree-child " + (selected === "pointcloud" ? "selected" : "")}
-             onClick={() => this.setState({selected: selected === "pointcloud" ? null : "pointcloud"})}>
-          <i className="fa fa-pointcloud"></i>
-          <span className="mv-tree-label">{_("Point Cloud")}</span>
-        </div>,
         this.props.hasCameras ?
         <div key="cameras" className={"mv-tree-row mv-tree-child " + (selected === "cameras" ? "selected" : "")}
              onClick={() => this.setState({selected: selected === "cameras" ? null : "cameras"})}>
@@ -343,7 +338,12 @@ class ProjectPanel extends React.Component{
                   onClick={e => { e.stopPropagation(); this.props.onToggleCameras(); }}>
             <i className={this.props.camerasVisible ? "far fa-eye" : "far fa-eye-slash"}></i>
           </button>
-        </div> : ""
+        </div> : "",
+        <div key="pointcloud" className={"mv-tree-row mv-tree-child " + (selected === "pointcloud" ? "selected" : "")}
+             onClick={() => this.setState({selected: selected === "pointcloud" ? null : "pointcloud"})}>
+          <i className="fa fa-pointcloud"></i>
+          <span className="mv-tree-label">{_("Point Cloud")}</span>
+        </div>
         ] : ""}
 
         {this.folder("measures", _("Measurements"), measures, true)}
