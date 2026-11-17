@@ -94,6 +94,12 @@
             display: inline-block;
             margin-right: 8px;
         }
+
+        @media screen and (max-width: 400px){
+            .unit-selector{
+                display: none;
+            }
+        }
     }
 
     .image-popup{
@@ -161,8 +167,4 @@
             }
         }
     }
-}
-
-#profile_window{
-    z-index: 999999999999 !important;
 }

@@ -127,7 +127,36 @@ class Toolbar extends React.Component{
               const profile = viewer.profileTool.startInsertion();
               viewer.profileWindow.show();
               viewer.profileWindowController.setProfile(profile);
-            } }
+            } },
+          { icon: "mv-icon mv-icon-annotation", title: _("Annotation"),
+            onClick: () => viewer.annotationTool.startInsertion() }
+        ]
+      },
+      {
+        id: "animation", icon: "mv-icon mv-icon-video", title: _("Video animation"),
+        onClick: () => {
+          viewer.scene.addCameraAnimation(Potree.CameraAnimation.defaultFromView(viewer));
+          if (this.props.panel !== "project") this.props.onTogglePanel("project");
+        }
+      },
+      {
+        id: "clipping", icon: "mv-icon mv-icon-clip", title: _("Clipping"),
+        items: [
+          { icon: "mv-icon mv-icon-clipbox", title: _("Clip box"),
+            onClick: () => viewer.volumeTool.startInsertion({clip: true}) },
+          { icon: "mv-icon mv-icon-clippolygon", title: _("Clip polygon"),
+            onClick: () => viewer.clippingTool.startInsertion({type: "polygon"}) },
+          { icon: "mv-icon mv-icon-highlight", title: _("Highlight"),
+            active: viewer.clipTask === Potree.ClipTask.HIGHLIGHT,
+            onClick: () => viewer.setClipTask(Potree.ClipTask.HIGHLIGHT) },
+          { icon: "mv-icon mv-icon-clipin", title: _("Clip In"),
+            active: viewer.clipTask === Potree.ClipTask.SHOW_INSIDE,
+            onClick: () => viewer.setClipTask(Potree.ClipTask.SHOW_INSIDE) },
+          { icon: "mv-icon mv-icon-clipout", title: _("Clip Out"),
+            active: viewer.clipTask === Potree.ClipTask.SHOW_OUTSIDE,
+            onClick: () => viewer.setClipTask(Potree.ClipTask.SHOW_OUTSIDE) },
+          { icon: "mv-icon mv-icon-trash", title: _("Remove all clip volumes"),
+            onClick: () => viewer.scene.removeAllClipVolumes() }
         ]
       },
       { separator: true },

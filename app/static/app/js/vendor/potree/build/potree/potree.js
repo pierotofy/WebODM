@@ -90746,6 +90746,8 @@ ENDSEC
 	exports.Utils = Utils;
 	exports.VRControls = VRControls;
 	exports.VRButton = VRButton;
+	exports.GeoJSONExporter = GeoJSONExporter;
+	exports.DXFExporter = DXFExporter;
 	exports.ProfileWindow = ProfileWindow;
 	exports.ProfileWindowController = ProfileWindowController;
 	exports.MapView = MapView;

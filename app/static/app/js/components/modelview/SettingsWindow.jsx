@@ -1,7 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import '../../css/modelview/Settings.scss';
-import UnitSelector from '../UnitSelector';
 import { _, interpolate } from '../../classes/gettext';
 
 class SettingsWindow extends React.Component{
@@ -92,8 +91,6 @@ class SettingsWindow extends React.Component{
           this.toggle("performance", !!settings.performance)),
         this.row(_("Magnifier"), _("Shows a zoomed-in view for greater precision when placing measurement points."),
           this.toggle("magnifier", settings.magnifier !== false)),
-        this.row(_("Measurement Unit"), _("Unit used to display all measurements, existing and new."),
-          <UnitSelector />),
         this.row(_("Coordinate Unit"), _("Unit used by the point cloud coordinates. Detected from the task's coordinate system."),
           <span>{task.srs.units || "m"}</span>),
         this.row(_("Navigation Compass"), _("Shows a compass that points north."),

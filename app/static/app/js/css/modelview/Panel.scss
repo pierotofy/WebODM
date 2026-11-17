@@ -14,25 +14,6 @@
     font-size: 14px;
     overflow: hidden;
 
-    .mv-panel-header{
-        flex: none;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        height: 56px;
-        padding: 8px 8px 8px 16px;
-        border-bottom: 1px solid #44575f;
-    }
-
-    .mv-panel-title{
-        flex: 1 1 auto;
-        font-size: 18px;
-        font-weight: bold;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
     .mv-panel-btn{
         flex: none;
         width: 40px;
@@ -64,7 +45,8 @@
         display: flex;
         align-items: center;
         gap: 4px;
-        padding: 8px 8px 0 8px;
+        padding: 8px;
+        border-bottom: 1px solid #44575f;
     }
 
     .mv-panel-search{
@@ -109,6 +91,44 @@
         padding: 0 4px;
     }
 
+    .mv-panel-btn:disabled{
+        opacity: 0.4;
+    }
+
+    .mv-panel-controls{
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        padding: 4px 8px;
+    }
+
+    .mv-panel-classes{
+        max-height: 180px;
+        overflow-y: auto;
+        padding: 0 8px;
+
+        label{
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+            padding: 4px 0;
+            font-weight: normal;
+        }
+
+        .mv-class-color{
+            flex: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+        }
+    }
+
+    .mv-export-menu{
+        top: 52px;
+        right: 8px;
+    }
+
     .mv-panel-property{
         display: flex;
         justify-content: space-between;
@@ -124,6 +144,9 @@
 
         table{
             width: 100%;
+        }
+        a{
+            color: #fff;
         }
         th, td{
             padding: 4px 6px;
@@ -156,7 +179,7 @@
 
     .mv-panel-body{
         flex: 1 1 auto;
-        min-height: 0;
+        min-height: 96px;
         overflow-y: auto;
         padding: 8px 0;
     }
@@ -186,6 +209,8 @@
 
     .mv-panel-properties{
         flex: none;
+        max-height: 60%;
+        overflow-y: auto;
         border-top: 1px solid #44575f;
         padding-bottom: 12px;
     }
@@ -223,7 +248,7 @@
             font-weight: normal;
         }
 
-        input[type="number"]{
+        input[type="number"], input[type="text"], textarea{
             flex: 1 1 0;
             min-width: 0;
             height: 40px;
@@ -238,6 +263,12 @@
             flex: 1 1 0;
             min-width: 0;
             accent-color: #b9c9cf;
+        }
+
+        textarea{
+            height: auto;
+            padding: 8px 12px;
+            resize: vertical;
         }
 
         select{
@@ -260,6 +291,11 @@
         color: #111;
         font-size: 15px;
 
+        .mv-icon{
+            width: 16px;
+            height: 16px;
+            vertical-align: -3px;
+        }
         &:disabled{
             opacity: 0.6;
         }

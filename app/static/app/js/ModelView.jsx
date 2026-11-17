@@ -14,10 +14,12 @@ import * as THREE from 'THREE';
 import $ from 'jquery';
 import { _, interpolate } from './classes/gettext';
 import { getUnitSystem, onUnitSystemChanged, offUnitSystemChanged } from './classes/Units';
+import UnitSelector from './components/UnitSelector';
 import Toolbar from './components/modelview/Toolbar';
 import ProjectPanel from './components/modelview/ProjectPanel';
 import SettingsWindow from './components/modelview/SettingsWindow';
 import Magnifier from './components/modelview/Magnifier';
+import ProfilePanel from './components/modelview/ProfilePanel';
 
 require('./vendor/OBJLoader');
 require('./vendor/MTLLoader');
@@ -211,7 +213,6 @@ class ModelView extends React.Component {
       // scene updates when these change.
       delete json.view;
       delete json.settings;
-      delete json.cameraAnimations;
 
       return json;
   }
@@ -241,16 +242,6 @@ class ModelView extends React.Component {
     }, 1000);
 
     onUnitSystemChanged(this.handleUnitSystemChanged);
-
-    $('<div>').load(new URL(Potree.scriptPath + '/profile.html').href, function(){
-        $(document.body).append($(this).children());
-        $("#profile_window_title").text(_("Height profile"));
-        $('#profile_window [data-i18n="profile.nb_points"]').text(_("Number of Points"));
-        viewer.profileWindow = new Potree.ProfileWindow(viewer);
-        viewer.profileWindowController = new Potree.ProfileWindowController(viewer);
-        $('#profile_window').draggable({handle: $('#profile_titlebar'), containment: $(document.body)});
-        $('#profile_window').resizable({containment: $(document.body), handles: 'n, e, s, w'});
-    });
 
     this.setState({viewer});
 
@@ -304,7 +295,7 @@ class ModelView extends React.Component {
                 sceneData.view = localSceneData.view;
             }
 
-            const keepKeys = ['pointclouds', 'settings', 'cameraAnimations'];
+            const keepKeys = ['pointclouds', 'settings'];
             for (let k of keepKeys){
                 sceneData[k] = localSceneData[k];
             }
@@ -938,7 +929,6 @@ class ModelView extends React.Component {
 
                     {viewer && panel === "project" ?
                     <ProjectPanel viewer={viewer}
-                                title={this.props.title || _("Project")}
                                 hasCameras={this.hasCameras()}
                                 camerasVisible={this.state.camerasVisible}
                                 onToggleCameras={this.toggleCameras}
@@ -957,6 +947,8 @@ class ModelView extends React.Component {
                                 onClose={() => this.setState({panel: null})} />
                     : ""}
 
+                    {viewer ? <ProfilePanel viewer={viewer} /> : ""}
+
                     {viewer && this.settings.magnifier !== false ? <Magnifier viewer={viewer} /> : ""}
 
                     {this.state.fps !== null ? <div className="mv-fps">{interpolate(_("%(num)s FPS"), {num: this.state.fps})}</div> : ""}
@@ -968,6 +960,7 @@ class ModelView extends React.Component {
                     />
 
                     <div className={"model-action-buttons " + (this.state.modalOpen ? "modal-open" : "") + (panel === "project" ? " panel-open" : "") + (panel === "settings" ? " hide" : "")}>
+                        <UnitSelector />
                         <AssetDownloadButtons 
                                         task={this.props.task} 
                                         direction="up" 
