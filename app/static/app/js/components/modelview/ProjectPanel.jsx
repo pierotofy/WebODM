@@ -59,9 +59,13 @@ class ProjectPanel extends React.Component{
     return Potree.Utils.addCommas(n.toFixed(3));
   }
 
-  copy = (text) => {
+  copy = (text, key) => {
+    const done = () => {
+      this.setState({updated: key});
+      setTimeout(() => { if (this.state.updated === key) this.setState({updated: null}); }, 2000);
+    };
     if (navigator.clipboard !== undefined){
-      navigator.clipboard.writeText(text);
+      navigator.clipboard.writeText(text).then(done, () => {});
     }else{
       const el = document.createElement("textarea");
       el.value = text;
@@ -69,8 +73,9 @@ class ProjectPanel extends React.Component{
       el.style.opacity = "0";
       document.body.appendChild(el);
       el.select();
-      document.execCommand("copy");
+      const ok = document.execCommand("copy");
       document.body.removeChild(el);
+      if (ok) done();
     }
   }
 
@@ -425,7 +430,7 @@ class ProjectPanel extends React.Component{
                      this.forceUpdate();
                    }} />)}
             <button type="button" className="mv-panel-btn" title={_("Copy")}
-                    onClick={() => this.copy(`${points[0].x.toFixed(3)}, ${points[0].y.toFixed(3)}, ${(points[0].z * conv).toFixed(3)}`)}><i className="far fa-copy"></i></button>
+                    onClick={() => this.copy(`${points[0].x.toFixed(3)}, ${points[0].y.toFixed(3)}, ${(points[0].z * conv).toFixed(3)}`, "copy")}><i className={updated === "copy" ? "fa fa-check" : "far fa-copy"}></i></button>
           </div> : ""}
 
           {selectedItem.type === "volume" ? ["position", "rotation", "scale"].map(prop =>
@@ -626,7 +631,7 @@ class ProjectPanel extends React.Component{
                 <td>
                   {selectedItem.type !== "animation" ?
                   <a href="javascript:void(0)" title={_("Copy")}
-                     onClick={() => this.copy(`${p.x.toFixed(3)}, ${p.y.toFixed(3)}, ${(p.z * conv).toFixed(3)}`)}><i className="far fa-copy"></i></a> : ""}
+                     onClick={() => this.copy(`${p.x.toFixed(3)}, ${p.y.toFixed(3)}, ${(p.z * conv).toFixed(3)}`, "copy" + i)}><i className={updated === "copy" + i ? "fa fa-check" : "far fa-copy"}></i></a> : ""}
                   {canEditPoints && (i < points.length - 1 || m.closed) ?
                   <a href="javascript:void(0)" title={_("Add point")}
                      onClick={() => {
