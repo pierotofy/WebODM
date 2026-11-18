@@ -25,9 +25,47 @@ class Toolbar extends React.Component{
     };
   }
 
+  componentDidMount(){
+    document.addEventListener("keydown", this.handleKeyDown);
+    this.props.viewer.renderer.domElement.addEventListener("mousedown", this.handleMouseDown, true);
+  }
+
+  componentWillUnmount(){
+    document.removeEventListener("keydown", this.handleKeyDown);
+    this.props.viewer.renderer.domElement.removeEventListener("mousedown", this.handleMouseDown, true);
+  }
+
+  handleKeyDown = (e) => {
+    if (e.key === "Escape") this.cancelInsertion();
+  }
+
+  handleMouseDown = () => {
+    if (!this.props.viewer.inputHandler.drag) this.inserting = null;
+  }
+
+  cancelInsertion = () => {
+    const { viewer } = this.props;
+    const item = this.inserting;
+    this.inserting = null;
+    if (!item || !viewer.inputHandler.drag) return;
+
+    viewer.renderer.domElement.dispatchEvent(new MouseEvent("mouseup", {button: 2, bubbles: true}));
+
+    if (item instanceof Potree.Measure){
+      if (item.maxMarkers !== Infinity || item.points.length < (item.closed ? 3 : 2)) viewer.scene.removeMeasurement(item);
+    }else if (item instanceof Potree.Profile){
+      if (item.points.length < 2){
+        viewer.scene.removeProfile(item);
+        viewer.profileWindow.hide();
+      }
+    }else if (item instanceof Potree.Volume){
+      viewer.scene.removeVolume(item);
+    }
+  }
+
   measure = (args, kind) => {
-    const measurement = this.props.viewer.measuringTool.startInsertion(args);
-    if (kind) measurement.kind = kind;
+    this.inserting = this.props.viewer.measuringTool.startInsertion(args);
+    if (kind) this.inserting.kind = kind;
   }
 
   setAttribute = (name) => {
@@ -123,17 +161,17 @@ class Toolbar extends React.Component{
           { icon: "mv-icon mv-icon-areaplane", title: _("Area plane"),
             onClick: () => this.measure({showDistances: true, showArea: true, closed: true, name: _("Area plane")}, "area-plane") },
           { icon: "mv-icon mv-icon-volume", title: _("Volume"),
-            onClick: () => viewer.volumeTool.startInsertion() },
+            onClick: () => { this.inserting = viewer.volumeTool.startInsertion(); } },
           { icon: "mv-icon mv-icon-sphere", title: _("Sphere volume"),
-            onClick: () => viewer.volumeTool.startInsertion({type: Potree.SphereVolume}) },
+            onClick: () => { this.inserting = viewer.volumeTool.startInsertion({type: Potree.SphereVolume}); } },
           { icon: "mv-icon mv-icon-profile", title: _("Height profile"),
             onClick: () => {
-              const profile = viewer.profileTool.startInsertion();
+              this.inserting = viewer.profileTool.startInsertion();
               viewer.profileWindow.show();
-              viewer.profileWindowController.setProfile(profile);
+              viewer.profileWindowController.setProfile(this.inserting);
             } },
           { icon: "mv-icon mv-icon-annotation", title: _("Annotation"),
-            onClick: () => viewer.annotationTool.startInsertion() }
+            onClick: () => { this.inserting = viewer.annotationTool.startInsertion(); } }
         ]
       },
       {
@@ -160,9 +198,9 @@ class Toolbar extends React.Component{
         id: "clipping", icon: "mv-icon mv-icon-clip", title: _("Clipping"),
         items: [
           { icon: "mv-icon mv-icon-clipbox", title: _("Clip box"),
-            onClick: () => viewer.volumeTool.startInsertion({clip: true}) },
+            onClick: () => { this.inserting = viewer.volumeTool.startInsertion({clip: true}); } },
           { icon: "mv-icon mv-icon-clippolygon", title: _("Clip polygon"),
-            onClick: () => viewer.clippingTool.startInsertion({type: "polygon"}) },
+            onClick: () => { this.inserting = viewer.clippingTool.startInsertion({type: "polygon"}); } },
           { icon: "mv-icon mv-icon-highlight", title: _("Highlight"),
             active: viewer.clipTask === Potree.ClipTask.HIGHLIGHT,
             onClick: () => viewer.setClipTask(Potree.ClipTask.HIGHLIGHT) },
@@ -210,8 +248,10 @@ class Toolbar extends React.Component{
           <button key={g.id} type="button" title={g.title} disabled={!!g.disabled}
                   className={"mv-toolbar-btn " + (open === g.id || g.active ? "active" : "")}
                   onClick={() => {
-                    if (g.items) this.setState({open: open === g.id ? null : g.id});
-                    else g.onClick();
+                    if (g.items){
+                      if (open === "measures") this.cancelInsertion();
+                      this.setState({open: open === g.id ? null : g.id});
+                    }else g.onClick();
                   }}>
             <i className={g.icon}></i>
           </button>
