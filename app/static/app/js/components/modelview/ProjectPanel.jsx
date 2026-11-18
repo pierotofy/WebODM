@@ -283,7 +283,7 @@ class ProjectPanel extends React.Component{
           <label>{_("Attribute")}</label>
           <select value={material.activeAttributeName}
                   onChange={e => { material.activeAttributeName = e.target.value; this.props.onAttributeChange(); }}>
-            {attributes.map(name => <option key={name} value={name}>{name}</option>)}
+            {attributes.map(name => <option key={name} value={name}>{name === "rgba" ? _("Colors") : name.charAt(0).toUpperCase() + name.slice(1)}</option>)}
           </select>
         </div>
 
@@ -292,7 +292,7 @@ class ProjectPanel extends React.Component{
           <label>{_("Gradient")}</label>
           <select value={Object.keys(Potree.Gradients).find(k => Potree.Gradients[k] === material.gradient) || ""}
                   onChange={e => { material.gradient = Potree.Gradients[e.target.value]; this.forceUpdate(); }}>
-            {Object.keys(Potree.Gradients).map(name => <option key={name} value={name}>{name}</option>)}
+            {Object.keys(Potree.Gradients).map(name => <option key={name} value={name}>{name.charAt(0) + name.slice(1).toLowerCase().replace(/_/g, " ")}</option>)}
           </select>
         </div>,
         <div key="min" className="mv-panel-field">
