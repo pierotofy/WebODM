@@ -59,6 +59,21 @@ class ProjectPanel extends React.Component{
     return Potree.Utils.addCommas(n.toFixed(3));
   }
 
+  copy = (text) => {
+    if (navigator.clipboard !== undefined){
+      navigator.clipboard.writeText(text);
+    }else{
+      const el = document.createElement("textarea");
+      el.value = text;
+      el.style.position = "fixed";
+      el.style.opacity = "0";
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+    }
+  }
+
   remove = (item) => {
     const { scene } = this.props.viewer;
     if (item.type === "measure") scene.removeMeasurement(item.obj);
@@ -413,7 +428,7 @@ class ProjectPanel extends React.Component{
                      this.forceUpdate();
                    }} />)}
             <button type="button" className="mv-panel-btn" title={_("Copy")}
-                    onClick={() => navigator.clipboard.writeText(`${points[0].x.toFixed(3)}, ${points[0].y.toFixed(3)}, ${(points[0].z * conv).toFixed(3)}`)}><i className="far fa-copy"></i></button>
+                    onClick={() => this.copy(`${points[0].x.toFixed(3)}, ${points[0].y.toFixed(3)}, ${(points[0].z * conv).toFixed(3)}`)}><i className="far fa-copy"></i></button>
           </div> : ""}
 
           {selectedItem.type === "volume" ? ["position", "rotation", "scale"].map(prop =>
@@ -614,7 +629,7 @@ class ProjectPanel extends React.Component{
                 <td>
                   {selectedItem.type !== "animation" ?
                   <a href="javascript:void(0)" title={_("Copy")}
-                     onClick={() => navigator.clipboard.writeText(`${p.x.toFixed(3)}, ${p.y.toFixed(3)}, ${(p.z * conv).toFixed(3)}`)}><i className="far fa-copy"></i></a> : ""}
+                     onClick={() => this.copy(`${p.x.toFixed(3)}, ${p.y.toFixed(3)}, ${(p.z * conv).toFixed(3)}`)}><i className="far fa-copy"></i></a> : ""}
                   {canEditPoints && (i < points.length - 1 || m.closed) ?
                   <a href="javascript:void(0)" title={_("Add point")}
                      onClick={() => {
