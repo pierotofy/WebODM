@@ -55923,7 +55923,10 @@
 					if (!el.attr('contenteditable')) this.edit(el);
 				});
 				el.on('input', () => { this[key] = el.text(); });
-				el.on('blur', () => { el.removeAttr('contenteditable'); });
+				el.on('blur', () => {
+					el.removeAttr('contenteditable');
+					if (key === 'title' && !this._title.trim()) this.title = typeof gettext !== 'undefined' ? gettext('Annotation') : 'Annotation';
+				});
 				el.on('keyup', e => e.stopPropagation());
 				el.on('keydown', e => {
 					e.stopPropagation();
