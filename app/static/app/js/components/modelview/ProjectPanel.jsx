@@ -191,7 +191,8 @@ class ProjectPanel extends React.Component{
       scene.cameraAnimations.map(obj => ({obj, type: "animation", icon: "mv-icon mv-icon-video", nameKey: "name"})),
       scene.polygonClipVolumes.map(obj => ({obj, type: "polyclip", icon: "mv-icon mv-icon-clippolygon", nameKey: "name"}))
     );
-    let annotations = scene.annotations.descendants().map(obj => ({obj, type: "annotation", icon: obj.hasView() ? "mv-icon mv-icon-pov" : "mv-icon mv-icon-annotation", nameKey: "title"}));
+    let annotations = scene.annotations.descendants().filter(obj => !obj.hasView()).map(obj => ({obj, type: "annotation", icon: "mv-icon mv-icon-annotation", nameKey: "title"}));
+    measures = measures.concat(scene.annotations.descendants().filter(obj => obj.hasView()).map(obj => ({obj, type: "annotation", icon: "mv-icon mv-icon-pov", nameKey: "title"})));
 
     if (search){
       const matches = item => String(item.obj[item.nameKey]).toLowerCase().indexOf(search.toLowerCase()) !== -1;
@@ -347,10 +348,8 @@ class ProjectPanel extends React.Component{
       </div>
 
       <div className="mv-panel-body">
-        {this.folder("layers", _("Layers"), [], false)}
-        {!closed.layers ? [
-        this.props.hasCameras ?
-        <div key="cameras" className={"mv-tree-row mv-tree-child " + (selected === "cameras" ? "selected" : "")}
+        {this.props.hasCameras ?
+        <div className={"mv-tree-row " + (selected === "cameras" ? "selected" : "")}
              onClick={() => this.setState({selected: selected === "cameras" ? null : "cameras"})}>
           <i className="fa fa-camera fa-fw"></i>
           <span className="mv-tree-label">{_("Cameras")}</span>
@@ -359,13 +358,12 @@ class ProjectPanel extends React.Component{
                   onClick={e => { e.stopPropagation(); this.props.onToggleCameras(); }}>
             <i className={this.props.camerasVisible ? "far fa-eye" : "far fa-eye-slash"}></i>
           </button>
-        </div> : "",
-        <div key="pointcloud" className={"mv-tree-row mv-tree-child " + (selected === "pointcloud" ? "selected" : "")}
+        </div> : ""}
+        <div className={"mv-tree-row " + (selected === "pointcloud" ? "selected" : "")}
              onClick={() => this.setState({selected: selected === "pointcloud" ? null : "pointcloud"})}>
           <i className="fa fa-pointcloud"></i>
           <span className="mv-tree-label">{_("Point Cloud")}</span>
         </div>
-        ] : ""}
 
         {this.folder("measures", _("Measurements"), measures, true)}
         {!closed.measures ? measures.map(this.itemRow) : ""}
