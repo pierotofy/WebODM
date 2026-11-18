@@ -72,7 +72,7 @@ class Toolbar extends React.Component{
       {
         id: "display", icon: "mv-icon mv-icon-display", title: _("Display"),
         items: [
-          { icon: "mv-icon mv-icon-rgba", title: _("RGBA"),
+          { icon: "mv-icon mv-icon-rgba", title: _("Colors"),
             active: this.activeAttribute() === "rgba",
             onClick: () => this.setAttribute("rgba") },
           { icon: "mv-icon mv-icon-elevation", title: _("Elevation"),
