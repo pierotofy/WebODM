@@ -139,7 +139,7 @@ class ProjectPanel extends React.Component{
 
     return (<div key={item.obj.uuid}
          className={"mv-tree-row mv-tree-child " + (selected === item.obj ? "selected" : "")}
-         onClick={() => this.setState({selected: selected === item.obj ? null : item.obj, tab: "properties"})}
+         onClick={() => this.setState({selected: item.obj, tab: "properties"})}
          onDoubleClick={() => this.zoomTo(item)}
          onContextMenu={e => {
            e.preventDefault();
@@ -342,7 +342,7 @@ class ProjectPanel extends React.Component{
       <div className="mv-panel-body">
         {this.props.hasCameras ?
         <div className={"mv-tree-row " + (selected === "cameras" ? "selected" : "")}
-             onClick={() => this.setState({selected: selected === "cameras" ? null : "cameras"})}>
+             onClick={() => this.setState({selected: "cameras"})}>
           <i className="fa fa-camera fa-fw"></i>
           <span className="mv-tree-label">{_("Cameras")}</span>
           <button type="button" className="mv-panel-btn"
@@ -352,7 +352,7 @@ class ProjectPanel extends React.Component{
           </button>
         </div> : ""}
         <div className={"mv-tree-row " + (selected === "pointcloud" ? "selected" : "")}
-             onClick={() => this.setState({selected: selected === "pointcloud" ? null : "pointcloud"})}>
+             onClick={() => this.setState({selected: "pointcloud"})}>
           <i className="fa fa-pointcloud"></i>
           <span className="mv-tree-label">{_("Point Cloud")}</span>
         </div>
@@ -583,7 +583,10 @@ class ProjectPanel extends React.Component{
                         name: interpolate(_("%(name)s (copy)"), {name: m.name})
                       });
                       Potree.loadProject(viewer, Object.assign(live, {pointclouds: [], [key]: [data]}));
-                      this.setState({selected: scene.measurements.concat(scene.volumes, scene.cameraAnimations).find(o => o.uuid === data.uuid)});
+                      const copy = scene[key].find(o => o.uuid === data.uuid);
+                      scene[key].splice(scene[key].indexOf(copy), 1);
+                      scene[key].splice(scene[key].indexOf(m) + 1, 0, copy);
+                      this.setState({selected: copy, renaming: copy, tab: "properties"});
                     }}><i className="far fa-clone"></i> {_("Duplicate")}</button> : ""}
             <button type="button" className="mv-panel-action mv-danger" onClick={() => this.remove(selectedItem)}><i className="fa fa-trash"></i> {_("Delete")}</button>
           </div>
