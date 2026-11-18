@@ -359,7 +359,7 @@ class ProjectPanel extends React.Component{
 
       <div className="mv-panel-body">
         {this.props.hasCameras ?
-        <div className={"mv-tree-row " + (selected === "cameras" ? "selected" : "")}
+        <div className={"mv-tree-row mv-tree-root " + (selected === "cameras" ? "selected" : "")}
              onClick={() => this.setState({selected: "cameras"})}
              onDoubleClick={e => { if (!e.target.closest("button")) this.props.onToggleCameras(); }}>
           <i className="fa fa-camera fa-fw"></i>
@@ -370,7 +370,7 @@ class ProjectPanel extends React.Component{
             <i className={this.props.camerasVisible ? "far fa-eye" : "far fa-eye-slash"}></i>
           </button>
         </div> : ""}
-        <div className={"mv-tree-row " + (selected === "pointcloud" ? "selected" : "")}
+        <div className={"mv-tree-row mv-tree-root " + (selected === "pointcloud" ? "selected" : "")}
              onClick={() => this.setState({selected: "pointcloud"})}>
           <i className="fa fa-pointcloud"></i>
           <span className="mv-tree-label">{_("Point Cloud")}</span>
