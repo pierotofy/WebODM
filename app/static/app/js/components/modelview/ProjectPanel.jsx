@@ -13,6 +13,7 @@ class ProjectPanel extends React.Component{
     onCameraScaleChange: PropTypes.func.isRequired,
     onAttributeChange: PropTypes.func.isRequired,
     inserted: PropTypes.object,
+    onSetInitialCameraView: PropTypes.func,
     onClose: PropTypes.func.isRequired
   }
 
@@ -527,11 +528,13 @@ class ProjectPanel extends React.Component{
             <input type="text" value={selectedItem.obj.title || ""}
                    onChange={e => { selectedItem.obj.title = e.target.value; this.forceUpdate(); }} />
           </div>,
+          m.hasView() ? null :
           <div key="description" className="mv-panel-field">
             <label>{_("Description")}</label>
             <textarea rows="3" value={selectedItem.obj.description || ""}
                       onChange={e => { selectedItem.obj.description = e.target.value; this.forceUpdate(); }}></textarea>
           </div>,
+          m.hasView() ? null :
           <div key="link" className="mv-panel-field">
             <label>{_("Link")}</label>
             <input type="text" placeholder="https://" value={selectedItem.obj.link || ""}
@@ -571,6 +574,15 @@ class ProjectPanel extends React.Component{
                       this.setState({updated: "view"});
                       setTimeout(() => this.setState({updated: null}), 2000);
                     }}><i className={updated === "view" ? "fa fa-check" : "fa fa-expand"}></i> {_("Update")}</button> : ""}
+            {selectedItem.type === "annotation" && m.hasView() && this.props.onSetInitialCameraView ?
+            <button type="button" className="mv-panel-action" disabled={updated === "saving"}
+                    onClick={() => {
+                      this.setState({updated: "saving"});
+                      this.props.onSetInitialCameraView(err => {
+                        this.setState({updated: err ? null : "initial"});
+                        setTimeout(() => this.setState({updated: null}), 2000);
+                      }, {position: m.cameraPosition.toArray(), target: m.cameraTarget.toArray()});
+                    }}><i className={updated === "saving" ? "fa fa-circle-notch fa-spin" : (updated === "initial" ? "fa fa-check" : "fa fa-video")}></i> {_("Set As Initial View")}</button> : ""}
             {selectedItem.type === "measure" || selectedItem.type === "volume" || selectedItem.type === "animation" ?
             <button type="button" className="mv-panel-action"
                     onClick={() => {

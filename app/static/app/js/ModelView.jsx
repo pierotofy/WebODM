@@ -481,11 +481,11 @@ class ModelView extends React.Component {
     });
   }
 
-  setInitialCameraView = (cb) => {
+  setInitialCameraView = (cb, view) => {
     $.ajax({
         url: `${this.basePath()}/3d/cameraview`,
         contentType: 'application/json',
-        data: JSON.stringify(Potree.saveProject(viewer).view),
+        data: JSON.stringify(view || Potree.saveProject(viewer).view),
         dataType: 'json',
         type: 'POST'
     }).done(result => {
@@ -1041,6 +1041,7 @@ class ModelView extends React.Component {
                                 onToggleCameras={this.toggleCameras}
                                 onAttributeChange={() => this.forceUpdate()}
                                 inserted={this.state.inserted}
+                                onSetInitialCameraView={this.props.public ? null : this.setInitialCameraView}
                                 onCameraScaleChange={this.changeCameraScale}
                                 onClose={() => this.setState({panel: null, inserted: null})} />
                     : ""}
