@@ -71,7 +71,8 @@ class ModelView extends React.Component {
       viewer: null,
       panel: null,
       vr: false,
-      inserted: null
+      inserted: null,
+      focused: null
     };
 
     this.settings = {};
@@ -357,6 +358,9 @@ class ModelView extends React.Component {
     });
 
     viewer.renderer.domElement.addEventListener( 'mousedown', this.handleRenderMouseClick );
+    viewer.renderer.domElement.addEventListener( 'mousedown', this.handleRenderMouseDownCapture, true );
+    viewer.renderer.domElement.addEventListener( 'mouseup', this.handleRenderMouseUpCapture, true );
+    viewer.renderArea.addEventListener( 'contextmenu', this.handleAnnotationContextMenu );
     viewer.renderer.domElement.addEventListener( 'mousemove', this.handleRenderMouseMove );
     viewer.renderer.domElement.addEventListener( 'touchstart', this.handleRenderTouchStart );
     
@@ -532,7 +536,7 @@ class ModelView extends React.Component {
   }
 
   togglePanel = (panel) => {
-    this.setState({panel: this.state.panel === panel ? null : panel, inserted: null});
+    this.setState({panel: this.state.panel === panel ? null : panel, inserted: null, focused: null});
   }
 
   handleUnitSystemChanged = () => {
@@ -572,6 +576,9 @@ class ModelView extends React.Component {
     clearInterval(this.historyInterval);
     document.removeEventListener("keydown", this.handleKeyDown);
     viewer.renderer.domElement.removeEventListener( 'mousedown', this.handleRenderMouseClick );
+    viewer.renderer.domElement.removeEventListener( 'mousedown', this.handleRenderMouseDownCapture, true );
+    viewer.renderer.domElement.removeEventListener( 'mouseup', this.handleRenderMouseUpCapture, true );
+    viewer.renderArea.removeEventListener( 'contextmenu', this.handleAnnotationContextMenu );
     viewer.renderer.domElement.removeEventListener( 'mousemove', this.handleRenderMouseMove );
     viewer.renderer.domElement.removeEventListener( 'touchstart', this.handleRenderTouchStart );
     
@@ -624,6 +631,26 @@ class ModelView extends React.Component {
     if (evt.touches.length === 1){
         this.handleRenderMouseClick({clientX: evt.touches[0].clientX, clientY: evt.touches[0].clientY});
     }
+  }
+
+  handleRenderMouseDownCapture = () => {
+    this.placingOnMouseDown = !!viewer.inputHandler.drag;
+  }
+
+  handleRenderMouseUpCapture = (evt) => {
+    if (evt.button !== 2 || this.placingOnMouseDown || viewer.inputHandler.getNormalizedDrag().length() !== 0) return;
+
+    const hovered = viewer.inputHandler.hoveredElements.map(h => h.object);
+    const item = viewer.scene.measurements.concat(viewer.scene.profiles).find(m => m.spheres.some(s => hovered.indexOf(s) !== -1));
+    if (item) this.setState({panel: "project", inserted: null, focused: {item}});
+  }
+
+  handleAnnotationContextMenu = (evt) => {
+    const el = evt.target.closest(".annotation");
+    if (!el) return;
+
+    const item = viewer.scene.annotations.descendants().find(a => a.domElement[0] === el);
+    if (item) this.setState({panel: "project", inserted: null, focused: {item}});
   }
 
   handleRenderMouseClick = (evt) => {
@@ -1031,7 +1058,7 @@ class ModelView extends React.Component {
                                         camerasVisible={this.state.camerasVisible}
                                         onToggleCameras={this.toggleCameras}
                                         onAttributeChange={() => this.forceUpdate()}
-                                        onInsert={item => this.setState({panel: "project", inserted: item})}
+                                        onInsert={item => this.setState({panel: "project", inserted: item, focused: null})}
                                         onEnterVR={this.state.vr ? () => this.vrButton.element.click() : null} /> : ""}
 
                     {viewer && panel === "project" ?
@@ -1041,9 +1068,10 @@ class ModelView extends React.Component {
                                 onToggleCameras={this.toggleCameras}
                                 onAttributeChange={() => this.forceUpdate()}
                                 inserted={this.state.inserted}
+                                focused={this.state.focused}
                                 onSetInitialCameraView={this.props.public ? null : this.setInitialCameraView}
                                 onCameraScaleChange={this.changeCameraScale}
-                                onClose={() => this.setState({panel: null, inserted: null})} />
+                                onClose={() => this.setState({panel: null, inserted: null, focused: null})} />
                     : ""}
 
                     {viewer && panel === "history" ?

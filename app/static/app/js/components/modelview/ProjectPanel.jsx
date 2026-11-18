@@ -13,6 +13,7 @@ class ProjectPanel extends React.Component{
     onCameraScaleChange: PropTypes.func.isRequired,
     onAttributeChange: PropTypes.func.isRequired,
     inserted: PropTypes.object,
+    focused: PropTypes.object,
     onSetInitialCameraView: PropTypes.func,
     onClose: PropTypes.func.isRequired
   }
@@ -21,7 +22,7 @@ class ProjectPanel extends React.Component{
     super(props);
 
     this.state = {
-      selected: props.inserted,
+      selected: props.inserted || (props.focused ? props.focused.item : null),
       tab: "properties",
       cameraScale: 1,
       search: "",
@@ -37,9 +38,15 @@ class ProjectPanel extends React.Component{
   componentDidMount(){
     this.refreshInterval = setInterval(() => this.forceUpdate(), 500);
     document.addEventListener("click", this.closeMenus);
+    if (this.props.focused && this.panel.querySelector(".mv-tree-row.selected")) this.panel.querySelector(".mv-tree-row.selected").scrollIntoView({block: "nearest"});
   }
 
   componentDidUpdate(prevProps){
+    if (this.props.focused && this.props.focused !== prevProps.focused){
+      this.setState({selected: this.props.focused.item, renaming: null, tab: "properties", closed: {}, search: ""}, () => {
+        if (this.panel.querySelector(".mv-tree-row.selected")) this.panel.querySelector(".mv-tree-row.selected").scrollIntoView({block: "nearest"});
+      });
+    }
     if (this.props.inserted && this.props.inserted !== prevProps.inserted){
       this.setState({selected: this.props.inserted, renaming: this.props.inserted instanceof Potree.Annotation && !this.props.inserted.hasView() ? null : this.props.inserted, tab: "properties", closed: {}});
     }
@@ -346,7 +353,7 @@ class ProjectPanel extends React.Component{
       </div>);
     }
 
-    return (<div className="mv-panel">
+    return (<div className="mv-panel" ref={domNode => { this.panel = domNode; }}>
       <div className="mv-panel-toolbar">
         <div className="mv-panel-search">
           <i className="fa fa-search"></i>
