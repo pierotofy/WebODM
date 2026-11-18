@@ -11,6 +11,7 @@ class ProjectPanel extends React.Component{
     camerasVisible: PropTypes.bool.isRequired,
     onToggleCameras: PropTypes.func.isRequired,
     onCameraScaleChange: PropTypes.func.isRequired,
+    onAttributeChange: PropTypes.func.isRequired,
     onClose: PropTypes.func.isRequired
   }
 
@@ -260,7 +261,7 @@ class ProjectPanel extends React.Component{
         <div className="mv-panel-field">
           <label>{_("Attribute")}</label>
           <select value={material.activeAttributeName}
-                  onChange={e => { material.activeAttributeName = e.target.value; this.forceUpdate(); }}>
+                  onChange={e => { material.activeAttributeName = e.target.value; this.props.onAttributeChange(); }}>
             {attributes.map(name => <option key={name} value={name}>{name}</option>)}
           </select>
         </div>

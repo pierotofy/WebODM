@@ -1029,6 +1029,7 @@ class ModelView extends React.Component {
                                         hasCameras={this.hasCameras()}
                                         camerasVisible={this.state.camerasVisible}
                                         onToggleCameras={this.toggleCameras}
+                                        onAttributeChange={() => this.forceUpdate()}
                                         onEnterVR={this.state.vr ? () => this.vrButton.element.click() : null} /> : ""}
 
                     {viewer && panel === "project" ?
@@ -1036,6 +1037,7 @@ class ModelView extends React.Component {
                                 hasCameras={this.hasCameras()}
                                 camerasVisible={this.state.camerasVisible}
                                 onToggleCameras={this.toggleCameras}
+                                onAttributeChange={() => this.forceUpdate()}
                                 onCameraScaleChange={this.changeCameraScale}
                                 onClose={() => this.setState({panel: null})} />
                     : ""}

@@ -13,6 +13,7 @@ class Toolbar extends React.Component{
     hasCameras: PropTypes.bool.isRequired,
     camerasVisible: PropTypes.bool.isRequired,
     onToggleCameras: PropTypes.func.isRequired,
+    onAttributeChange: PropTypes.func.isRequired,
     onEnterVR: PropTypes.func
   }
 
@@ -33,6 +34,7 @@ class Toolbar extends React.Component{
     this.props.viewer.scene.pointclouds.forEach(pc => {
       pc.material.activeAttributeName = name;
     });
+    this.props.onAttributeChange();
   }
 
   activeAttribute = () => {
