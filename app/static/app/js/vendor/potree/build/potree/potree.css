@@ -284,7 +284,13 @@ a:hover, a:visited, a:link, a:active{
 	opacity:		1 !important;
 }
 
+.annotation-titlebar:focus-within{
+	box-shadow:		none !important;
+}
+
 .annotation [contenteditable]{
+	border:			0;
+	box-shadow:		none;
 	user-select:	text;
 	-moz-user-select: text;
 	cursor:			text;
@@ -300,7 +306,6 @@ a:hover, a:visited, a:link, a:active{
 	border-radius:	4px;
 	display:		none;
 	max-width:		500px;
-	min-width:		150px;
 	width:			max-content;
 	cursor:			default;
 }
@@ -309,6 +314,7 @@ a:hover, a:visited, a:link, a:active{
 	display:		block;
 	color:			white;
 	white-space:	pre-wrap;
+	overflow-wrap:	anywhere;
 	min-height:		1.5em;
 }
 
