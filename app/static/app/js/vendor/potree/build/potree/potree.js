@@ -81429,7 +81429,7 @@ ENDSEC
 			}
 
 			if (!this.drag) {
-				let target = this.paused ? null : this.hoveredElements
+				let target = this.paused || e.button !== MOUSE.LEFT ? null : this.hoveredElements
 					.find(el => (
 						el.object._listeners &&
 						el.object._listeners['drag'] &&
