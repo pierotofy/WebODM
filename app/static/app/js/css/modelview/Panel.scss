@@ -258,6 +258,11 @@
         padding: 12px 8px;
         text-align: center;
         color: #8b9aa0;
+        cursor: pointer;
+
+        &:only-child{
+            cursor: default;
+        }
 
         &.active{
             color: #fff;
