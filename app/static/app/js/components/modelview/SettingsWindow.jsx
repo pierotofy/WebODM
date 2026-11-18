@@ -1,6 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import '../../css/modelview/Settings.scss';
+import UnitSelector from '../UnitSelector';
 import { _, interpolate } from '../../classes/gettext';
 
 class SettingsWindow extends React.Component{
@@ -89,8 +90,8 @@ class SettingsWindow extends React.Component{
       content = [
         this.row(_("Magnifier"), _("Shows a zoomed-in view for greater precision when placing measurement points."),
           this.toggle("magnifier", settings.magnifier !== false)),
-        this.row(_("Coordinate Unit"), _("Unit used by the point cloud coordinates. Detected from the task's coordinate system."),
-          <span>{task.srs.units || "m"}</span>),
+        this.row(_("Coordinate Unit"), _("Unit system used to display coordinates and measurements."),
+          <UnitSelector />),
         this.row(_("Orientation Indicator"), _("Shows the X / Y / Z indicator in the top-right corner. Click an axis to look along it."),
           this.toggle("gizmo", settings.gizmo === true)),
         this.row(_("Navigation Compass"), _("Shows a compass that points north."),
