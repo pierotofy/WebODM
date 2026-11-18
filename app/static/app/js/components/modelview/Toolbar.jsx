@@ -103,12 +103,11 @@ class Toolbar extends React.Component{
             onClick: () => { viewer.setControls(fp); fp.lockElevation = false; } },
           { icon: "mv-icon mv-icon-walk", title: _("Walk"),
             active: viewer.controls === fp && fp.lockElevation,
-            onClick: () => { viewer.setControls(fp); fp.lockElevation = true; } }
+            onClick: () => { viewer.setControls(fp); fp.lockElevation = true; } },
+          { separator: true },
+          { icon: "mv-icon mv-icon-viewpoint", title: _("Viewpoint"),
+            onClick: () => viewer.fitToScreen() }
         ]
-      },
-      {
-        id: "viewpoint", icon: "mv-icon mv-icon-viewpoint", title: _("Viewpoint"),
-        onClick: () => viewer.fitToScreen()
       },
       { separator: true },
       {
