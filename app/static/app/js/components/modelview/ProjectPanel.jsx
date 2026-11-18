@@ -163,7 +163,6 @@ class ProjectPanel extends React.Component{
     let measures = scene.measurements.map(obj => {
       let icon = "mv-icon mv-icon-distance";
       if (obj.kind === "deltas") icon = "mv-icon mv-icon-deltas";
-      else if (obj.kind === "ground") icon = "mv-icon mv-icon-ground";
       else if (obj.kind === "perpendicular") icon = "mv-icon mv-icon-perpendicular";
       else if (obj.kind === "area-plane") icon = "mv-icon mv-icon-areaplane";
       else if (obj.showAngles) icon = "mv-icon mv-icon-angle";
@@ -207,13 +206,8 @@ class ProjectPanel extends React.Component{
         properties.push(["ΔY", `${this.fmt((points[1].y - points[0].y) * conv)} ${unit}`]);
         properties.push(["ΔZ", `${this.fmt((points[1].z - points[0].z) * conv)} ${unit}`]);
       }
-      if (m.kind === "ground" && points.length > 1){
-        let ground = 0;
-        for (let i = 1; i < points.length; i++) ground += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
-        properties.push([_("Ground distance"), `${this.fmt(ground * conv)} ${unit}`]);
-      }
       if (m.kind === "perpendicular" && points.length === 3) properties.push([_("Perpendicular distance"), `${this.fmt(m.getPerpendicularDistance() * conv)} ${unit}`]);
-      if (m.showDistances && m.kind !== "ground" && points.length > 1) properties.push([_("Total distance"), `${this.fmt(m.getTotalDistance() * conv)} ${unit}`]);
+      if (m.showDistances && points.length > 1) properties.push([_("Total distance"), `${this.fmt(m.getTotalDistance() * conv)} ${unit}`]);
       if (m.showArea && m.kind === "area-plane" && points.length > 2) properties.push([_("Horizontal area"), `${this.fmt(m.getHorizontalArea() * conv * conv)} ${unit}²`]);
       if (m.showArea && m.kind !== "area-plane" && points.length > 2) properties.push([_("Area"), `${this.fmt(m.getArea() * conv * conv)} ${unit}²`]);
       if (m.showHeight && m.kind !== "deltas" && points.length > 1){

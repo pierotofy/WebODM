@@ -54330,9 +54330,6 @@
 					center.add(nextPoint.position);
 					center = center.multiplyScalar(0.5);
 					let distance = point.position.distanceTo(nextPoint.position);
-					if(this.kind === 'ground'){
-						distance = Math.hypot(point.position.x - nextPoint.position.x, point.position.y - nextPoint.position.y);
-					}
 
 					edgeLabel.position.copy(center);
 
