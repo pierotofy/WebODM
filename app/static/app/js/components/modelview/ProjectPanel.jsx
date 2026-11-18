@@ -360,7 +360,8 @@ class ProjectPanel extends React.Component{
       <div className="mv-panel-body">
         {this.props.hasCameras ?
         <div className={"mv-tree-row " + (selected === "cameras" ? "selected" : "")}
-             onClick={() => this.setState({selected: "cameras"})}>
+             onClick={() => this.setState({selected: "cameras"})}
+             onDoubleClick={e => { if (!e.target.closest("button")) this.props.onToggleCameras(); }}>
           <i className="fa fa-camera fa-fw"></i>
           <span className="mv-tree-label">{_("Cameras")}</span>
           <button type="button" className="mv-panel-btn"
