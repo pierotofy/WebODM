@@ -216,6 +216,10 @@
         padding: 0 8px 0 16px;
         cursor: pointer;
 
+        .mv-danger{
+            color: #8c1c1c;
+        }
+
         &.mv-tree-root > i{
             margin-left: 1.25em;
 
