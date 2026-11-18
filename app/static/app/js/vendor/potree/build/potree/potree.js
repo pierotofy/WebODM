@@ -55940,7 +55940,7 @@
 				}
 				this.dispatchEvent({type: 'click', target: this});
 
-				if (!this.descriptionVisible) {
+				if (!this.descriptionVisible && (this._description || this._link)) {
 					this.descriptionVisible = true;
 					this.elDescription.css('display', 'block');
 					this.domElement.css('opacity', '1');
