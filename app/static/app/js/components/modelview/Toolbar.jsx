@@ -109,7 +109,6 @@ class Toolbar extends React.Component{
             onClick: () => viewer.fitToScreen() }
         ]
       },
-      { separator: true },
       {
         id: "display", icon: "mv-icon mv-icon-display", title: _("Display"),
         items: [
