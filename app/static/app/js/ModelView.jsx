@@ -70,7 +70,8 @@ class ModelView extends React.Component {
       pluginActionButtons: [],
       viewer: null,
       panel: null,
-      vr: false
+      vr: false,
+      inserted: null
     };
 
     this.settings = {};
@@ -531,7 +532,7 @@ class ModelView extends React.Component {
   }
 
   togglePanel = (panel) => {
-    this.setState({panel: this.state.panel === panel ? null : panel});
+    this.setState({panel: this.state.panel === panel ? null : panel, inserted: null});
   }
 
   handleUnitSystemChanged = () => {
@@ -1030,6 +1031,7 @@ class ModelView extends React.Component {
                                         camerasVisible={this.state.camerasVisible}
                                         onToggleCameras={this.toggleCameras}
                                         onAttributeChange={() => this.forceUpdate()}
+                                        onInsert={item => this.setState({panel: "project", inserted: item})}
                                         onEnterVR={this.state.vr ? () => this.vrButton.element.click() : null} /> : ""}
 
                     {viewer && panel === "project" ?
@@ -1038,8 +1040,9 @@ class ModelView extends React.Component {
                                 camerasVisible={this.state.camerasVisible}
                                 onToggleCameras={this.toggleCameras}
                                 onAttributeChange={() => this.forceUpdate()}
+                                inserted={this.state.inserted}
                                 onCameraScaleChange={this.changeCameraScale}
-                                onClose={() => this.setState({panel: null})} />
+                                onClose={() => this.setState({panel: null, inserted: null})} />
                     : ""}
 
                     {viewer && panel === "history" ?

@@ -14,6 +14,7 @@ class Toolbar extends React.Component{
     camerasVisible: PropTypes.bool.isRequired,
     onToggleCameras: PropTypes.func.isRequired,
     onAttributeChange: PropTypes.func.isRequired,
+    onInsert: PropTypes.func.isRequired,
     onEnterVR: PropTypes.func
   }
 
@@ -66,6 +67,7 @@ class Toolbar extends React.Component{
   measure = (args, kind) => {
     this.inserting = this.props.viewer.measuringTool.startInsertion(args);
     if (kind) this.inserting.kind = kind;
+    this.props.onInsert(this.inserting);
   }
 
   setAttribute = (name) => {
@@ -161,17 +163,18 @@ class Toolbar extends React.Component{
           { icon: "mv-icon mv-icon-areaplane", title: _("Area plane"),
             onClick: () => this.measure({showDistances: true, showArea: true, closed: true, name: _("Area plane")}, "area-plane") },
           { icon: "mv-icon mv-icon-volume", title: _("Volume"),
-            onClick: () => { this.inserting = viewer.volumeTool.startInsertion(); } },
+            onClick: () => { this.inserting = viewer.volumeTool.startInsertion(); this.props.onInsert(this.inserting); } },
           { icon: "mv-icon mv-icon-sphere", title: _("Sphere volume"),
-            onClick: () => { this.inserting = viewer.volumeTool.startInsertion({type: Potree.SphereVolume}); } },
+            onClick: () => { this.inserting = viewer.volumeTool.startInsertion({type: Potree.SphereVolume}); this.props.onInsert(this.inserting); } },
           { icon: "mv-icon mv-icon-profile", title: _("Height profile"),
             onClick: () => {
               this.inserting = viewer.profileTool.startInsertion();
               viewer.profileWindow.show();
               viewer.profileWindowController.setProfile(this.inserting);
+              this.props.onInsert(this.inserting);
             } },
           { icon: "mv-icon mv-icon-annotation", title: _("Annotation"),
-            onClick: () => { this.inserting = viewer.annotationTool.startInsertion(); } }
+            onClick: () => { this.inserting = viewer.annotationTool.startInsertion(); this.props.onInsert(this.inserting); } }
         ]
       },
       {
@@ -180,17 +183,17 @@ class Toolbar extends React.Component{
           { icon: "mv-icon mv-icon-pov", title: _("Point of View"),
             onClick: () => {
               const view = viewer.scene.view;
-              viewer.scene.addAnnotation(view.getPivot(), {
+              this.props.onInsert(viewer.scene.addAnnotation(view.getPivot(), {
                 title: _("Point of View"),
                 cameraPosition: view.position.clone(),
                 cameraTarget: view.getPivot()
-              });
-              if (this.props.panel !== "project") this.props.onTogglePanel("project");
+              }));
             } },
           { icon: "mv-icon mv-icon-video", title: _("Video animation"),
             onClick: () => {
-              viewer.scene.addCameraAnimation(Potree.CameraAnimation.defaultFromView(viewer));
-              if (this.props.panel !== "project") this.props.onTogglePanel("project");
+              const animation = Potree.CameraAnimation.defaultFromView(viewer);
+              viewer.scene.addCameraAnimation(animation);
+              this.props.onInsert(animation);
             } }
         ]
       },

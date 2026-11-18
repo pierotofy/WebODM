@@ -12,6 +12,7 @@ class ProjectPanel extends React.Component{
     onToggleCameras: PropTypes.func.isRequired,
     onCameraScaleChange: PropTypes.func.isRequired,
     onAttributeChange: PropTypes.func.isRequired,
+    inserted: PropTypes.object,
     onClose: PropTypes.func.isRequired
   }
 
@@ -19,13 +20,13 @@ class ProjectPanel extends React.Component{
     super(props);
 
     this.state = {
-      selected: null,
+      selected: props.inserted,
       tab: "properties",
       cameraScale: 1,
       search: "",
       sorted: false,
       closed: {},
-      renaming: null,
+      renaming: props.inserted,
       menu: null,
       exportOpen: false,
       recording: false
@@ -35,6 +36,12 @@ class ProjectPanel extends React.Component{
   componentDidMount(){
     this.refreshInterval = setInterval(() => this.forceUpdate(), 500);
     document.addEventListener("click", this.closeMenus);
+  }
+
+  componentDidUpdate(prevProps){
+    if (this.props.inserted && this.props.inserted !== prevProps.inserted){
+      this.setState({selected: this.props.inserted, renaming: this.props.inserted, tab: "properties", closed: {}});
+    }
   }
 
   componentWillUnmount(){
@@ -140,6 +147,7 @@ class ProjectPanel extends React.Component{
       {renaming === item.obj ?
       <input type="text" className="mv-tree-rename" autoFocus defaultValue={item.obj[item.nameKey]}
              onClick={e => e.stopPropagation()}
+             onFocus={e => e.target.select()}
              onBlur={e => { item.obj[item.nameKey] = e.target.value || item.obj[item.nameKey]; this.setState({renaming: null}); }}
              onKeyDown={e => { if (e.key === "Enter" || e.key === "Escape") e.target.blur(); }} />
       : <span className="mv-tree-label">{item.obj[item.nameKey]}</span>}
