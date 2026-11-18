@@ -63764,7 +63764,7 @@ void main() {
 
 			if (transparent){
 				gl.enable(gl.BLEND);
-				gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+				gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 				gl.depthMask(false);
 				gl.disable(gl.DEPTH_TEST);
 			} else {
