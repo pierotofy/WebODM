@@ -53,15 +53,15 @@ class Toolbar extends React.Component{
           { icon: "mv-icon mv-icon-orbit", title: _("Orbit"),
             active: viewer.controls === viewer.orbitControls,
             onClick: () => viewer.setControls(viewer.orbitControls) },
+          { icon: "mv-icon mv-icon-earth", title: _("Earth"),
+            active: viewer.controls === viewer.earthControls,
+            onClick: () => viewer.setControls(viewer.earthControls) },
           { icon: "mv-icon mv-icon-fly", title: _("Fly"),
             active: viewer.controls === fp && !fp.lockElevation,
             onClick: () => { viewer.setControls(fp); fp.lockElevation = false; } },
           { icon: "mv-icon mv-icon-walk", title: _("Walk"),
             active: viewer.controls === fp && fp.lockElevation,
-            onClick: () => { viewer.setControls(fp); fp.lockElevation = true; } },
-          { icon: "mv-icon mv-icon-earth", title: _("Earth"),
-            active: viewer.controls === viewer.earthControls,
-            onClick: () => viewer.setControls(viewer.earthControls) }
+            onClick: () => { viewer.setControls(fp); fp.lockElevation = true; } }
         ]
       },
       {
