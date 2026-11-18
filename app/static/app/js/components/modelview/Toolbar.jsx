@@ -184,7 +184,7 @@ class Toolbar extends React.Component{
         onClick: () => { this.inserting = viewer.annotationTool.startInsertion(); this.props.onInsert(this.inserting); }
       },
       {
-        id: "camera", icon: "mv-icon mv-icon-camera", title: _("Camera"),
+        id: "camera", icon: "mv-icon mv-icon-video", title: _("Camera"),
         items: [
           { icon: "mv-icon mv-icon-pov", title: _("Point of View"),
             onClick: () => {
@@ -195,7 +195,7 @@ class Toolbar extends React.Component{
                 cameraTarget: view.getPivot()
               }));
             } },
-          { icon: "mv-icon mv-icon-video", title: _("Video animation"),
+          { icon: "mv-icon mv-icon-film", title: _("Video animation"),
             onClick: () => {
               const animation = Potree.CameraAnimation.defaultFromView(viewer);
               viewer.scene.addCameraAnimation(animation);

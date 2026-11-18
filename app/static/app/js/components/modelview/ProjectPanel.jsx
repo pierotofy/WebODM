@@ -187,7 +187,7 @@ class ProjectPanel extends React.Component{
     }).concat(
       scene.volumes.map(obj => ({obj, type: "volume", icon: obj.clip ? "mv-icon mv-icon-clipbox" : "mv-icon mv-icon-volume", nameKey: "name"})),
       scene.profiles.map(obj => ({obj, type: "profile", icon: "mv-icon mv-icon-profile", nameKey: "name"})),
-      scene.cameraAnimations.map(obj => ({obj, type: "animation", icon: "mv-icon mv-icon-video", nameKey: "name"})),
+      scene.cameraAnimations.map(obj => ({obj, type: "animation", icon: "mv-icon mv-icon-film", nameKey: "name"})),
       scene.polygonClipVolumes.map(obj => ({obj, type: "polyclip", icon: "mv-icon mv-icon-clippolygon", nameKey: "name"}))
     );
     let annotations = scene.annotations.descendants().filter(obj => !obj.hasView()).map(obj => ({obj, type: "annotation", icon: "mv-icon mv-icon-annotation", nameKey: "title"}));
