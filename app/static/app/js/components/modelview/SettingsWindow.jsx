@@ -120,6 +120,10 @@ class SettingsWindow extends React.Component{
                    value={background === "gradient" ? "#4f4f4f" : background}
                    onChange={e => this.change("background", e.target.value)} />
           </div>),
+        this.row(_("Camera Display"), _("Perspective shows depth like the eye does. Orthographic keeps parallel lines parallel, which is better for measuring from the top or the side."),
+          this.segmented("cameraMode", Object.keys(Potree.CameraMode).find(k => Potree.CameraMode[k] === viewer.scene.cameraMode), [
+            ["PERSPECTIVE", _("Perspective")], ["ORTHOGRAPHIC", _("Orthographic")]
+          ])),
         this.row(_("Show Minimap"), _("Shows or hides the minimap button in the bottom-left corner of the viewer."),
           this.toggle("minimap", settings.minimap !== false)),
         this.row(_("Field of View"), _("Change your camera's field of view."),

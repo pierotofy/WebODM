@@ -72,9 +72,6 @@ class Toolbar extends React.Component{
       {
         id: "display", icon: "mv-icon mv-icon-display", title: _("Display"),
         items: [
-          { icon: "mv-icon mv-icon-ortho", title: _("Orthographic"),
-            active: viewer.scene.cameraMode === Potree.CameraMode.ORTHOGRAPHIC,
-            onClick: () => viewer.setCameraMode(viewer.scene.cameraMode === Potree.CameraMode.ORTHOGRAPHIC ? Potree.CameraMode.PERSPECTIVE : Potree.CameraMode.ORTHOGRAPHIC) },
           { icon: "mv-icon mv-icon-rgba", title: _("RGBA"),
             active: this.activeAttribute() === "rgba",
             onClick: () => this.setAttribute("rgba") },

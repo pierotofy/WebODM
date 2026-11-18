@@ -502,6 +502,7 @@ class ModelView extends React.Component {
         this.container.style.background = value === "gradient" ? "" : value;
     }
     else if (key === "fov") viewer.setFOV(value);
+    else if (key === "cameraMode") viewer.setCameraMode(Potree.CameraMode[value]);
     else if (key === "pointBudget") viewer.setPointBudget(value);
     else if (key === "pointSizeType") pointclouds.forEach(pc => { pc.material.pointSizeType = Potree.PointSizeType[value]; });
     else if (key === "pointShape") pointclouds.forEach(pc => { pc.material.shape = Potree.PointShape[value]; });
