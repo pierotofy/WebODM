@@ -25,7 +25,6 @@ class ProjectPanel extends React.Component{
       tab: "properties",
       cameraScale: 1,
       search: "",
-      sorted: false,
       closed: {},
       renaming: props.inserted,
       menu: null,
@@ -169,7 +168,7 @@ class ProjectPanel extends React.Component{
 
   render(){
     const { viewer } = this.props;
-    const { selected, tab, cameraScale, search, sorted, closed, menu, exportOpen, recording, updated } = this.state;
+    const { selected, tab, cameraScale, search, closed, menu, exportOpen, recording, updated } = this.state;
     const scene = viewer.scene;
     const pc = scene.pointclouds[0];
 
@@ -198,11 +197,6 @@ class ProjectPanel extends React.Component{
       const matches = item => String(item.obj[item.nameKey]).toLowerCase().indexOf(search.toLowerCase()) !== -1;
       measures = measures.filter(matches);
       annotations = annotations.filter(matches);
-    }
-    if (sorted){
-      const byName = (a, b) => String(a.obj[a.nameKey]).localeCompare(String(b.obj[b.nameKey]));
-      measures.sort(byName);
-      annotations.sort(byName);
     }
 
     const selectedItem = measures.concat(annotations).find(item => item.obj === selected);
@@ -340,8 +334,6 @@ class ProjectPanel extends React.Component{
           <i className="fa fa-search"></i>
           <input type="text" placeholder={_("Search")} value={search} onChange={e => this.setState({search: e.target.value})} />
         </div>
-        <button type="button" className={"mv-panel-btn " + (sorted ? "active" : "")} title={_("Sort by name")}
-                onClick={() => this.setState({sorted: !sorted})}><i className="fa fa-sort-alpha-down"></i></button>
         <button type="button" className={"mv-panel-btn mv-menu-toggle " + (exportOpen ? "active" : "")} title={_("Export")}
                 onClick={e => { e.stopPropagation(); this.setState({exportOpen: !exportOpen, menu: null}); }}><i className="mv-icon mv-icon-export"></i></button>
         <button type="button" className="mv-panel-btn" title={_("Close")} onClick={this.props.onClose}><i className="mv-icon mv-icon-close"></i></button>
