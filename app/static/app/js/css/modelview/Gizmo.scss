@@ -2,12 +2,12 @@
     position: absolute;
     z-index: 2;
     top: 12px;
-    right: 20px;
+    right: 12px;
     width: 96px;
     height: 96px;
     cursor: pointer;
 
     &.shifted{
-        right: 360px;
+        right: 344px;
     }
 }
