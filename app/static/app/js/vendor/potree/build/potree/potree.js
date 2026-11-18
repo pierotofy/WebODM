@@ -89679,7 +89679,7 @@ ENDSEC
 
 			let notVisibleAnymore = new Set(this.visibleAnnotations);
 			for(let annotation of visibleNow){
-				annotation.display = true;
+				annotation.display = !(annotation.cameraPosition && annotation.cameraPosition.x != null);
 				
 				notVisibleAnymore.delete(annotation);
 			}

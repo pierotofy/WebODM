@@ -105,6 +105,7 @@ class SettingsWindow extends React.Component{
                     this.setState({viewSaving: true, viewSaved: false, viewError: ""});
                     this.props.onSetInitialCameraView(err => {
                       this.setState({viewSaving: false, viewSaved: !err, viewError: err});
+                      setTimeout(() => this.setState({viewSaved: false}), 2000);
                     });
                   }}>
             <i className={viewSaving ? "fa fa-circle-notch fa-spin" : (viewSaved ? "fa fa-check" : "fa fa-video")}></i> {_("Set")}

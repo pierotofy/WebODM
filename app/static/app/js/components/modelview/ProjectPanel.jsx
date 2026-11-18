@@ -29,7 +29,8 @@ class ProjectPanel extends React.Component{
       renaming: props.inserted,
       menu: null,
       exportOpen: false,
-      recording: false
+      recording: false,
+      updated: null
     };
   }
 
@@ -164,7 +165,7 @@ class ProjectPanel extends React.Component{
 
   render(){
     const { viewer } = this.props;
-    const { selected, tab, cameraScale, search, sorted, closed, menu, exportOpen, recording } = this.state;
+    const { selected, tab, cameraScale, search, sorted, closed, menu, exportOpen, recording, updated } = this.state;
     const scene = viewer.scene;
     const pc = scene.pointclouds[0];
 
@@ -210,9 +211,9 @@ class ProjectPanel extends React.Component{
       points = m.points.map(p => p.position);
 
       if (m.kind === "deltas" && points.length === 2){
-        properties.push(["ΔX", `${this.fmt((points[1].x - points[0].x) * conv)} ${unit}`]);
-        properties.push(["ΔY", `${this.fmt((points[1].y - points[0].y) * conv)} ${unit}`]);
-        properties.push(["ΔZ", `${this.fmt((points[1].z - points[0].z) * conv)} ${unit}`]);
+        properties.push([_("Delta X"), `${this.fmt((points[1].x - points[0].x) * conv)} ${unit}`]);
+        properties.push([_("Delta Y"), `${this.fmt((points[1].y - points[0].y) * conv)} ${unit}`]);
+        properties.push([_("Delta Z"), `${this.fmt((points[1].z - points[0].z) * conv)} ${unit}`]);
       }
       if (m.kind === "perpendicular" && points.length === 3) properties.push([_("Perpendicular distance"), `${this.fmt(m.getPerpendicularDistance() * conv)} ${unit}`]);
       if (m.showDistances && points.length > 1) properties.push([_("Total distance"), `${this.fmt(m.getTotalDistance() * conv)} ${unit}`]);
@@ -223,10 +224,12 @@ class ProjectPanel extends React.Component{
         properties.push([_("Height"), `${this.fmt((Math.max(...zs) - Math.min(...zs)) * conv)} ${unit}`]);
       }
       if (m.showAngles && points.length > 2){
-        points.forEach((p, i) => properties.push([interpolate(_("Angle %(num)s"), {num: i + 1}), `${this.fmt(m.getAngle(i) * (180.0 / Math.PI))}°`]));
+        points.forEach((p, i) => properties.push([[_("Alpha (α)"), _("Beta (β)"), _("Gamma (γ)")][i] || interpolate(_("Angle %(num)s"), {num: i + 1}), `${this.fmt(m.getAngle(i) * (180.0 / Math.PI))}°`]));
       }
       if (m.showCircle && points.length === 3){
-        const radius = Potree.Utils.computeCircleCenter(points[0], points[1], points[2]).distanceTo(points[0]);
+        const center = Potree.Utils.computeCircleCenter(points[0], points[1], points[2]);
+        const radius = center.distanceTo(points[0]);
+        properties.push([_("Center"), `${this.fmt(center.x)}, ${this.fmt(center.y)}, ${this.fmt(center.z * conv)}`]);
         properties.push([_("Radius"), `${this.fmt(radius * conv)} ${unit}`]);
         properties.push([_("Circumference"), `${this.fmt(2 * Math.PI * radius * conv)} ${unit}`]);
       }
@@ -242,7 +245,18 @@ class ProjectPanel extends React.Component{
       points = selectedItem.obj.controlPoints.map(cp => cp.position);
     }else if (selectedItem && selectedItem.type === "annotation"){
       points = [selectedItem.obj.position];
+      if (selectedItem.obj.hasView()){
+        const a = selectedItem.obj;
+        properties.push([_("Position"), `${this.fmt(a.cameraPosition.x)}, ${this.fmt(a.cameraPosition.y)}, ${this.fmt(a.cameraPosition.z * conv)}`]);
+        properties.push([_("Target"), `${this.fmt(a.cameraTarget.x)}, ${this.fmt(a.cameraTarget.y)}, ${this.fmt(a.cameraTarget.z * conv)}`]);
+      }
     }
+
+    const isPoint = !!selectedItem && selectedItem.type === "measure" && selectedItem.obj.showCoordinates;
+    const m = selectedItem ? selectedItem.obj : null;
+    const canEditPoints = !!selectedItem && (selectedItem.type === "profile" ||
+      (selectedItem.type === "measure" && !m.showCoordinates && !m.showAngles && !m.showCircle && !m.showAzimuth && !m.showHeight && m.kind !== "deltas" && m.kind !== "perpendicular"));
+    const minPoints = selectedItem && selectedItem.type === "measure" && m.closed ? 3 : 2;
 
     let pointCloudProperties = "";
     if (selected === "pointcloud" && pc){
@@ -378,7 +392,7 @@ class ProjectPanel extends React.Component{
         <div className="mv-panel-tabs">
           <div className={"mv-panel-tab " + (tab === "properties" ? "active" : "")} onClick={() => this.setState({tab: "properties"})}>{_("Properties / Actions")}</div>
           {selectedItem.type !== "volume" ?
-          <div className={"mv-panel-tab " + (tab === "points" ? "active" : "")} onClick={() => this.setState({tab: "points"})}>{_("Points")}</div>
+          <div className={"mv-panel-tab " + (tab === "points" ? "active" : "")} onClick={() => this.setState({tab: "points"})}>{isPoint ? _("Point attributes") : _("Points")}</div>
           : ""}
         </div>
 
@@ -386,6 +400,45 @@ class ProjectPanel extends React.Component{
           {properties.map((p, i) => <div key={i} className="mv-panel-property">
             <span>{p[0]}</span><span>{p[1]}</span>
           </div>)}
+
+          {isPoint && points.length === 1 ?
+          <div className="mv-panel-field mv-panel-xyz">
+            <label>{_("Coordinates")}</label>
+            {["x", "y", "z"].map(axis =>
+            <input key={axis + points[0][axis]} type="number" step="any" title={axis}
+                   defaultValue={(points[0][axis] * (axis === "z" ? conv : 1)).toFixed(3)}
+                   onKeyDown={e => { if (e.key === "Enter") e.target.blur(); }}
+                   onBlur={e => {
+                     const value = parseFloat(e.target.value);
+                     if (isNaN(value)) return;
+                     const position = points[0].clone();
+                     position[axis] = axis === "z" ? value / conv : value;
+                     m.setPosition(0, position);
+                     this.forceUpdate();
+                   }} />)}
+            <button type="button" className="mv-panel-btn" title={_("Copy")}
+                    onClick={() => navigator.clipboard.writeText(`${points[0].x.toFixed(3)}, ${points[0].y.toFixed(3)}, ${(points[0].z * conv).toFixed(3)}`)}><i className="far fa-copy"></i></button>
+          </div> : ""}
+
+          {selectedItem.type === "volume" ? ["position", "rotation", "scale"].map(prop =>
+          <div key={prop} className="mv-panel-field mv-panel-xyz">
+            <label>{{position: _("Position"), rotation: _("Rotation"), scale: _("Scale")}[prop]}</label>
+            {["x", "y", "z"].map(axis => {
+              let factor = 1;
+              if (prop === "rotation") factor = 180.0 / Math.PI;
+              else if (prop === "scale" || axis === "z") factor = conv;
+
+              return (<input key={axis + m[prop][axis]} type="number" step="any" title={axis}
+                   defaultValue={(m[prop][axis] * factor).toFixed(3)}
+                   onKeyDown={e => { if (e.key === "Enter") e.target.blur(); }}
+                   onBlur={e => {
+                     const value = parseFloat(e.target.value);
+                     if (isNaN(value) || (prop === "scale" && value <= 0)) return;
+                     m[prop][axis] = value / factor;
+                     this.forceUpdate();
+                   }} />);
+            })}
+          </div>) : ""}
 
           {selectedItem.type === "volume" ?
           <div className="mv-panel-field">
@@ -469,26 +522,108 @@ class ProjectPanel extends React.Component{
 
           <div className="mv-panel-field">
             <button type="button" className="mv-panel-action" onClick={() => this.zoomTo(selectedItem)}><i className="fa fa-search"></i> {_("Zoom to")}</button>
+            {selectedItem.type === "measure" ?
+            <button type="button" className="mv-panel-action"
+                    onClick={() => {
+                      let maxMarkers = Infinity;
+                      if (m.showCoordinates) maxMarkers = 1;
+                      else if (m.showAngles || m.showCircle || m.kind === "perpendicular") maxMarkers = 3;
+                      else if (m.showAzimuth || m.showHeight || m.kind === "deltas") maxMarkers = 2;
+
+                      scene.removeMeasurement(m);
+                      const fresh = viewer.measuringTool.startInsertion({
+                        showDistances: m.showDistances, showArea: m.showArea, showAngles: m.showAngles,
+                        showCoordinates: m.showCoordinates, showHeight: m.showHeight, showCircle: m.showCircle,
+                        showAzimuth: m.showAzimuth, showEdges: m.showEdges, closed: m.closed,
+                        maxMarkers, name: m.name
+                      });
+                      if (m.kind) fresh.kind = m.kind;
+                      this.setState({selected: fresh});
+                    }}><i className="far fa-edit"></i> {_("Restart Measurement")}</button> : ""}
+            {selectedItem.type === "volume" ?
+            <button type="button" className="mv-panel-action"
+                    onClick={() => { m.rotation.set(0, 0, 0); this.forceUpdate(); }}><i className="fa fa-undo"></i> {_("Reset rotation")}</button> : ""}
+            {selectedItem.type === "annotation" && m.hasView() ?
+            <button type="button" className="mv-panel-action"
+                    onClick={() => {
+                      m.cameraPosition.copy(scene.view.position);
+                      m.cameraTarget.copy(scene.view.getPivot());
+                      m.position.copy(scene.view.getPivot());
+                      this.setState({updated: "view"});
+                      setTimeout(() => this.setState({updated: null}), 2000);
+                    }}><i className={updated === "view" ? "fa fa-check" : "fa fa-expand"}></i> {_("Update")}</button> : ""}
+            {selectedItem.type === "measure" || selectedItem.type === "volume" || selectedItem.type === "animation" ?
+            <button type="button" className="mv-panel-action"
+                    onClick={() => {
+                      const key = {measure: "measurements", volume: "volumes", animation: "cameraAnimations"}[selectedItem.type];
+                      const live = Potree.saveProject(viewer);
+                      const data = Object.assign({}, live[key].find(d => d.uuid === m.uuid), {
+                        uuid: THREE.MathUtils.generateUUID(),
+                        name: interpolate(_("%(name)s (copy)"), {name: m.name})
+                      });
+                      Potree.loadProject(viewer, Object.assign(live, {pointclouds: [], [key]: [data]}));
+                      this.setState({selected: scene.measurements.concat(scene.volumes, scene.cameraAnimations).find(o => o.uuid === data.uuid)});
+                    }}><i className="far fa-clone"></i> {_("Duplicate")}</button> : ""}
             <button type="button" className="mv-panel-action mv-danger" onClick={() => this.remove(selectedItem)}><i className="fa fa-trash"></i> {_("Delete")}</button>
           </div>
         </div> :
+        isPoint ?
+        <div>
+          {Object.keys(m.points[0] || {}).filter(key => key !== "position").map(key => {
+            const value = m.points[0][key];
+            return (<div key={key} className="mv-panel-property">
+              <span>{key}</span><span>{value && value.length !== undefined && typeof value !== "string" ? Array.from(value).join(", ") : String(value)}</span>
+            </div>);
+          })}
+          {Object.keys(m.points[0] || {}).length <= 1 ? <div className="mv-panel-property"><span>{_("No attributes")}</span></div> : ""}
+        </div> :
         <div className="mv-panel-points">
           <table>
-            <thead><tr><th></th><th>x</th><th>y</th><th>z ({unit})</th>{selectedItem.type === "animation" ? <th></th> : null}</tr></thead>
+            <thead><tr><th></th><th>x</th><th>y</th><th>z ({unit})</th><th></th></tr></thead>
             <tbody>
               {points.map((p, i) => <tr key={i}>
                 <td>{i + 1}</td>
                 <td>{this.fmt(p.x)}</td>
                 <td>{this.fmt(p.y)}</td>
                 <td>{this.fmt(p.z * conv)}</td>
-                {selectedItem.type === "animation" ? <td>
-                  <a href="javascript:void(0)" title={_("Add control point")}
-                     onClick={() => { selectedItem.obj.createControlPoint(i + 1); this.forceUpdate(); }}><i className="fa fa-plus"></i></a>
-                  {points.length > 2 ?
-                  <a href="javascript:void(0)" title={_("Remove control point")} className="mv-danger"
-                     onClick={() => { selectedItem.obj.removeControlPoint(selectedItem.obj.controlPoints[i]); this.forceUpdate(); }}> <i className="fa fa-times"></i></a>
-                  : ""}
-                </td> : null}
+                <td>
+                  {selectedItem.type !== "animation" ?
+                  <a href="javascript:void(0)" title={_("Copy")}
+                     onClick={() => navigator.clipboard.writeText(`${p.x.toFixed(3)}, ${p.y.toFixed(3)}, ${(p.z * conv).toFixed(3)}`)}><i className="far fa-copy"></i></a> : ""}
+                  {canEditPoints && (i < points.length - 1 || m.closed) ?
+                  <a href="javascript:void(0)" title={_("Add point")}
+                     onClick={() => {
+                       const positions = points.map(point => point.clone());
+                       const count = positions.length;
+                       m.addMarker(positions[count - 1].clone());
+                       for (let j = count; j > i + 1; j--) m.setPosition(j, positions[j - 1]);
+                       m.setPosition(i + 1, positions[i].clone().add(positions[(i + 1) % count]).multiplyScalar(0.5));
+                       this.forceUpdate();
+                     }}><i className="fa fa-plus"></i></a> : ""}
+                  {canEditPoints && points.length > minPoints ?
+                  <a href="javascript:void(0)" title={_("Remove point")} className="mv-danger"
+                     onClick={() => { m.removeMarker(i); this.forceUpdate(); }}><i className="fa fa-times"></i></a> : ""}
+                  {selectedItem.type === "animation" ? [
+                  <a key="update" href="javascript:void(0)" title={_("Update key frame")}
+                     onClick={() => {
+                       m.controlPoints[i].position.copy(scene.view.position);
+                       m.controlPoints[i].target.copy(scene.view.getPivot());
+                       m.updatePath();
+                       this.setState({updated: i});
+                       setTimeout(() => this.setState({updated: null}), 2000);
+                     }}><i className={updated === i ? "fa fa-check" : "fa fa-expand"}></i></a>,
+                  <a key="move" href="javascript:void(0)" title={_("Move to the key frame")}
+                     onClick={() => {
+                       scene.view.position.copy(m.controlPoints[i].position);
+                       scene.view.lookAt(m.controlPoints[i].target);
+                     }}><i className="far fa-eye"></i></a>,
+                  <a key="add" href="javascript:void(0)" title={_("Add key frame")}
+                     onClick={() => { m.createControlPoint(i + 1); this.forceUpdate(); }}><i className="fa fa-plus"></i></a>,
+                  points.length > 2 ?
+                  <a key="remove" href="javascript:void(0)" title={_("Remove key frame")} className="mv-danger"
+                     onClick={() => { m.removeControlPoint(m.controlPoints[i]); this.forceUpdate(); }}><i className="fa fa-times"></i></a>
+                  : null] : null}
+                </td>
               </tr>)}
             </tbody>
           </table>

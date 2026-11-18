@@ -28,16 +28,22 @@ class Toolbar extends React.Component{
 
   componentDidMount(){
     document.addEventListener("keydown", this.handleKeyDown);
+    this.props.viewer.measuringTool.addEventListener("start_inserting_measurement", this.handleInsertion);
     this.props.viewer.renderer.domElement.addEventListener("mousedown", this.handleMouseDown, true);
   }
 
   componentWillUnmount(){
     document.removeEventListener("keydown", this.handleKeyDown);
+    this.props.viewer.measuringTool.removeEventListener("start_inserting_measurement", this.handleInsertion);
     this.props.viewer.renderer.domElement.removeEventListener("mousedown", this.handleMouseDown, true);
   }
 
   handleKeyDown = (e) => {
     if (e.key === "Escape") this.cancelInsertion();
+  }
+
+  handleInsertion = (e) => {
+    this.inserting = e.measure;
   }
 
   handleMouseDown = () => {
