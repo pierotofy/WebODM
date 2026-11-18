@@ -567,7 +567,7 @@ class ProjectPanel extends React.Component{
                       });
                       if (m.kind) fresh.kind = m.kind;
                       this.setState({selected: fresh});
-                    }}><i className="far fa-edit"></i> {_("Restart Measurement")}</button> : ""}
+                    }}><i className="far fa-edit"></i> {_("Redo")}</button> : ""}
             {selectedItem.type === "volume" ?
             <button type="button" className="mv-panel-action"
                     onClick={() => { m.rotation.set(0, 0, 0); this.forceUpdate(); }}><i className="fa fa-undo"></i> {_("Reset rotation")}</button> : ""}
