@@ -82,6 +82,7 @@ class Toolbar extends React.Component{
             active: this.activeAttribute() === "classification",
             disabled: !pc || !pc.pcoGeometry.pointAttributes.attributes.some(a => a.name === "classification"),
             onClick: () => this.setAttribute("classification") },
+          { separator: true },
           { icon: "mv-icon mv-icon-xray", title: _("X-ray"),
             active: !!pc && pc.material.opacity < 1,
             disabled: modelType !== "cloud",
@@ -217,7 +218,8 @@ class Toolbar extends React.Component{
         )}
       </div>
       {openGroup ? <div className="mv-toolbar mv-toolbar-sub">
-        {openGroup.items.map((item, i) =>
+        {openGroup.items.map((item, i) => item.separator ?
+          <div key={i} className="mv-toolbar-separator"></div> :
           <button key={i} type="button" title={item.title}
                   disabled={!!item.disabled}
                   className={"mv-toolbar-btn " + (item.active ? "active" : "")}
