@@ -24,7 +24,7 @@ class HistoryPanel extends React.Component{
       </div>
 
       <div className="mv-panel-body">
-        {history.length <= 1 ? <div className="mv-panel-empty">{_("No actions recorded yet.")}</div> : ""}
+        {history.length <= 1 ? <div className="mv-panel-empty">{_("No history")}</div> : ""}
         {history.map((entry, i) => i === 0 ? null :
         <div key={i} className={"mv-tree-row mv-history-row " + (i === index ? "selected" : "") + (i > index ? " undone" : "")}
              onClick={() => this.props.onRestore(i)}>
