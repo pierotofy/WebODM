@@ -176,10 +176,12 @@ class Toolbar extends React.Component{
               viewer.profileWindow.show();
               viewer.profileWindowController.setProfile(this.inserting);
               this.props.onInsert(this.inserting);
-            } },
-          { icon: "mv-icon mv-icon-annotation", title: _("Annotation"),
-            onClick: () => { this.inserting = viewer.annotationTool.startInsertion(); this.props.onInsert(this.inserting); } }
+            } }
         ]
+      },
+      {
+        id: "annotation", icon: "mv-icon mv-icon-annotation", title: _("Annotation"),
+        onClick: () => { this.inserting = viewer.annotationTool.startInsertion(); this.props.onInsert(this.inserting); }
       },
       {
         id: "camera", icon: "mv-icon mv-icon-camera", title: _("Camera"),
