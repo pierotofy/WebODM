@@ -65,12 +65,15 @@ class ProjectPanel extends React.Component{
     else if (item.type === "volume") scene.removeVolume(item.obj);
     else if (item.type === "profile") scene.removeProfile(item.obj);
     else if (item.type === "animation") scene.removeCameraAnimation(item.obj);
+    else if (item.type === "polyclip") scene.removePolygonClipVolume(item.obj);
     else scene.removeAnnotation(item.obj);
     if (this.state.selected === item.obj) this.setState({selected: null});
   }
 
   zoomTo = (item) => {
     const { viewer } = this.props;
+
+    if (item.type === "polyclip") return;
 
     if (item.type === "annotation" && item.obj.hasView()){
       item.obj.moveHere(viewer.scene.getActiveCamera());
@@ -184,7 +187,8 @@ class ProjectPanel extends React.Component{
     }).concat(
       scene.volumes.map(obj => ({obj, type: "volume", icon: obj.clip ? "mv-icon mv-icon-clipbox" : "mv-icon mv-icon-volume", nameKey: "name"})),
       scene.profiles.map(obj => ({obj, type: "profile", icon: "mv-icon mv-icon-profile", nameKey: "name"})),
-      scene.cameraAnimations.map(obj => ({obj, type: "animation", icon: "mv-icon mv-icon-video", nameKey: "name"}))
+      scene.cameraAnimations.map(obj => ({obj, type: "animation", icon: "mv-icon mv-icon-video", nameKey: "name"})),
+      scene.polygonClipVolumes.map(obj => ({obj, type: "polyclip", icon: "mv-icon mv-icon-clippolygon", nameKey: "name"}))
     );
     let annotations = scene.annotations.descendants().map(obj => ({obj, type: "annotation", icon: obj.hasView() ? "mv-icon mv-icon-pov" : "mv-icon mv-icon-annotation", nameKey: "title"}));
 
@@ -391,7 +395,7 @@ class ProjectPanel extends React.Component{
       <div className="mv-panel-properties">
         <div className="mv-panel-tabs">
           <div className={"mv-panel-tab " + (tab === "properties" ? "active" : "")} onClick={() => this.setState({tab: "properties"})}>{_("Properties / Actions")}</div>
-          {selectedItem.type !== "volume" ?
+          {selectedItem.type !== "volume" && selectedItem.type !== "polyclip" ?
           <div className={"mv-panel-tab " + (tab === "points" ? "active" : "")} onClick={() => this.setState({tab: "points"})}>{isPoint ? _("Point attributes") : _("Points")}</div>
           : ""}
         </div>
@@ -445,6 +449,20 @@ class ProjectPanel extends React.Component{
             <label><input type="checkbox" checked={selectedItem.obj.clip}
                           onChange={e => { selectedItem.obj.clip = e.target.checked; this.forceUpdate(); }} /> {_("Use as clip volume")}</label>
           </div> : ""}
+
+          {selectedItem.type === "volume" && m.clip ? [
+          <div key="lock" className="mv-panel-field">
+            <label><input type="checkbox" checked={!!m.locked}
+                          onChange={e => {
+                            m.locked = e.target.checked;
+                            viewer.inputHandler.deselectAll();
+                            this.forceUpdate();
+                          }} /> {_("Lock")}</label>
+          </div>,
+          <div key="frame" className="mv-panel-field">
+            <label><input type="checkbox" checked={m.frame.visible}
+                          onChange={e => { m.frame.visible = e.target.checked; this.forceUpdate(); }} /> {_("Show frame")}</label>
+          </div>] : ""}
 
           {selectedItem.type === "profile" ? [
           <div key="width" className="mv-panel-field">
@@ -521,7 +539,8 @@ class ProjectPanel extends React.Component{
           </div>] : ""}
 
           <div className="mv-panel-field">
-            <button type="button" className="mv-panel-action" onClick={() => this.zoomTo(selectedItem)}><i className="fa fa-search"></i> {_("Zoom to")}</button>
+            {selectedItem.type !== "polyclip" ?
+            <button type="button" className="mv-panel-action" onClick={() => this.zoomTo(selectedItem)}><i className="fa fa-search"></i> {_("Zoom to")}</button> : ""}
             {selectedItem.type === "measure" ?
             <button type="button" className="mv-panel-action"
                     onClick={() => {

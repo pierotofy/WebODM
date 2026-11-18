@@ -69411,7 +69411,7 @@ void main() {
 					this.viewer.inputHandler.blacklist.delete(selected);
 				}
 
-				this.selection = e.selection;
+				this.selection = e.selection.filter(selected => !selected.locked);
 
 				for(let selected of this.selection){
 					this.viewer.inputHandler.blacklist.add(selected);
@@ -89966,7 +89966,7 @@ ENDSEC
 					return {box: box, inverse: boxInverse, position: boxPosition};
 				});
 
-				let clipPolygons = this.scene.polygonClipVolumes.filter(vol => vol.initialized);
+				let clipPolygons = this.scene.polygonClipVolumes.filter(vol => vol.initialized && vol.visible);
 				
 				// set clip volumes in material
 				for(let pointcloud of visiblePointClouds){

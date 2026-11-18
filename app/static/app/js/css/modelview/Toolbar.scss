@@ -25,6 +25,10 @@
 
         &.mv-toolbar-sub{
             margin-top: 3px;
+
+            .mv-toolbar-separator{
+                margin: 0 4.5px;
+            }
         }
     }
 

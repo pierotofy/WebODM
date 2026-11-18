@@ -205,9 +205,12 @@ class Toolbar extends React.Component{
         id: "clipping", icon: "mv-icon mv-icon-clip", title: _("Clipping"),
         items: [
           { icon: "mv-icon mv-icon-clipbox", title: _("Clip box"),
-            onClick: () => { this.inserting = viewer.volumeTool.startInsertion({clip: true}); } },
+            onClick: () => { this.inserting = viewer.volumeTool.startInsertion({clip: true}); this.props.onInsert(this.inserting); } },
           { icon: "mv-icon mv-icon-clippolygon", title: _("Clip polygon"),
-            onClick: () => { this.inserting = viewer.clippingTool.startInsertion({type: "polygon"}); } },
+            onClick: () => {
+              this.inserting = viewer.clippingTool.startInsertion({type: "polygon"});
+              this.inserting.name = _("Clip polygon");
+            } },
           { icon: "mv-icon mv-icon-highlight", title: _("Highlight"),
             active: viewer.clipTask === Potree.ClipTask.HIGHLIGHT,
             onClick: () => viewer.setClipTask(Potree.ClipTask.HIGHLIGHT) },
