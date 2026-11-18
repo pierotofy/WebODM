@@ -13,6 +13,7 @@ class Magnifier extends React.Component{
 
   componentWillUnmount(){
     this.props.viewer.removeEventListener("update", this.draw);
+    if (this.hidden) this.hidden.visible = true;
   }
 
   draw = () => {
@@ -22,8 +23,18 @@ class Magnifier extends React.Component{
     const parent = drag && drag.object ? drag.object.parent : null;
 
     if (!(parent instanceof Potree.Measure) && !(parent instanceof Potree.Profile)){
+      if (this.hidden){
+        this.hidden.visible = true;
+        this.hidden = null;
+      }
       if (this.canvas.style.display !== "none") this.canvas.style.display = "none";
       return;
+    }
+
+    if (this.hidden !== drag.object){
+      if (this.hidden) this.hidden.visible = true;
+      this.hidden = drag.object;
+      this.hidden.visible = false;
     }
 
     const source = viewer.renderer.domElement;
