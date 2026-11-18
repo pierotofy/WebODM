@@ -3,7 +3,7 @@
     z-index: 3;
     top: 12px;
     left: 0;
-    right: 0;
+    width: #{"round(down, 100%, 2px)"};
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -13,8 +13,8 @@
         pointer-events: auto;
         display: flex;
         align-items: center;
-        gap: 3px;
-        padding: 3px 5px;
+        gap: 4px;
+        padding: 3px 4px;
         height: 44px;
         max-width: calc(100% - 20px);
         overflow-x: auto;
@@ -27,7 +27,7 @@
             margin-top: 3px;
 
             .mv-toolbar-separator{
-                margin: 0 4.5px;
+                margin: 0 5px 0 4px;
             }
         }
     }
@@ -36,7 +36,7 @@
         flex: none;
         width: 1px;
         height: 38px;
-        margin: 0 9px;
+        margin: 0 10px 0 9px;
         background: rgba(255, 255, 255, 0.5);
     }
 
