@@ -81122,6 +81122,40 @@ ENDSEC
 				this.domElement.tabIndex = 2222;
 			}
 
+			this.paused = null;
+			this.spaceDown = false;
+
+			this.domElement.addEventListener('mouseup', e => {
+				if (!this.paused) return;
+				e.stopImmediatePropagation();
+				this.onMouseUp(e);
+				if (!this.spaceDown) {
+					this.startDragging(this.paused);
+					this.paused = null;
+				}
+			}, true);
+			window.addEventListener('keydown', e => {
+				if (e.keyCode !== 32 || e.target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].indexOf(e.target.tagName) !== -1) return;
+				this.spaceDown = true;
+				if (!this.paused && this.drag && this.drag.object && !this.drag.mouse) {
+					this.paused = this.drag.object;
+					this.drag = null;
+					this.domElement.focus({preventScroll: true});
+				}
+				if (this.paused) e.preventDefault();
+			});
+			window.addEventListener('keyup', e => {
+				if (e.keyCode !== 32) return;
+				this.spaceDown = false;
+				if (this.paused) {
+					e.preventDefault();
+					if (!this.drag) {
+						this.startDragging(this.paused);
+						this.paused = null;
+					}
+				}
+			});
+
 			this.domElement.addEventListener('contextmenu', (event) => { event.preventDefault(); }, false);
 			this.domElement.addEventListener('click', this.onMouseClick.bind(this), false);
 			this.domElement.addEventListener('mousedown', this.onMouseDown.bind(this), false);
@@ -81332,6 +81366,7 @@ ENDSEC
 			if (this.logMessages) console.log(this.constructor.name + ': onMouseDown');
 
 			e.preventDefault();
+			this.domElement.focus({preventScroll: true});
 
 			let consumed = false;
 			let consume = () => { return consumed = true; };
@@ -81359,7 +81394,7 @@ ENDSEC
 			}
 
 			if (!this.drag) {
-				let target = this.hoveredElements
+				let target = this.paused ? null : this.hoveredElements
 					.find(el => (
 						el.object._listeners &&
 						el.object._listeners['drag'] &&

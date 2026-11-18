@@ -47,13 +47,17 @@ class Toolbar extends React.Component{
   }
 
   handleMouseDown = () => {
-    if (!this.props.viewer.inputHandler.drag) this.inserting = null;
+    if (!this.props.viewer.inputHandler.drag && !this.props.viewer.inputHandler.paused) this.inserting = null;
   }
 
   cancelInsertion = () => {
     const { viewer } = this.props;
     const item = this.inserting;
     this.inserting = null;
+    if (viewer.inputHandler.paused){
+      viewer.inputHandler.startDragging(viewer.inputHandler.paused);
+      viewer.inputHandler.paused = null;
+    }
     if (!item || !viewer.inputHandler.drag) return;
 
     viewer.renderer.domElement.dispatchEvent(new MouseEvent("mouseup", {button: 2, bubbles: true}));
