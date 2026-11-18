@@ -151,10 +151,11 @@ class ProjectPanel extends React.Component{
       {renaming === item.obj ?
       <input type="text" className="mv-tree-rename" autoFocus defaultValue={item.obj[item.nameKey]}
              onClick={e => e.stopPropagation()}
+             onDoubleClick={e => e.stopPropagation()}
              onFocus={e => e.target.select()}
              onBlur={e => { item.obj[item.nameKey] = e.target.value || item.obj[item.nameKey]; this.setState({renaming: null}); }}
              onKeyDown={e => { if (e.key === "Enter" || e.key === "Escape") e.target.blur(); }} />
-      : <span className="mv-tree-label">{item.obj[item.nameKey]}</span>}
+      : <span className="mv-tree-label"><span onDoubleClick={e => { e.stopPropagation(); this.setState({renaming: item.obj}); }}>{item.obj[item.nameKey]}</span></span>}
       {selected === item.obj ?
       <button type="button" className="mv-panel-btn mv-danger" title={_("Delete")}
               onClick={e => { e.stopPropagation(); this.remove(item); }}><i className="fa fa-trash"></i></button>
