@@ -88,18 +88,18 @@ class SettingsWindow extends React.Component{
 
     if (tab === "general"){
       content = [
-        this.row(_("Magnifier"), _("Shows a zoomed-in view for greater precision when placing measurement points."),
+        this.row(_("Magnifier"), _("Displays a scope for more accurate measurement point placement."),
           this.toggle("magnifier", settings.magnifier !== false)),
-        this.row(_("Coordinate Unit"), _("Unit system used to display coordinates and measurements."),
+        this.row(_("Coordinate Unit"), _("Units for coordinates and measurements."),
           <UnitSelector />),
-        this.row(_("Orientation Indicator"), _("Shows the X / Y / Z indicator in the top-right corner. Click an axis to look along it."),
+        this.row(_("Orientation Indicator"), _("Displays X / Y / Z axes in the top-right. Click an axis to look along it."),
           this.toggle("gizmo", settings.gizmo === true)),
-        this.row(_("Navigation Compass"), _("Shows a compass that points north."),
+        this.row(_("Navigation Compass"), _("Displays a north-pointing compass."),
           this.toggle("compass", viewer.compass.isVisible()))
       ];
 
       if (this.props.onSetInitialCameraView){
-        content.push(this.row(_("Initial Camera View"), viewError || _("Use the current view as the starting view every time this model is opened."),
+        content.push(this.row(_("Initial Camera View"), viewError || _("Open this model from the current view every time."),
           <button type="button" className="mv-settings-action" disabled={viewSaving}
                   onClick={() => {
                     this.setState({viewSaving: true, viewSaved: false, viewError: ""});
@@ -114,7 +114,7 @@ class SettingsWindow extends React.Component{
     }else if (tab === "display"){
       const background = settings.background || "gradient";
       content = [
-        this.row(_("Background"), _("Choose a gradient or a solid color as the 3D view background."),
+        this.row(_("Background"), _("Pick a gradient or a plain color behind the model."),
           <div className="mv-settings-backgrounds">
             <button type="button" className={"mv-background-gradient " + (background === "gradient" ? "active" : "")}
                     title={_("Gradient")} onClick={() => this.change("background", "gradient")}></button>
@@ -122,19 +122,19 @@ class SettingsWindow extends React.Component{
                    value={background === "gradient" ? "#4f4f4f" : background}
                    onChange={e => this.change("background", e.target.value)} />
           </div>),
-        this.row(_("Camera Display"), _("Perspective shows depth like the eye does. Orthographic keeps parallel lines parallel, which is better for measuring from the top or the side."),
+        this.row(_("Camera Display"), _("Perspective shows depth as the eye sees it. Orthographic keeps parallel lines parallel, better for measuring from the top or side."),
           this.segmented("cameraMode", Object.keys(Potree.CameraMode).find(k => Potree.CameraMode[k] === viewer.scene.cameraMode), [
             ["PERSPECTIVE", _("Perspective")], ["ORTHOGRAPHIC", _("Orthographic")]
           ])),
-        this.row(_("Show Minimap"), _("Shows or hides the minimap button in the bottom-left corner of the viewer."),
+        this.row(_("Show Minimap"), _("Toggles the minimap button at the bottom-left."),
           this.toggle("minimap", settings.minimap !== false)),
-        this.row(_("Field of View"), _("Change your camera's field of view."),
+        this.row(_("Field of View"), _("How wide the camera sees."),
           this.slider("fov", viewer.getFOV(), 20, 100, 1, `${Math.round(viewer.getFOV())}°`))
       ];
     }else if (tab === "pointcloud"){
       const budget = viewer.getPointBudget();
       content = [
-        this.row(_("Point Budget"), _("Maximum number of points displayed at the same time. Lower values improve performance; higher values show more detail."),
+        this.row(_("Point Budget"), _("Limit of points drawn at once. Lower is faster, higher is more detailed."),
           this.slider("pointBudget", budget, 100000, 20000000, 100000, interpolate(_("%(num)sM"), {num: (budget / 1000000).toFixed(1)})))
       ];
 
@@ -155,23 +155,23 @@ class SettingsWindow extends React.Component{
 
       content = content.concat([
         <div className="mv-settings-section" key="advanced">{_("Advanced Rendering")}</div>,
-        this.row(_("Eye-Dome Lighting (EDL)"), _("Shades points by depth to make shapes easier to read."),
+        this.row(_("Eye-Dome Lighting (EDL)"), _("Shades points by depth so shapes stand out."),
           this.toggle("edlEnabled", viewer.useEDL, modelType !== "cloud")),
         this.row(_("EDL Strength"), "",
           this.slider("edlStrength", viewer.edlStrength, 0, 5, 0.1, viewer.edlStrength.toFixed(1))),
         this.row(_("EDL Radius"), "",
           this.slider("edlRadius", viewer.edlRadius, 1, 4, 0.1, viewer.edlRadius.toFixed(1))),
-        this.row(_("High Quality (HQ)"), _("Blends overlapping points for a smoother picture. Slower."),
+        this.row(_("High Quality (HQ)"), _("Blends overlapping points for a smoother image. Slower."),
           this.toggle("hq", !!viewer.useHQ))
       ]);
     }else if (tab === "navigation"){
       content = [
         <div className="mv-settings-section" key="3d">{_("3D Navigation")}</div>,
-        this.row(_("Camera Smoothness"), _("How smoothly the camera settles after a move."),
+        this.row(_("Camera Smoothness"), _("Controls how fast the camera comes to rest after moving."),
           this.segmented("smoothness", settings.smoothness || "standard", [
             ["smooth", _("Smooth")], ["standard", _("Standard")], ["snappy", _("Snappy")]
           ])),
-        this.row(_("Movement Speed"), _("Camera travel speed in Fly and Walk modes."),
+        this.row(_("Movement Speed"), _("Travel speed for Fly and Walk."),
           this.slider("moveSpeed", Math.log10(Math.max(viewer.getMoveSpeed(), 0.01)), -2, 4, 0.05, viewer.getMoveSpeed().toFixed(1))),
         <div className="mv-settings-section" key="navigate">{_("Navigate")}</div>,
         this.shortcut(_("Orbit"), [_("Left Drag")]),
