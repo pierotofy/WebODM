@@ -26,7 +26,7 @@ class ProjectPanel extends React.Component{
       cameraScale: 1,
       search: "",
       closed: {},
-      renaming: props.inserted,
+      renaming: props.inserted instanceof Potree.Annotation && !props.inserted.hasView() ? null : props.inserted,
       menu: null,
       exportOpen: false,
       recording: false,
@@ -41,7 +41,7 @@ class ProjectPanel extends React.Component{
 
   componentDidUpdate(prevProps){
     if (this.props.inserted && this.props.inserted !== prevProps.inserted){
-      this.setState({selected: this.props.inserted, renaming: this.props.inserted, tab: "properties", closed: {}});
+      this.setState({selected: this.props.inserted, renaming: this.props.inserted instanceof Potree.Annotation && !this.props.inserted.hasView() ? null : this.props.inserted, tab: "properties", closed: {}});
     }
   }
 
@@ -175,7 +175,7 @@ class ProjectPanel extends React.Component{
              onFocus={e => e.target.select()}
              onBlur={e => { item.obj[item.nameKey] = e.target.value || item.obj[item.nameKey]; this.setState({renaming: null}); }}
              onKeyDown={e => { if (e.key === "Enter" || e.key === "Escape") e.target.blur(); }} />
-      : <span className="mv-tree-label"><span onDoubleClick={e => { e.stopPropagation(); this.setState({renaming: item.obj}); }}>{item.obj[item.nameKey]}</span></span>}
+      : <span className="mv-tree-label"><span onDoubleClick={e => { e.stopPropagation(); this.setState({renaming: item.obj}); }}>{item.obj[item.nameKey] || _("Annotation")}</span></span>}
       {selected === item.obj ?
       <button type="button" className="mv-panel-btn mv-danger" title={_("Delete")}
               onClick={e => { e.stopPropagation(); this.remove(item); }}><i className="fa fa-trash"></i></button>
@@ -553,6 +553,8 @@ class ProjectPanel extends React.Component{
           <div className="mv-panel-field">
             {selectedItem.type !== "polyclip" ?
             <button type="button" className="mv-panel-action" onClick={() => this.zoomTo(selectedItem)}><i className="fa fa-search"></i> {_("Zoom to")}</button> : ""}
+            {selectedItem.type === "annotation" && !m.hasView() ?
+            <button type="button" className="mv-panel-action" onClick={() => viewer.annotationTool.startInsertion({annotation: m})}><i className="fa fa-arrows-alt"></i> {_("Move")}</button> : ""}
             {selectedItem.type === "measure" ?
             <button type="button" className="mv-panel-action"
                     onClick={() => {

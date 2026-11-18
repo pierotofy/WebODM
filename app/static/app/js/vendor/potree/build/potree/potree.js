@@ -55856,7 +55856,7 @@
 			super();
 
 			this.scene = null;
-			this._title = args.title || 'No Title';
+			this._title = args.title != null ? args.title : 'No Title';
 			this._description = args.description || '';
 			this._link = args.link || '';
 			this.offset = new Vector3();
@@ -55891,18 +55891,14 @@
 			this.parent = null;
 			this.boundingBox = new Box3();
 
-			let iconClose = exports.resourcePath + '/icons/close.svg';
-
 			this.domElement = $(`
 			<div class="annotation" oncontextmenu="return false;">
 				<div class="annotation-titlebar">
 					<span class="annotation-label"></span>
 				</div>
 				<div class="annotation-description">
-					<span class="annotation-description-close">
-						<img src="${iconClose}" width="16px">
-					</span>
-					<span class="annotation-description-content">${this._description}</span>
+					<span class="annotation-description-content"></span>
+					<a class="annotation-link" href="javascript:void(0)"></a>
 				</div>
 			</div>
 		`);
@@ -55911,16 +55907,59 @@
 			this.elTitle = this.elTitlebar.find('.annotation-label');
 			this.elTitle.text(this._title);
 			this.elDescription = this.domElement.find('.annotation-description');
-			this.elDescriptionClose = this.elDescription.find('.annotation-description-close');
-			// this.elDescriptionContent = this.elDescription.find(".annotation-description-content");
+			this.elDescriptionContent = this.elDescription.find('.annotation-description-content');
+			this.elDescriptionContent.text(this._description);
 			this.elLink = this.domElement.find('.annotation-link');
 			this.elLink.text(this._link);
+
+			this.edit = el => {
+				el.attr('contenteditable', 'plaintext-only');
+				el.focus();
+				document.getSelection().selectAllChildren(el[0]);
+			};
+
+			for (let [el, key] of [[this.elTitle, 'title'], [this.elDescriptionContent, 'description']]) {
+				el.on('dblclick', () => {
+					if (!el.attr('contenteditable')) this.edit(el);
+				});
+				el.on('input', () => { this[key] = el.text(); });
+				el.on('blur', () => { el.removeAttr('contenteditable'); });
+				el.on('keyup', e => e.stopPropagation());
+				el.on('keydown', e => {
+					e.stopPropagation();
+					if (e.keyCode === 27 || (e.keyCode === 13 && key === 'title')) {
+						e.preventDefault();
+						el.blur();
+					}
+				});
+			}
 
 			this.clickTitle = () => {
 				if(this.hasView()){
 					this.moveHere(this.scene.getActiveCamera());
 				}
 				this.dispatchEvent({type: 'click', target: this});
+
+				if (!this.descriptionVisible) {
+					this.descriptionVisible = true;
+					this.elDescription.css('display', 'block');
+					this.domElement.css('opacity', '1');
+
+					const close = e => {
+						if (this.domElement[0].contains(e.target)) return;
+						document.removeEventListener('mousedown', close, true);
+						this.descriptionVisible = false;
+						this.elDescription.css('display', 'none');
+						this.setHighlighted(false);
+					};
+					document.addEventListener('mousedown', close, true);
+				}
+			};
+
+			this.elTitle.click(this.clickTitle);
+
+			this.elLink.click(e => {
+				e.preventDefault();
 
 				if (this._link){
 					try{
@@ -55939,9 +55978,7 @@
 						// pass
 					}
 				}
-			};
-
-			this.elTitle.click(this.clickTitle);
+			});
 
 			this.actions = this.actions.map(a => {
 				if (a instanceof Action) {
@@ -55964,15 +56001,10 @@
 				elButton.click(() => action.onclick({annotation: this}));
 			}
 
-			this.elDescriptionClose.hover(
-				e => this.elDescriptionClose.css('opacity', '1'),
-				e => this.elDescriptionClose.css('opacity', '0.5')
-			);
-			this.elDescriptionClose.click(e => this.setHighlighted(false));
-			// this.elDescriptionContent.html(this._description);
-
 			this.domElement.mouseenter(e => this.setHighlighted(true));
-			this.domElement.mouseleave(e => this.setHighlighted(false));
+			this.domElement.mouseleave(e => {
+				if (!this.descriptionVisible) this.setHighlighted(false);
+			});
 
 			this.domElement.on('touchstart', e => {
 				this.setHighlighted(!this.isHighlighted);
@@ -56211,8 +56243,7 @@
 			}
 
 			this._title = title;
-			this.elTitle.empty();
-			this.elTitle.text(this._title);
+			if (this.elTitle.text() !== title) this.elTitle.text(title);
 
 			this.dispatchEvent({
 				type: "annotation_changed",
@@ -56231,9 +56262,7 @@
 
 			this._description = description;
 
-			const elDescriptionContent = this.elDescription.find(".annotation-description-content");
-			elDescriptionContent.empty();
-			elDescriptionContent.text(this._description);
+			if (this.elDescriptionContent.text() !== description) this.elDescriptionContent.text(description);
 
 			this.dispatchEvent({
 				type: "annotation_changed",
@@ -56371,18 +56400,10 @@
 				this.domElement.css('opacity', '0.8');
 				this.elTitlebar.css('box-shadow', '0 0 5px #fff');
 				this.domElement.css('z-index', '1000');
-
-				if (this._description) {
-					this.descriptionVisible = true;
-					this.elDescription.fadeIn(1);
-					this.elDescription.css('position', 'relative');
-				}
 			} else {
 				this.domElement.css('opacity', '0.5');
 				this.elTitlebar.css('box-shadow', '');
 				this.domElement.css('z-index', '100');
-				this.descriptionVisible = false;
-				this.elDescription.css('display', 'none');
 			}
 
 			this.isHighlighted = highlighted;
@@ -81002,15 +81023,19 @@ ENDSEC
 		startInsertion (args = {}) {
 			let domElement = this.viewer.renderer.domElement;
 
-			let annotation = new Annotation({
+			let annotation = args.annotation || new Annotation({
 				position: [589748.270, 231444.540, 753.675],
-				title: "Annotation Title",
-				description: `Annotation Description`
+				title: '',
+				description: ''
 			});
-			this.dispatchEvent({type: 'start_inserting_annotation', annotation: annotation});
+			const start = annotation.position.clone();
+			annotation.domElement.css('pointer-events', 'none');
 
 			const annotations = this.viewer.scene.annotations;
-			annotations.add(annotation);
+			if (!args.annotation) {
+				this.dispatchEvent({type: 'start_inserting_annotation', annotation: annotation});
+				annotations.add(annotation);
+			}
 
 			let callbacks = {
 				cancel: null,
@@ -81026,13 +81051,20 @@ ENDSEC
 			};
 
 			callbacks.cancel = e => {
-				annotations.remove(annotation);
+				if (args.annotation) {
+					annotation.position.copy(start);
+				} else {
+					annotations.remove(annotation);
+				}
 
+				annotation.domElement.css('pointer-events', '');
 				domElement.removeEventListener('mouseup', insertionCallback, true);
 			};
 
 			callbacks.finish = e => {
+				annotation.domElement.css('pointer-events', '');
 				domElement.removeEventListener('mouseup', insertionCallback, true);
+				if (!args.annotation) annotation.edit(annotation.elTitle);
 			};
 
 			domElement.addEventListener('mouseup', insertionCallback, true);
