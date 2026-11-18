@@ -150,8 +150,6 @@ class Toolbar extends React.Component{
             onClick: () => this.measure({showDistances: false, showAngles: false, showCoordinates: true, showArea: false, closed: true, maxMarkers: 1, name: _("Point")}) },
           { icon: "mv-icon mv-icon-distance", title: _("Distance"),
             onClick: () => this.measure({showDistances: true, showArea: false, closed: false, name: _("Distance")}) },
-          { icon: "mv-icon mv-icon-deltas", title: _("Deltas"),
-            onClick: () => this.measure({showDistances: true, showHeight: true, showArea: false, closed: false, maxMarkers: 2, name: _("Deltas")}, "deltas") },
           { icon: "mv-icon mv-icon-height", title: _("Height"),
             onClick: () => this.measure({showDistances: false, showHeight: true, showArea: false, closed: false, maxMarkers: 2, name: _("Height")}) },
           { icon: "mv-icon mv-icon-angle", title: _("Angle"),

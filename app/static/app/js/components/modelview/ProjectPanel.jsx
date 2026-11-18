@@ -190,8 +190,7 @@ class ProjectPanel extends React.Component{
 
     let measures = scene.measurements.map(obj => {
       let icon = "mv-icon mv-icon-distance";
-      if (obj.kind === "deltas") icon = "mv-icon mv-icon-deltas";
-      else if (obj.kind === "perpendicular") icon = "mv-icon mv-icon-perpendicular";
+      if (obj.kind === "perpendicular") icon = "mv-icon mv-icon-perpendicular";
       else if (obj.kind === "area-plane") icon = "mv-icon mv-icon-areaplane";
       else if (obj.showAngles) icon = "mv-icon mv-icon-angle";
       else if (obj.showCoordinates) icon = "mv-icon mv-icon-point";
@@ -226,18 +225,16 @@ class ProjectPanel extends React.Component{
       const m = selectedItem.obj;
       points = m.points.map(p => p.position);
 
-      if (m.kind === "deltas" && points.length === 2){
-        properties.push([_("Delta X"), `${this.fmt((points[1].x - points[0].x) * conv)} ${unit}`]);
-        properties.push([_("Delta Y"), `${this.fmt((points[1].y - points[0].y) * conv)} ${unit}`]);
-        properties.push([_("Delta Z"), `${this.fmt((points[1].z - points[0].z) * conv)} ${unit}`]);
-      }
       if (m.kind === "perpendicular" && points.length === 3) properties.push([_("Perpendicular distance"), `${this.fmt(m.getPerpendicularDistance() * conv)} ${unit}`]);
       if (m.showDistances && points.length > 1) properties.push([_("Total distance"), `${this.fmt(m.getTotalDistance() * conv)} ${unit}`]);
       if (m.showArea && m.kind === "area-plane" && points.length > 2) properties.push([_("Horizontal area"), `${this.fmt(m.getHorizontalArea() * conv * conv)} ${unit}²`]);
       if (m.showArea && m.kind !== "area-plane" && points.length > 2) properties.push([_("Area"), `${this.fmt(m.getArea() * conv * conv)} ${unit}²`]);
-      if (m.showHeight && m.kind !== "deltas" && points.length > 1){
+      if (m.showHeight && points.length > 1){
         const zs = points.map(p => p.z);
         properties.push([_("Height"), `${this.fmt((Math.max(...zs) - Math.min(...zs)) * conv)} ${unit}`]);
+        properties.push([_("Distance"), `${this.fmt(points[0].distanceTo(points[1]) * conv)} ${unit}`]);
+        properties.push([_("Delta X"), `${this.fmt((points[1].x - points[0].x) * conv)} ${unit}`]);
+        properties.push([_("Delta Y"), `${this.fmt((points[1].y - points[0].y) * conv)} ${unit}`]);
       }
       if (m.showAngles && points.length > 2){
         points.forEach((p, i) => properties.push([[_("Alpha (α)"), _("Beta (β)"), _("Gamma (γ)")][i] || interpolate(_("Angle %(num)s"), {num: i + 1}), `${this.fmt(m.getAngle(i) * (180.0 / Math.PI))}°`]));
@@ -271,7 +268,7 @@ class ProjectPanel extends React.Component{
     const isPoint = !!selectedItem && selectedItem.type === "measure" && selectedItem.obj.showCoordinates;
     const m = selectedItem ? selectedItem.obj : null;
     const canEditPoints = !!selectedItem && (selectedItem.type === "profile" ||
-      (selectedItem.type === "measure" && !m.showCoordinates && !m.showAngles && !m.showCircle && !m.showAzimuth && !m.showHeight && m.kind !== "deltas" && m.kind !== "perpendicular"));
+      (selectedItem.type === "measure" && !m.showCoordinates && !m.showAngles && !m.showCircle && !m.showAzimuth && !m.showHeight && m.kind !== "perpendicular"));
     const minPoints = selectedItem && selectedItem.type === "measure" && m.closed ? 3 : 2;
 
     let pointCloudProperties = "";
@@ -556,7 +553,7 @@ class ProjectPanel extends React.Component{
                       let maxMarkers = Infinity;
                       if (m.showCoordinates) maxMarkers = 1;
                       else if (m.showAngles || m.showCircle || m.kind === "perpendicular") maxMarkers = 3;
-                      else if (m.showAzimuth || m.showHeight || m.kind === "deltas") maxMarkers = 2;
+                      else if (m.showAzimuth || m.showHeight) maxMarkers = 2;
 
                       scene.removeMeasurement(m);
                       const fresh = viewer.measuringTool.startInsertion({
