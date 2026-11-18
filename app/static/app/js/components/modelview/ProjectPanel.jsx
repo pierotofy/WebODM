@@ -555,7 +555,7 @@ class ProjectPanel extends React.Component{
             {selectedItem.type !== "polyclip" ?
             <button type="button" className="mv-panel-action" onClick={() => this.zoomTo(selectedItem)}><i className="fa fa-search"></i> {_("Zoom to")}</button> : ""}
             {selectedItem.type === "annotation" && !m.hasView() ?
-            <button type="button" className="mv-panel-action" onClick={() => viewer.annotationTool.startInsertion({annotation: m})}><i className="fa fa-arrows-alt"></i> {_("Reposition")}</button> : ""}
+            <button type="button" className="mv-panel-action" onClick={() => viewer.annotationTool.startInsertion({annotation: m})}><i className="fa fa-arrows-alt"></i> {_("Set Position")}</button> : ""}
             {selectedItem.type === "measure" ?
             <button type="button" className="mv-panel-action"
                     onClick={() => {
