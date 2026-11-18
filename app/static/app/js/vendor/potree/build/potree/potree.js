@@ -54176,20 +54176,11 @@
 		};
 
 		getPerpendicularDistance () {
-			if (this.points.length < 3) {
+			if (this.points.length < 2 || !this.normal) {
 				return 0;
 			}
 
-			const a = this.points[0].position;
-			const b = this.points[1].position;
-			const c = this.points[2].position;
-			const ab = new Vector3().subVectors(b, a);
-			const length = ab.length();
-			if (length === 0) {
-				return c.distanceTo(a);
-			}
-
-			return new Vector3().crossVectors(ab, new Vector3().subVectors(c, a)).length() / length;
+			return Math.abs(new Vector3().subVectors(this.points[1].position, this.points[0].position).dot(this.normal));
 		};
 
 		getTotalDistance () {
@@ -54489,16 +54480,114 @@
 				let msg =  `${txtArea} ${suffix}\u00B2`;
 				this.areaLabel.setText(msg);
 
-				if(this.kind === 'perpendicular'){
-					this.areaLabel.visible = this.points.length === 3;
-					if(this.points.length === 3){
-						let distance = this.getPerpendicularDistance();
-						if(this.lengthUnit != null && this.lengthUnitDisplay != null){
-							distance = distance / this.lengthUnit.unitspermeter * this.lengthUnitDisplay.unitspermeter;
+				if(this.kind === 'perpendicular' && this.points.length === 2){
+					const p1 = this.points[0].position;
+					const p2 = this.points[1].position;
+					const camera = window.viewer.scene.getActiveCamera();
+
+					if(!this.normal || !this.normalAt.equals(p1)){
+						const toCamera = new Vector3().subVectors(camera.position, p1);
+						const radius = toCamera.length() * 0.02;
+						const radius2 = radius * radius;
+						let n = 0, sx = 0, sy = 0, sz = 0, xx = 0, xy = 0, xz = 0, yy = 0, yz = 0, zz = 0;
+
+						for(const pointcloud of window.viewer.scene.pointclouds){
+							for(const node of pointcloud.visibleNodes){
+								const attribute = node.geometryNode.geometry && node.geometryNode.geometry.attributes.position;
+								if(!attribute || !node.sceneNode) continue;
+
+								const positions = attribute.array;
+								const m = node.sceneNode.matrixWorld.elements;
+								const local = p1.clone().applyMatrix4(new Matrix4().copy(node.sceneNode.matrixWorld).invert());
+
+								for(let i = 0; i < positions.length; i += 3){
+									const dx = positions[i] - local.x;
+									const dy = positions[i + 1] - local.y;
+									const dz = positions[i + 2] - local.z;
+									if(dx * dx + dy * dy + dz * dz > radius2) continue;
+
+									const x = m[0] * dx + m[4] * dy + m[8] * dz;
+									const y = m[1] * dx + m[5] * dy + m[9] * dz;
+									const z = m[2] * dx + m[6] * dy + m[10] * dz;
+									n++;
+									sx += x; sy += y; sz += z;
+									xx += x * x; xy += x * y; xz += x * z;
+									yy += y * y; yz += y * z; zz += z * z;
+								}
+							}
 						}
-						this.areaLabel.position.copy(this.points[2].position);
-						this.areaLabel.setText(`${Utils.addCommas(distance.toFixed(2))} ${suffix}`);
+
+						const normal = toCamera.clone().normalize();
+						if(n >= 5){
+							sx /= n; sy /= n; sz /= n;
+							xx = xx / n - sx * sx; xy = xy / n - sx * sy; xz = xz / n - sx * sz;
+							yy = yy / n - sy * sy; yz = yz / n - sy * sz; zz = zz / n - sz * sz;
+							const trace = xx + yy + zz;
+
+							for(let i = 0; i < 50 && trace > 0; i++){
+								normal.set(
+									(trace - xx) * normal.x - xy * normal.y - xz * normal.z,
+									-xy * normal.x + (trace - yy) * normal.y - yz * normal.z,
+									-xz * normal.x - yz * normal.y + (trace - zz) * normal.z
+								).normalize();
+							}
+							if(normal.dot(toCamera) < 0) normal.negate();
+						}
+
+						this.normal = normal;
+						this.normalAt = p1.clone();
 					}
+
+					if(!this.perpendicularEdge){
+						const lineGeometry = new LineGeometry();
+						lineGeometry.setPositions([0, 0, 0, 0, 0, 0]);
+						const lineMaterial = new LineMaterial({
+							color: 0xffffff,
+							dashed: true,
+							dashSize: 1,
+							gapSize: 1,
+							linewidth: 2,
+							resolution: new Vector2(1000, 1000),
+						});
+						lineMaterial.depthTest = false;
+						lineMaterial.defines.USE_DASH = "";
+						this.perpendicularEdge = new Line2(lineGeometry, lineMaterial);
+						this.add(this.perpendicularEdge);
+					}
+
+					const offset = this.normal.clone().multiplyScalar(new Vector3().subVectors(p2, p1).dot(this.normal));
+					const foot = p1.clone().add(offset);
+					const size = window.viewer.renderer.getSize(new Vector2());
+
+					const edge = this.edges[0];
+					edge.geometry.setPositions([0, 0, 0, ...offset.toArray()]);
+					edge.geometry.computeBoundingSphere();
+					edge.computeLineDistances();
+
+					const guide = this.edges[1];
+					const reach = this.normal.clone().multiplyScalar(camera.position.distanceTo(p1) * 10);
+					guide.position.copy(p1);
+					guide.geometry.setPositions([...reach.clone().negate().toArray(), ...reach.toArray()]);
+					guide.geometry.computeBoundingSphere();
+					guide.computeLineDistances();
+					guide.material.linewidth = 1;
+					guide.visible = !!window.viewer.inputHandler.drag && window.viewer.inputHandler.drag.object === this.spheres[1];
+
+					const dashed = this.perpendicularEdge;
+					dashed.position.copy(foot);
+					dashed.geometry.setPositions([0, 0, 0, ...new Vector3().subVectors(p2, foot).toArray()]);
+					dashed.geometry.computeBoundingSphere();
+					dashed.computeLineDistances();
+					dashed.material.resolution.set(size.width, size.height);
+					dashed.material.dashScale = Utils.projectedRadius(1, camera, camera.position.distanceTo(foot), size.width, size.height) / 8;
+
+					let distance = offset.length();
+					if(this.lengthUnit != null && this.lengthUnitDisplay != null){
+						distance = distance / this.lengthUnit.unitspermeter * this.lengthUnitDisplay.unitspermeter;
+					}
+					this.areaLabel.visible = true;
+					this.areaLabel.position.copy(p1).add(offset.multiplyScalar(0.5));
+					this.areaLabel.setText(`${Utils.addCommas(distance.toFixed(2))} ${suffix}`);
 				}
 			}
 
@@ -64630,6 +64719,9 @@ void main() {
 		if(measurement.kind){
 			data.kind = measurement.kind;
 		}
+		if(measurement.kind === 'perpendicular' && measurement.normal && measurement.points.length === 2){
+			data.points.push(measurement.points[0].position.clone().add(measurement.normal).toArray());
+		}
 
 		return data;
 	}
@@ -65405,7 +65497,14 @@ void main() {
 		}
 		// color
 
-		for(const point of data.points){
+		let points = data.points;
+		if(data.kind === 'perpendicular' && points.length === 3){
+			measure.normalAt = new Vector3(...points[0]);
+			measure.normal = new Vector3(...points[2]).sub(measure.normalAt).normalize();
+			points = points.slice(0, 2);
+		}
+
+		for(const point of points){
 			const pos = new Vector3(...point);
 			measure.addMarker(pos);
 		}

@@ -159,7 +159,7 @@ class Toolbar extends React.Component{
           { icon: "mv-icon mv-icon-azimuth", title: _("Azimuth"),
             onClick: () => this.measure({showDistances: false, showHeight: false, showArea: false, showCircle: false, showEdges: false, showAzimuth: true, closed: false, maxMarkers: 2, name: _("Azimuth")}) },
           { icon: "mv-icon mv-icon-perpendicular", title: _("Perpendicular distance"),
-            onClick: () => this.measure({showDistances: false, showArea: false, closed: false, maxMarkers: 3, name: _("Perpendicular distance")}, "perpendicular") },
+            onClick: () => this.measure({showDistances: false, showArea: false, closed: false, maxMarkers: 2, name: _("Perpendicular distance")}, "perpendicular") },
           { icon: "mv-icon mv-icon-area", title: _("Surface area"),
             onClick: () => this.measure({showDistances: true, showArea: true, closed: true, name: _("Area")}) },
           { icon: "mv-icon mv-icon-areaplane", title: _("Area plane"),

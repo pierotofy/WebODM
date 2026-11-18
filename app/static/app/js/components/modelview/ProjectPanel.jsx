@@ -230,7 +230,7 @@ class ProjectPanel extends React.Component{
       const m = selectedItem.obj;
       points = m.points.map(p => p.position);
 
-      if (m.kind === "perpendicular" && points.length === 3) properties.push([_("Perpendicular distance"), `${this.fmt(m.getPerpendicularDistance() * conv)} ${unit}`]);
+      if (m.kind === "perpendicular" && points.length === 2) properties.push([_("Distance"), `${this.fmt(m.getPerpendicularDistance() * conv)} ${unit}`]);
       if (m.showDistances && points.length > 1) properties.push([_("Total distance"), `${this.fmt(m.getTotalDistance() * conv)} ${unit}`]);
       if (m.showArea && m.kind === "area-plane" && points.length > 2) properties.push([_("Horizontal area"), `${this.fmt(m.getHorizontalArea() * conv * conv)} ${unit}²`]);
       if (m.showArea && m.kind !== "area-plane" && points.length > 2) properties.push([_("Area"), `${this.fmt(m.getArea() * conv * conv)} ${unit}²`]);
@@ -404,7 +404,7 @@ class ProjectPanel extends React.Component{
       <div className="mv-panel-properties">
         <div className="mv-panel-tabs">
           <div className={"mv-panel-tab " + (tab === "properties" ? "active" : "")} onClick={() => this.setState({tab: "properties"})}>{_("Properties / Actions")}</div>
-          {selectedItem.type !== "volume" && selectedItem.type !== "polyclip" ?
+          {selectedItem.type !== "volume" && selectedItem.type !== "polyclip" && m.kind !== "perpendicular" ?
           <div className={"mv-panel-tab " + (tab === "points" ? "active" : "")} onClick={() => this.setState({tab: "points"})}>{isPoint ? _("Point attributes") : _("Points")}</div>
           : ""}
         </div>
@@ -557,8 +557,8 @@ class ProjectPanel extends React.Component{
                     onClick={() => {
                       let maxMarkers = Infinity;
                       if (m.showCoordinates) maxMarkers = 1;
-                      else if (m.showAngles || m.showCircle || m.kind === "perpendicular") maxMarkers = 3;
-                      else if (m.showAzimuth || m.showHeight) maxMarkers = 2;
+                      else if (m.showAngles || m.showCircle) maxMarkers = 3;
+                      else if (m.showAzimuth || m.showHeight || m.kind === "perpendicular") maxMarkers = 2;
 
                       scene.removeMeasurement(m);
                       const fresh = viewer.measuringTool.startInsertion({
