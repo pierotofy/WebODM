@@ -609,7 +609,7 @@ class ProjectPanel extends React.Component{
                    onChange={e => { m.orbit.length = parseFloat(e.target.value); m.update(); this.forceUpdate(); }} />
           </div> : null,
           <div key="time" className="mv-panel-field">
-            <label>{_("Time")}</label>
+            <label>{_("Scrub")}</label>
             <input type="range" min="0" max="1" step="0.001" value={selectedItem.obj.t}
                    onChange={e => { selectedItem.obj.set(parseFloat(e.target.value)); selectedItem.obj.setVisible(true); this.forceUpdate(); }} />
           </div>,
