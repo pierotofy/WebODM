@@ -115,7 +115,7 @@ class ProjectPanel extends React.Component{
     let box;
     if (item.type === "measure") box = new THREE.Box3().setFromPoints(item.obj.points.map(p => p.position));
     else if (item.type === "profile") box = new THREE.Box3().setFromPoints(item.obj.points);
-    else if (item.type === "animation") box = new THREE.Box3().setFromPoints(item.obj.controlPoints.map(cp => cp.position));
+    else if (item.type === "animation") box = new THREE.Box3().setFromPoints(item.obj.positions);
     else if (item.type === "annotation") box = new THREE.Box3().setFromPoints([item.obj.position]);
     else box = item.obj.boundingBox.clone().applyMatrix4(item.obj.matrixWorld);
 
@@ -290,7 +290,7 @@ class ProjectPanel extends React.Component{
     }else if (selectedItem && selectedItem.type === "profile"){
       points = selectedItem.obj.points;
     }else if (selectedItem && selectedItem.type === "animation"){
-      points = selectedItem.obj.controlPoints.map(cp => cp.position);
+      points = selectedItem.obj.positions;
     }else if (selectedItem && selectedItem.type === "annotation"){
       points = [selectedItem.obj.position];
     }
@@ -505,9 +505,78 @@ class ProjectPanel extends React.Component{
           </div>] : ""}
 
           {selectedItem.type === "animation" ? [
+          <div key="kind" className="mv-panel-field">
+            <label>{_("Type")}</label>
+            <select value={m.kind} onChange={e => { m.stop(); m.setKind(e.target.value); m.update(); this.forceUpdate(); }}>
+              <option value="views" disabled={!scene.annotations.descendants().some(a => a.hasView())}>{_("Views")}</option>
+              <option value="flythrough" disabled={!viewer.shotsUrl && m.keypoints.length === 0}>{_("Fly-through")}</option>
+              <option value="orbit">{_("Orbit")}</option>
+            </select>
+          </div>,
+          m.kind === "views" ?
+          <div key="views" className="mv-panel-keys">
+            {m.views.map((v, i) => {
+              const view = scene.annotations.descendants().find(a => a.uuid === v.uuid);
+              if (!view) return null;
+              const segment = v.enabled ? m.segments[m.views.slice(0, i).filter(o => o.enabled).length] : null;
+              return (<div key={v.uuid} className="mv-panel-key" draggable
+                           onDragStart={e => { this.draggedView = i; e.dataTransfer.effectAllowed = "move"; }}
+                           onDragOver={e => e.preventDefault()}
+                           onDrop={e => {
+                             e.preventDefault();
+                             m.views.splice(i, 0, m.views.splice(this.draggedView, 1)[0]);
+                             m.update();
+                             this.forceUpdate();
+                           }}>
+                <i className="fa fa-grip-vertical"></i>
+                <label>
+                  <input type="checkbox" checked={v.enabled}
+                         onChange={e => { v.enabled = e.target.checked; m.update(); this.forceUpdate(); }} />
+                  {view.title}
+                </label>
+                {segment && segment.length > 0 && m.total > 0 ?
+                <input type="number" min="0.1" step="0.1" title={_("Seconds to the next view")}
+                       value={+(segment.length * segment.weight / m.total * m.duration).toFixed(1)}
+                       onChange={e => {
+                         const seconds = parseFloat(e.target.value);
+                         if (!(seconds > 0)) return;
+                         v.stretch = seconds * m.total / (segment.length * m.duration);
+                         m.setDuration(m.duration + seconds - segment.length * segment.weight / m.total * m.duration);
+                         m.update();
+                         this.forceUpdate();
+                       }} /> : ""}
+              </div>);
+            })}
+          </div> : null,
+          m.kind === "flythrough" ?
+          <div key="keypoints" className="mv-panel-keys">
+            {m.keypoints.map((k, i) => <div key={i} className="mv-panel-key">
+              <label>
+                <input type="checkbox" checked={k.enabled}
+                       onChange={e => { k.enabled = e.target.checked; m.update(); this.forceUpdate(); }} />
+                {interpolate(_("Keypoint %(num)s"), {num: i + 1})}
+              </label>
+            </div>)}
+          </div> : null,
+          m.kind === "orbit" && m.orbit ?
+          <div key="height" className="mv-panel-field">
+            <label>{interpolate(_("Height (%(unit)s)"), {unit})}</label>
+            <input type="number" step="0.1" value={+(m.orbit.height * conv).toFixed(2)}
+                   onChange={e => {
+                     const height = parseFloat(e.target.value);
+                     if (isNaN(height)) return;
+                     m.orbit.height = height / conv;
+                     m.update();
+                     this.forceUpdate();
+                   }} />
+          </div> : null,
+          <div key="loop" className="mv-panel-field">
+            <label><input type="checkbox" checked={m.loop}
+                          onChange={e => { m.stop(); m.loop = e.target.checked; m.update(); this.forceUpdate(); }} /> {_("Loop")}</label>
+          </div>,
           <div key="duration" className="mv-panel-field">
             <label>{_("Duration")}</label>
-            <input type="number" min="0.1" step="0.5" value={selectedItem.obj.duration}
+            <input type="number" min="0.1" step="0.5" value={+selectedItem.obj.duration.toFixed(1)}
                    onChange={e => { selectedItem.obj.setDuration(parseFloat(e.target.value) || 1); this.forceUpdate(); }} />
           </div>,
           <div key="time" className="mv-panel-field">
@@ -516,11 +585,11 @@ class ProjectPanel extends React.Component{
                    onChange={e => { selectedItem.obj.set(parseFloat(e.target.value)); this.forceUpdate(); }} />
           </div>,
           <div key="controls" className="mv-panel-controls">
-            <button type="button" className="mv-panel-btn" title={_("Play")} disabled={recording}
+            <button type="button" className="mv-panel-btn" title={_("Play")} disabled={recording || !m.cameraCurve}
                     onClick={() => selectedItem.obj.play()}><i className="fa fa-play"></i></button>
             <button type="button" className="mv-panel-btn" title={_("Rewind")} disabled={recording}
-                    onClick={() => { selectedItem.obj.set(0); this.forceUpdate(); }}><i className="fa fa-stop"></i></button>
-            <button type="button" className="mv-panel-btn mv-danger" title={_("Record movie")} disabled={recording}
+                    onClick={() => { selectedItem.obj.stop(); selectedItem.obj.set(0); this.forceUpdate(); }}><i className="fa fa-stop"></i></button>
+            <button type="button" className="mv-panel-btn mv-danger" title={_("Record movie")} disabled={recording || !m.cameraCurve}
                     onClick={() => {
                       const animation = selectedItem.obj;
                       this.setState({recording: true});
@@ -541,7 +610,7 @@ class ProjectPanel extends React.Component{
                           animation.setVisible(true);
                           this.setState({recording: false});
                         };
-                        animation.play();
+                        animation.play(true);
                         recorder.start(animation.duration * 1000 + 1000);
                       }, 1000);
                     }}><i className={recording ? "fa fa-circle-notch fa-spin" : "fa fa-circle"}></i></button>
@@ -601,6 +670,9 @@ class ProjectPanel extends React.Component{
                     }}><i className={updated === "view" ? "fa fa-check" : "fa fa-expand"}></i> {_("Update")}</button> : ""}
             {selectedItem.type === "annotation" && m.hasView() ?
             <button type="button" className="mv-panel-action" onClick={() => viewer.annotationTool.startLookAt(m)}><i className="fa fa-crosshairs"></i> {_("Look At")}</button> : ""}
+            {selectedItem.type === "animation" && m.kind === "orbit" && m.orbit ?
+            <button type="button" className="mv-panel-action"
+                    onClick={() => viewer.annotationTool.startLookAt({cameraTarget: m.orbit.center, cameraPosition: scene.view.position.clone(), position: new THREE.Vector3(), marker: {parent: scene.scene}})}><i className="fa fa-crosshairs"></i> {_("Look At")}</button> : ""}
             {selectedItem.type === "annotation" && m.hasView() && this.props.onSetInitialCameraView ?
             <button type="button" className="mv-panel-action" disabled={updated === "saving"}
                     onClick={() => {
@@ -664,26 +736,6 @@ class ProjectPanel extends React.Component{
                   {canEditPoints && points.length > minPoints ?
                   <a href="javascript:void(0)" title={_("Remove point")} className="mv-danger"
                      onClick={() => { m.removeMarker(i); this.forceUpdate(); }}><i className="fa fa-times"></i></a> : ""}
-                  {selectedItem.type === "animation" ? [
-                  <a key="update" href="javascript:void(0)" title={_("Update key frame")}
-                     onClick={() => {
-                       m.controlPoints[i].position.copy(scene.view.position);
-                       m.controlPoints[i].target.copy(scene.view.getPivot());
-                       m.updatePath();
-                       this.setState({updated: i});
-                       setTimeout(() => this.setState({updated: null}), 2000);
-                     }}><i className={updated === i ? "fa fa-check" : "fa fa-expand"}></i></a>,
-                  <a key="move" href="javascript:void(0)" title={_("Go to key frame")}
-                     onClick={() => {
-                       scene.view.position.copy(m.controlPoints[i].position);
-                       scene.view.lookAt(m.controlPoints[i].target);
-                     }}><i className="far fa-eye"></i></a>,
-                  <a key="add" href="javascript:void(0)" title={_("Add key frame")}
-                     onClick={() => { m.createControlPoint(i + 1); this.forceUpdate(); }}><i className="fa fa-plus"></i></a>,
-                  points.length > 2 ?
-                  <a key="remove" href="javascript:void(0)" title={_("Remove key frame")} className="mv-danger"
-                     onClick={() => { m.removeControlPoint(m.controlPoints[i]); this.forceUpdate(); }}><i className="fa fa-times"></i></a>
-                  : null] : null}
                 </td>
               </tr>)}
             </tbody>

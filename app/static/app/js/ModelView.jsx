@@ -323,6 +323,8 @@ class ModelView extends React.Component {
                 }
             }
 
+            viewer.shotsUrl = this.hasCameras() ? `/api/projects/${this.props.task.project}/tasks/${this.props.task.id}/download/shots.geojson` : null;
+
             // Load
             const potreeLoadProject = () => {
                 Potree.loadProject(viewer, sceneData);
@@ -395,7 +397,7 @@ class ModelView extends React.Component {
   }
 
   recordHistory = () => {
-    if (viewer.inputHandler.drag) return;
+    if (viewer.inputHandler.drag || viewer.scene.cameraAnimations.some(a => a.dragging)) return;
 
     const data = this.getHistoryData();
     const prevData = this.history[this.historyIndex].data;

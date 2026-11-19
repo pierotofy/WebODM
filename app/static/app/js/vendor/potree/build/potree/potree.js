@@ -64711,23 +64711,17 @@ void main() {
 
 	function createCameraAnimationData(animation){
 
-		const controlPoints = animation.controlPoints.map( cp => {
-			const cpdata = {
-				position: cp.position.toArray(),
-				target: cp.target.toArray(),
-			};
-
-			return cpdata;
-		});
-
 		const data = {
 			uuid: animation.uuid,
 			name: animation.name,
 			duration: animation.duration,
 			t: animation.t,
-			curveType: animation.curveType,
 			visible: animation.visible,
-			controlPoints: controlPoints,
+			kind: animation.kind,
+			loop: animation.loop,
+			views: animation.views.map(v => Object.assign({}, v)),
+			keypoints: animation.keypoints.map(k => ({position: k.position.toArray(), enabled: k.enabled})),
+			orbit: animation.orbit ? {center: animation.orbit.center.toArray(), a: animation.orbit.a, b: animation.orbit.b, height: animation.orbit.height} : null,
 		};
 
 		return data;
@@ -64932,10 +64926,6 @@ void main() {
 			
 			this.viewer = viewer;
 
-			this.selectedElement = null;
-
-			this.controlPoints = [];
-
 			this.uuid = MathUtils.generateUUID();
 
 			this.node = new Object3D();
@@ -64945,233 +64935,212 @@ void main() {
 			this.frustum = this.createFrustum();
 			this.node.add(this.frustum);
 
+			this.line = new Line2(new LineGeometry(), new LineMaterial({ 
+				color: 0x00ff00, 
+				linewidth: 2, 
+				resolution:  new Vector2(1000, 1000),
+			}));
+			this.line.visible = false;
+			this.node.add(this.line);
+
 			this.name = "Camera Animation";
-			this.duration = 5;
+			this.duration = 10;
 			this.t = 0;
-			// "centripetal", "chordal", "catmullrom"
-			this.curveType = "centripetal"; 
 			this.visible = true;
+			this.kind = "orbit";
+			this.loop = false;
+			this.views = [];
+			this.keypoints = [];
+			this.orbit = null;
 
-			this.createUpdateHook();
-			this.createPath();
+			this.signature = null;
+			this.positions = [];
+			this.cameraCurve = null;
+			this.targetCurve = null;
+			this.table = [];
+			this.segments = [];
+			this.total = 0;
+			this.dragging = false;
+			this.onPlay = null;
+			this.wasVisible = true;
+
+			this.handles = [
+				this.createHandle("red", ray => {
+					const s = (this.orbit.center.z + this.orbit.height - ray.origin.z) / ray.direction.z;
+					if(isFinite(s) && s > 0) this.orbit.a = Math.max(Math.abs(ray.origin.x + ray.direction.x * s - this.orbit.center.x), 0.01);
+				}),
+				this.createHandle("red", ray => {
+					const s = (this.orbit.center.z + this.orbit.height - ray.origin.z) / ray.direction.z;
+					if(isFinite(s) && s > 0) this.orbit.b = Math.max(Math.abs(ray.origin.y + ray.direction.y * s - this.orbit.center.y), 0.01);
+				}),
+				this.createHandle("white", ray => {
+					const w = this.orbit.center.clone().sub(ray.origin);
+					const denom = 1 - ray.direction.z * ray.direction.z;
+					if(denom > 1e-6) this.orbit.height = (ray.direction.z * ray.direction.dot(w) - w.z) / denom;
+				}),
+			];
+
+			this.onUpdate = () => this.update();
+			viewer.addEventListener("update", this.onUpdate);
 		}
 
-		static defaultFromView(viewer){
-			const animation = new CameraAnimation(viewer);
+		setKind(kind){
+			this.kind = kind;
 
-			const camera = viewer.scene.getActiveCamera();
-			const target = viewer.scene.view.getPivot();
-
-			const cpCenter = new Vector3(
-				0.3 * camera.position.x + 0.7 * target.x,
-				0.3 * camera.position.y + 0.7 * target.y,
-				0.3 * camera.position.z + 0.7 * target.z,
-			);
-
-			const targetCenter = new Vector3(
-				0.05 * camera.position.x + 0.95 * target.x,
-				0.05 * camera.position.y + 0.95 * target.y,
-				0.05 * camera.position.z + 0.95 * target.z,
-			);
-
-			const r = camera.position.distanceTo(target) * 0.3;
-
-			//const dir = target.clone().sub(camera.position).normalize();
-			const angle = Utils.computeAzimuth(camera.position, target);
-
-			const n = 5;
-			for(let i = 0; i < n; i++){
-				let u = 1.5 * Math.PI * (i / n) + angle;
-
-				const dx = r * Math.cos(u);
-				const dy = r * Math.sin(u);
-
-				const cpPos = [
-					cpCenter.x + dx,
-					cpCenter.y + dy,
-					cpCenter.z,
-				];
-
-				const targetPos = [
-					targetCenter.x + dx * 0.1,
-					targetCenter.y + dy * 0.1,
-					targetCenter.z,
-				];
-
-				const cp = animation.createControlPoint();
-				cp.position.set(...cpPos);
-				cp.target.set(...targetPos);
+			if(kind === "views" && this.views.length === 0){
+				this.views = this.viewer.scene.annotations.descendants().filter(a => a.hasView()).map(a => ({uuid: a.uuid, enabled: true, stretch: 1}));
+			}else if(kind === "flythrough" && this.keypoints.length === 0 && this.viewer.shotsUrl){
+				fetch(this.viewer.shotsUrl).then(r => r.json()).then(geojson => {
+					const points = geojson.features.map(f => f.properties.translation).sort((p, q) => p[0] - q[0] || p[1] - q[1]);
+					const hull = [];
+					for(const list of [points, points.slice().reverse()]){
+						const start = hull.length;
+						for(const p of list){
+							while(hull.length - start >= 2){
+								const o = hull[hull.length - 2], a = hull[hull.length - 1];
+								if((a[0] - o[0]) * (p[1] - o[1]) - (a[1] - o[1]) * (p[0] - o[0]) > 0) break;
+								hull.pop();
+							}
+							hull.push(p);
+						}
+						hull.pop();
+					}
+					this.keypoints = hull.map(p => ({position: new Vector3(p[0], p[1], p[2]), enabled: true}));
+				});
+			}else if(kind === "orbit" && !this.orbit){
+				const box = this.viewer.getBoundingBox();
+				const center = box.isEmpty() ? this.viewer.scene.view.getPivot() : box.getCenter(new Vector3());
+				const position = this.viewer.scene.view.position;
+				const radius = Math.max(Math.hypot(position.x - center.x, position.y - center.y), 0.01);
+				this.orbit = {center: center, a: radius, b: radius, height: position.z - center.z};
 			}
-
-			return animation;
 		}
 
-		createUpdateHook(){
+		update(){
 			const viewer = this.viewer;
+			const camera = viewer.scene.getActiveCamera();
+			const {width, height} = viewer.renderer.getSize(new Vector2());
 
-			viewer.addEventListener("update", () => {
+			this.node.visible = this.visible;
 
-				const camera = viewer.scene.getActiveCamera();
-				const {width, height} = viewer.renderer.getSize(new Vector2());
+			const positions = [], targets = [], weights = [];
+			let closed = true;
 
-				this.node.visible = this.visible;
+			if(this.kind === "views"){
+				const povs = viewer.scene.annotations.descendants().filter(a => a.hasView());
+				this.views = this.views.filter(v => povs.some(a => a.uuid === v.uuid));
+				for(const a of povs){
+					if(!this.views.some(v => v.uuid === a.uuid)) this.views.push({uuid: a.uuid, enabled: false, stretch: 1});
+				}
+				for(const v of this.views){
+					if(!v.enabled) continue;
+					const a = povs.find(a => a.uuid === v.uuid);
+					positions.push(a.cameraPosition.clone());
+					targets.push(a.cameraTarget.clone());
+					weights.push(v.stretch);
+				}
+				closed = this.loop;
+			}else if(this.kind === "flythrough"){
+				const used = this.keypoints.filter(k => k.enabled);
+				const box = viewer.getBoundingBox();
+				const target = new Vector3();
+				if(box.isEmpty()){
+					used.forEach(k => target.add(k.position));
+					target.divideScalar(Math.max(used.length, 1));
+					target.z = Math.min(...used.map(k => k.position.z));
+				}else {
+					target.set((box.min.x + box.max.x) / 2, (box.min.y + box.max.y) / 2, box.min.z);
+				}
+				for(const k of used){
+					positions.push(k.position.clone());
+					targets.push(target.clone());
+					weights.push(1);
+				}
+			}else if(this.kind === "orbit" && this.orbit){
+				for(let i = 0; i < 32; i++){
+					const angle = 2 * Math.PI * i / 32;
+					positions.push(new Vector3(
+						this.orbit.center.x + this.orbit.a * Math.cos(angle),
+						this.orbit.center.y + this.orbit.b * Math.sin(angle),
+						this.orbit.center.z + this.orbit.height));
+					targets.push(this.orbit.center.clone());
+					weights.push(1);
+				}
+			}
 
-				for(const cp of this.controlPoints){
-					
-					{ // position
-						const projected = cp.position.clone().project(camera);
+			const signature = JSON.stringify([closed, weights, positions.map(p => p.toArray()), targets.map(p => p.toArray())]);
+			if(signature !== this.signature){
+				this.signature = signature;
+				this.positions = positions;
+				this.cameraCurve = null;
+				this.targetCurve = null;
+				this.table = [];
+				this.segments = [];
+				this.total = 0;
 
-						const visible = this.visible && (projected.z < 1 && projected.z > -1);
+				if(positions.length >= 2){
+					this.cameraCurve = new CatmullRomCurve3(positions, closed, "catmullrom");
+					this.targetCurve = new CatmullRomCurve3(targets, closed, "catmullrom");
 
-						if(visible){
-							const x = width * (projected.x * 0.5 + 0.5);
-							const y = height - height * (projected.y * 0.5 + 0.5);
+					const count = closed ? positions.length : positions.length - 1;
+					const first = positions[0];
+					const linePositions = [0, 0, 0];
+					let prev = first;
+					this.table.push({u: 0, d: 0});
 
-							cp.positionHandle.svg.style.left = x - cp.positionHandle.svg.clientWidth / 2;
-							cp.positionHandle.svg.style.top = y - cp.positionHandle.svg.clientHeight / 2;
-							cp.positionHandle.svg.style.display = "";
-						}else {
-							cp.positionHandle.svg.style.display = "none";
+					for(let i = 0; i < count; i++){
+						let length = 0;
+						for(let k = 1; k <= 20; k++){
+							const u = (i + k / 20) / count;
+							const p = this.cameraCurve.getPoint(u);
+							const step = p.distanceTo(prev);
+							length += step;
+							this.total += step * weights[i];
+							this.table.push({u: u, d: this.total});
+							linePositions.push(p.x - first.x, p.y - first.y, p.z - first.z);
+							prev = p;
 						}
+						this.segments.push({length: length, weight: weights[i]});
 					}
 
-					{ // target
-						const projected = cp.target.clone().project(camera);
+					this.line.geometry.dispose();
+					this.line.geometry = new LineGeometry();
+					this.line.geometry.setPositions(linePositions);
+					this.line.geometry.computeBoundingSphere();
+					this.line.position.copy(first);
+					this.line.computeLineDistances();
+				}
 
-						const visible = this.visible && (projected.z < 1 && projected.z > -1);
+				this.line.visible = !!this.cameraCurve;
+			}
 
-						if(visible){
-							const x = width * (projected.x * 0.5 + 0.5);
-							const y = height - height * (projected.y * 0.5 + 0.5);
+			this.line.material.resolution.set(width, height);
 
-							cp.targetHandle.svg.style.left = x - cp.targetHandle.svg.clientWidth / 2;
-							cp.targetHandle.svg.style.top = y - cp.targetHandle.svg.clientHeight / 2;
-							cp.targetHandle.svg.style.display = "";
-						}else {
-							cp.targetHandle.svg.style.display = "none";
-						}
+			const frame = this.at(this.t);
+			this.frustum.visible = !!frame;
+			if(frame){
+				this.frustum.position.copy(frame.position);
+				this.frustum.lookAt(...frame.target.toArray());
+				this.frustum.scale.set(20, 20, 20);
+				this.frustum.material.resolution.set(width, height);
+			}
+
+			const shown = this.visible && this.kind === "orbit" && this.orbit && !this.onPlay;
+			this.handles.forEach((svg, i) => {
+				let visible = false;
+				if(shown){
+					const projected = new Vector3(
+						this.orbit.center.x + (i === 0 ? this.orbit.a : 0),
+						this.orbit.center.y + (i === 1 ? this.orbit.b : 0),
+						this.orbit.center.z + this.orbit.height).project(camera);
+					visible = projected.z < 1 && projected.z > -1;
+					if(visible){
+						svg.style.left = (width * (projected.x * 0.5 + 0.5) - svg.clientWidth / 2) + "px";
+						svg.style.top = (height - height * (projected.y * 0.5 + 0.5) - svg.clientHeight / 2) + "px";
 					}
-
 				}
-
-				this.line.material.resolution.set(width, height);
-
-				this.updatePath();
-
-				{ // frustum
-					const frame = this.at(this.t);
-					const frustum = this.frustum;
-
-					frustum.position.copy(frame.position);
-					frustum.lookAt(...frame.target.toArray());
-					frustum.scale.set(20, 20, 20);
-
-					frustum.material.resolution.set(width, height);
-				}
-
+				svg.style.display = visible ? "" : "none";
 			});
-		}
-
-		createControlPoint(index){
-
-			if(index === undefined){
-				index = this.controlPoints.length;
-			}
-
-			const cp = new ControlPoint();
-
-
-			if(this.controlPoints.length >= 2 && index === 0){
-				const cp1 = this.controlPoints[0];
-				const cp2 = this.controlPoints[1];
-
-				const dir = cp1.position.clone().sub(cp2.position).multiplyScalar(0.5);
-				cp.position.copy(cp1.position).add(dir);
-
-				const tDir = cp1.target.clone().sub(cp2.target).multiplyScalar(0.5);
-				cp.target.copy(cp1.target).add(tDir);
-			}else if(this.controlPoints.length >= 2 && index === this.controlPoints.length){
-				const cp1 = this.controlPoints[this.controlPoints.length - 2];
-				const cp2 = this.controlPoints[this.controlPoints.length - 1];
-
-				const dir = cp2.position.clone().sub(cp1.position).multiplyScalar(0.5);
-				cp.position.copy(cp1.position).add(dir);
-
-				const tDir = cp2.target.clone().sub(cp1.target).multiplyScalar(0.5);
-				cp.target.copy(cp2.target).add(tDir);
-			}else if(this.controlPoints.length >= 2){
-				const cp1 = this.controlPoints[index - 1];
-				const cp2 = this.controlPoints[index];
-
-				cp.position.copy(cp1.position.clone().add(cp2.position).multiplyScalar(0.5));
-				cp.target.copy(cp1.target.clone().add(cp2.target).multiplyScalar(0.5));
-			}
-
-			// cp.position.copy(viewer.scene.view.position);
-			// cp.target.copy(viewer.scene.view.getPivot());
-
-			cp.positionHandle = this.createHandle(cp.position);
-			cp.targetHandle = this.createHandle(cp.target);
-
-			this.controlPoints.splice(index, 0, cp);
-
-			this.dispatchEvent({
-				type: "controlpoint_added",
-				controlpoint: cp,
-			});
-
-			return cp;
-		}
-
-		removeControlPoint(cp){
-			this.controlPoints = this.controlPoints.filter(_cp => _cp !== cp);
-
-			this.dispatchEvent({
-				type: "controlpoint_removed",
-				controlpoint: cp,
-			});
-
-			cp.positionHandle.svg.remove();
-			cp.targetHandle.svg.remove();
-
-			// TODO destroy cp
-		}
-
-		createPath(){
-
-			{ // position
-				const geometry = new LineGeometry();
-
-				let material = new LineMaterial({ 
-					color: 0x00ff00, 
-					dashSize: 5, 
-					gapSize: 2,
-					linewidth: 2, 
-					resolution:  new Vector2(1000, 1000),
-				});
-
-				const line = new Line2(geometry, material);
-
-				this.line = line;
-				this.node.add(line);
-			}
-
-			{ // target
-				const geometry = new LineGeometry();
-
-				let material = new LineMaterial({ 
-					color: 0x0000ff, 
-					dashSize: 5, 
-					gapSize: 2,
-					linewidth: 2, 
-					resolution:  new Vector2(1000, 1000),
-				});
-
-				const line = new Line2(geometry, material);
-
-				this.targetLine = line;
-				this.node.add(line);
-			}
 		}
 
 		createFrustum(){
@@ -65222,168 +65191,70 @@ void main() {
 			return line;
 		}
 
-		updatePath(){
-
-			{ // positions
-				const positions = this.controlPoints.map(cp => cp.position);
-				const first = positions[0];
-
-				const curve = new CatmullRomCurve3(positions);
-				curve.curveType = this.curveType;
-
-				const n = 100;
-
-				const curvePositions = [];
-				for(let k = 0; k <= n; k++){
-					const t = k / n;
-
-					const position = curve.getPoint(t).sub(first);
-
-					curvePositions.push(position.x, position.y, position.z);
-				}
-
-				this.line.geometry.setPositions(curvePositions);
-				this.line.geometry.verticesNeedUpdate = true;
-				this.line.geometry.computeBoundingSphere();
-				this.line.position.copy(first);
-				this.line.computeLineDistances();
-
-				this.cameraCurve = curve;
-			}
-
-			{ // targets
-				const positions = this.controlPoints.map(cp => cp.target);
-				const first = positions[0];
-
-				const curve = new CatmullRomCurve3(positions);
-				curve.curveType = this.curveType;
-
-				const n = 100;
-
-				const curvePositions = [];
-				for(let k = 0; k <= n; k++){
-					const t = k / n;
-
-					const position = curve.getPoint(t).sub(first);
-
-					curvePositions.push(position.x, position.y, position.z);
-				}
-
-				this.targetLine.geometry.setPositions(curvePositions);
-				this.targetLine.geometry.verticesNeedUpdate = true;
-				this.targetLine.geometry.computeBoundingSphere();
-				this.targetLine.position.copy(first);
-				this.targetLine.computeLineDistances();
-
-				this.targetCurve = curve;
-			}
-		}
-
 		at(t){
-			
-			if(t > 1){
-				t = 1;
-			}else if(t < 0){
-				t = 0;
-			}
+			if(!this.cameraCurve) return null;
 
-			const camPos = this.cameraCurve.getPointAt(t);
-			const target = this.targetCurve.getPointAt(t);
+			const d = Math.min(Math.max(t, 0), 1) * this.total;
+			let i = 1;
+			while(i < this.table.length - 1 && this.table[i].d < d) i++;
+			const a = this.table[i - 1], b = this.table[i];
+			const u = b.d > a.d ? a.u + (b.u - a.u) * (d - a.d) / (b.d - a.d) : a.u;
 
-			const frame = {
-				position: camPos,
-				target: target,
+			return {
+				position: this.cameraCurve.getPoint(u),
+				target: this.targetCurve.getPoint(u),
 			};
-
-			return frame;
 		}
 
 		set(t){
 			this.t = t;
 		}
 
-		createHandle(vector){
-			
+		createHandle(color, onDrag){
 			const svgns = "http://www.w3.org/2000/svg";
 			const svg = document.createElementNS(svgns, "svg");
 
 			svg.setAttribute("width", "2em");
 			svg.setAttribute("height", "2em");
-			svg.setAttribute("position", "absolute");
 
-			svg.style.left = "50px";
-			svg.style.top = "50px";
 			svg.style.position = "absolute";
-			svg.style.zIndex = "10000";
+			svg.style.display = "none";
+			svg.style.cursor = "pointer";
 
 			const circle = document.createElementNS(svgns, 'circle');
 			circle.setAttributeNS(null, 'cx', "1em");
 			circle.setAttributeNS(null, 'cy', "1em");
 			circle.setAttributeNS(null, 'r', "0.5em");
-			circle.setAttributeNS(null, 'style', 'fill: red; stroke: black; stroke-width: 0.2em;' );
+			circle.setAttributeNS(null, 'style', `fill: ${color}; stroke: black; stroke-width: 0.2em;`);
 			svg.appendChild(circle);
 
-
-			const element = this.viewer.renderer.domElement.parentElement;
-			element.appendChild(svg);
-
-
-			const startDrag = (evt) => {
-				this.selectedElement = svg;
-
-				document.addEventListener("mousemove", drag);
-			};
-
-			const endDrag = (evt) => {
-				this.selectedElement = null;
-
-				document.removeEventListener("mousemove", drag);
-			};
+			const domElement = this.viewer.renderer.domElement;
+			domElement.parentElement.appendChild(svg);
 
 			const drag = (evt) => {
-				if (this.selectedElement) {
-					evt.preventDefault();
-
-					const rect = viewer.renderer.domElement.getBoundingClientRect();
-
-					const x = evt.clientX - rect.x;
-					const y = evt.clientY - rect.y;
-
-					const {width, height} = this.viewer.renderer.getSize(new Vector2());
-					const camera = this.viewer.scene.getActiveCamera();
-					//const cp = this.controlPoints.find(cp => cp.handle.svg === svg);
-					const projected = vector.clone().project(camera);
-
-					projected.x = ((x / width) - 0.5) / 0.5;
-					projected.y = (-(y - height) / height - 0.5) / 0.5;
-
-					const unprojected = projected.clone().unproject(camera);
-					vector.set(unprojected.x, unprojected.y, unprojected.z);
-
-
-				}
+				evt.preventDefault();
+				const rect = domElement.getBoundingClientRect();
+				onDrag(Utils.mouseToRay({x: evt.clientX - rect.x, y: evt.clientY - rect.y}, this.viewer.scene.getActiveCamera(), rect.width, rect.height));
 			};
 
-			svg.addEventListener('mousedown', startDrag);
-			svg.addEventListener('mouseup', endDrag);
-
-			const handle = {
-				svg: svg,
+			const endDrag = () => {
+				this.dragging = false;
+				document.removeEventListener("mousemove", drag);
+				document.removeEventListener("mouseup", endDrag);
 			};
 
-			return handle;
+			svg.addEventListener('mousedown', (evt) => {
+				evt.preventDefault();
+				this.dragging = true;
+				document.addEventListener("mousemove", drag);
+				document.addEventListener("mouseup", endDrag);
+			});
+
+			return svg;
 		}
 
 		setVisible(visible){
 			this.node.visible = visible;
-
-			const display = visible ? "" : "none";
-
-			for(const cp of this.controlPoints){
-				cp.positionHandle.svg.style.display = display;
-				cp.targetHandle.svg.style.display = display;
-			}
-
 			this.visible = visible;
 		}
 
@@ -65395,38 +65266,45 @@ void main() {
 			return this.duration;
 		}
 
-		play(){
+		play(once){
+			this.stop();
 
 			const tStart = performance.now();
-			const duration = this.duration;
-
-			const originalyVisible = this.visible;
+			this.wasVisible = this.visible;
 			this.setVisible(false);
 
-			const onUpdate = (delta) => {
+			this.onPlay = () => {
+				const repeat = this.loop && !once;
+				let t = (performance.now() - tStart) / 1000 / this.duration;
+				if(repeat) t = t % 1;
 
-				let tNow = performance.now();
-				let elapsed = (tNow - tStart) / 1000;
-				let t = elapsed / duration;
+				this.t = Math.min(t, 1);
+				const frame = this.at(this.t);
 
-				this.set(t);
-
-				const frame = this.at(t);
-
-				viewer.scene.view.position.copy(frame.position);
-				viewer.scene.view.lookAt(frame.target);
-
-
-				if(t > 1){
-					this.setVisible(originalyVisible);
-
-					this.viewer.removeEventListener("update", onUpdate);
+				if(frame){
+					this.viewer.scene.view.position.copy(frame.position);
+					this.viewer.scene.view.lookAt(frame.target);
 				}
 
+				if(!frame || (t > 1 && !repeat)) this.stop();
 			};
 
-			this.viewer.addEventListener("update", onUpdate);
+			this.viewer.addEventListener("update", this.onPlay);
+		}
 
+		stop(){
+			if(!this.onPlay) return;
+
+			this.viewer.removeEventListener("update", this.onPlay);
+			this.onPlay = null;
+			this.setVisible(this.wasVisible);
+		}
+
+		dispose(){
+			this.stop();
+			this.viewer.removeEventListener("update", this.onUpdate);
+			if(this.node.parent) this.node.parent.remove(this.node);
+			this.handles.forEach(svg => svg.remove());
 		}
 
 	}
@@ -65571,7 +65449,7 @@ void main() {
 	function loadCameraAnimation(viewer, data){
 
 		const duplicate = viewer.scene.cameraAnimations.find(a => a.uuid === data.uuid);
-		if(duplicate){
+		if(duplicate || !data.kind){
 			return;
 		}
 
@@ -65581,16 +65459,12 @@ void main() {
 		animation.name = data.name;
 		animation.duration = data.duration;
 		animation.t = data.t;
-		animation.curveType = data.curveType;
 		animation.visible = data.visible;
-		animation.controlPoints = [];
-
-		for(const cpdata of data.controlPoints){
-			const cp = animation.createControlPoint();
-
-			cp.position.set(...cpdata.position);
-			cp.target.set(...cpdata.target);
-		}
+		animation.kind = data.kind;
+		animation.loop = data.loop;
+		animation.views = data.views.map(v => Object.assign({}, v));
+		animation.keypoints = data.keypoints.map(k => ({position: new Vector3(...k.position), enabled: k.enabled}));
+		animation.orbit = data.orbit ? {center: new Vector3(...data.orbit.center), a: data.orbit.a, b: data.orbit.b, height: data.orbit.height} : null;
 
 		viewer.scene.addCameraAnimation(animation);
 	}
@@ -71829,6 +71703,7 @@ void main() {
 			let index = this.cameraAnimations.indexOf(animation);
 			if (index > -1) {
 				this.cameraAnimations.splice(index, 1);
+				animation.dispose();
 
 				this.dispatchEvent({
 					'type': 'camera_animation_removed',

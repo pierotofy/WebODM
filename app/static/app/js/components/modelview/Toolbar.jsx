@@ -204,7 +204,9 @@ class Toolbar extends React.Component{
             } },
           { icon: "mv-icon mv-icon-film", title: _("Video animation"),
             onClick: () => {
-              const animation = Potree.CameraAnimation.defaultFromView(viewer);
+              const animation = new Potree.CameraAnimation(viewer);
+              animation.name = _("Camera Animation");
+              animation.setKind(viewer.scene.annotations.descendants().some(a => a.hasView()) ? "views" : (viewer.shotsUrl ? "flythrough" : "orbit"));
               viewer.scene.addCameraAnimation(animation);
               this.props.onInsert(animation);
             } }
