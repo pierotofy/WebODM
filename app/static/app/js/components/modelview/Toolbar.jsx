@@ -268,7 +268,11 @@ class Toolbar extends React.Component{
                     if (g.items){
                       if (open === "measures") this.cancelInsertion();
                       this.setState({open: open === g.id ? null : g.id});
-                    }else g.onClick();
+                    }else if (this.inserting && this.started === g.title && (viewer.inputHandler.drag || viewer.inputHandler.paused)) this.cancelInsertion();
+                    else{
+                      g.onClick();
+                      this.started = g.title;
+                    }
                   }}>
             <i className={g.icon}></i>
           </button>
@@ -280,7 +284,14 @@ class Toolbar extends React.Component{
           <button key={i} type="button" title={item.title}
                   disabled={!!item.disabled}
                   className={"mv-toolbar-btn " + (item.active ? "active" : "")}
-                  onClick={() => { item.onClick(); this.forceUpdate(); }}>
+                  onClick={() => {
+                    if (this.inserting && this.started === item.title && (viewer.inputHandler.drag || viewer.inputHandler.paused)) this.cancelInsertion();
+                    else{
+                      item.onClick();
+                      this.started = item.title;
+                    }
+                    this.forceUpdate();
+                  }}>
             <i className={item.icon}></i>
           </button>
         )}
