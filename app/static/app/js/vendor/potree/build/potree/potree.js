@@ -88409,6 +88409,14 @@ ENDSEC
 					<div id="potree_annotation_container" 
 						style="position: absolute; z-index: 100000; width: 100%; height: 100%; pointer-events: none;"></div>`);
 					$(domElement).append(potreeAnnotationContainer);
+					potreeAnnotationContainer[0].addEventListener('wheel', e => {
+						e.preventDefault();
+						const rect = this.renderer.domElement.getBoundingClientRect();
+						this.inputHandler.mouse.set(e.clientX - rect.left, e.clientY - rect.top);
+						const event = new Event('mousewheel');
+						event.wheelDelta = -e.deltaY;
+						this.renderer.domElement.dispatchEvent(event);
+					}, {passive: false});
 				}
 
 				if ($(domElement).find('#potree_quick_buttons').length === 0) {
