@@ -297,6 +297,7 @@ class ProjectPanel extends React.Component{
 
     const isPoint = !!selectedItem && selectedItem.type === "measure" && selectedItem.obj.showCoordinates;
     const m = selectedItem ? selectedItem.obj : null;
+    if (selectedItem && selectedItem.type === "animation" && !(m.durationMax >= m.duration)) m.durationMax = Math.max(120, m.duration);
     const rebalance = selectedItem && selectedItem.type === "animation" ?
       <button type="button" className="mv-panel-rebalance" disabled={!(m.total > 0) || Math.abs(m.total - m.duration) < 0.05}
               title={interpolate(_("Times add up to %(total)s s. Scale them to fit %(duration)s s."), {total: m.total.toFixed(1), duration: m.duration.toFixed(1)})}
@@ -598,9 +599,14 @@ class ProjectPanel extends React.Component{
                    onKeyDown={e => { if (e.key === "Enter") e.target.blur(); }}
                    onBlur={e => {
                      const seconds = parseFloat(e.target.value);
-                     if (timeEdit && timeEdit.key === "duration" && seconds > 0) selectedItem.obj.setDuration(seconds);
+                     if (timeEdit && timeEdit.key === "duration" && seconds > 0){
+                       selectedItem.obj.setDuration(seconds);
+                       m.durationMax = Math.max(120, seconds);
+                     }
                      this.setState({timeEdit: null});
                    }} />
+            <input type="range" min="1" max={m.durationMax} step="1" value={m.duration} style={{flex: "1 1 100%"}}
+                   onChange={e => { m.setDuration(parseFloat(e.target.value)); this.forceUpdate(); }} />
           </div>,
           m.kind === "orbit" && m.orbit ?
           <div key="length" className="mv-panel-field">
