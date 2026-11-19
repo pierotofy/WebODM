@@ -64720,7 +64720,7 @@ void main() {
 			kind: animation.kind,
 			curveType: animation.curveType,
 			loop: animation.loop,
-			views: animation.views.map(v => Object.assign({}, v)),
+			views: animation.views.map(v => ({uuid: v.uuid, enabled: v.enabled, time: v.time})),
 			orbit: animation.orbit ? {center: animation.orbit.center.toArray(), a: animation.orbit.a, b: animation.orbit.b, rotation: animation.orbit.rotation, length: animation.orbit.length, target: animation.orbit.target.toArray()} : null,
 		};
 
@@ -64998,7 +64998,7 @@ void main() {
 			this.kind = kind;
 
 			if(kind === "views" && this.views.length === 0){
-				this.views = this.viewer.scene.annotations.descendants().filter(a => a.hasView()).map(a => ({uuid: a.uuid, enabled: true, stretch: 1}));
+				this.views = this.viewer.scene.annotations.descendants().filter(a => a.hasView()).map(a => ({uuid: a.uuid, enabled: true, time: null}));
 			}else if(kind === "orbit" && !this.orbit){
 				const box = this.viewer.getBoundingBox();
 				const target = box.isEmpty() ? this.viewer.scene.view.getPivot() : box.getCenter(new Vector3());
@@ -65015,21 +65015,21 @@ void main() {
 
 			this.node.visible = this.visible;
 
-			const positions = [], targets = [], weights = [];
+			const positions = [], targets = [], times = [];
 			let closed = true;
 
 			if(this.kind === "views"){
 				const povs = viewer.scene.annotations.descendants().filter(a => a.hasView());
 				this.views = this.views.filter(v => povs.some(a => a.uuid === v.uuid));
 				for(const a of povs){
-					if(!this.views.some(v => v.uuid === a.uuid)) this.views.push({uuid: a.uuid, enabled: false, stretch: 1});
+					if(!this.views.some(v => v.uuid === a.uuid)) this.views.push({uuid: a.uuid, enabled: false, time: null});
 				}
 				for(const v of this.views){
 					if(!v.enabled) continue;
 					const a = povs.find(a => a.uuid === v.uuid);
 					positions.push(a.cameraPosition.clone());
 					targets.push(a.cameraTarget.clone());
-					weights.push(v.stretch);
+					times.push(v.time);
 				}
 				closed = this.loop;
 			}else if(this.kind === "orbit" && this.orbit){
@@ -65042,11 +65042,11 @@ void main() {
 						this.orbit.center.y + x * Math.sin(this.orbit.rotation) + y * Math.cos(this.orbit.rotation),
 						this.orbit.center.z));
 					targets.push(this.orbit.target.clone());
-					weights.push(1);
+					times.push(null);
 				}
 			}
 
-			const signature = JSON.stringify([closed, this.curveType, weights, positions.map(p => p.toArray()), targets.map(p => p.toArray())]);
+			const signature = JSON.stringify([closed, this.curveType, this.duration, times, positions.map(p => p.toArray()), targets.map(p => p.toArray())]);
 			if(signature !== this.signature){
 				this.signature = signature;
 				this.positions = positions;
@@ -65063,22 +65063,31 @@ void main() {
 					const count = closed ? positions.length : positions.length - 1;
 					const first = positions[0];
 					const linePositions = [0, 0, 0];
+					const steps = [];
 					let prev = first;
-					this.table.push({u: 0, d: 0});
+					let all = 0;
 
 					for(let i = 0; i < count; i++){
 						let length = 0;
 						for(let k = 1; k <= 20; k++){
-							const u = (i + k / 20) / count;
-							const p = this.cameraCurve.getPoint(u);
-							const step = p.distanceTo(prev);
-							length += step;
-							this.total += step * weights[i];
-							this.table.push({u: u, d: this.total});
+							const p = this.cameraCurve.getPoint((i + k / 20) / count);
+							steps.push(p.distanceTo(prev));
+							length += steps[steps.length - 1];
 							linePositions.push(p.x - first.x, p.y - first.y, p.z - first.z);
 							prev = p;
 						}
-						this.segments.push({length: length, weight: weights[i]});
+						this.segments.push({length: length, time: times[i]});
+						all += length;
+					}
+
+					this.table.push({u: 0, d: 0});
+					for(let i = 0; i < count; i++){
+						const segment = this.segments[i];
+						if(segment.time == null) segment.time = all > 0 ? segment.length * this.duration / all : 0;
+						for(let k = 1; k <= 20; k++){
+							this.total += segment.length > 0 ? steps[i * 20 + k - 1] / segment.length * segment.time : segment.time / 20;
+							this.table.push({u: (i + k / 20) / count, d: this.total});
+						}
 					}
 
 					this.line.geometry.dispose();
@@ -65448,7 +65457,7 @@ void main() {
 		animation.kind = data.kind;
 		animation.curveType = data.curveType === "chordal" ? "chordal" : "centripetal";
 		animation.loop = data.loop;
-		animation.views = data.views.map(v => Object.assign({}, v));
+		animation.views = data.views.map(v => ({uuid: v.uuid, enabled: v.enabled, time: v.time == null ? null : v.time}));
 		animation.orbit = data.orbit ? {center: new Vector3(...data.orbit.center), a: data.orbit.a, b: data.orbit.b, rotation: data.orbit.rotation || 0, length: data.orbit.length || 1, target: new Vector3(...(data.orbit.target || data.orbit.center))} : null;
 		if(data.orbit && !data.orbit.target) animation.orbit.center.z += data.orbit.height;
 

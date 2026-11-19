@@ -297,6 +297,15 @@ class ProjectPanel extends React.Component{
 
     const isPoint = !!selectedItem && selectedItem.type === "measure" && selectedItem.obj.showCoordinates;
     const m = selectedItem ? selectedItem.obj : null;
+    const rebalance = selectedItem && selectedItem.type === "animation" ?
+      <button type="button" className="mv-panel-rebalance" disabled={!(m.total > 0) || Math.abs(m.total - m.duration) < 0.05}
+              title={interpolate(_("Times add up to %(total)s s. Scale them to fit %(duration)s s."), {total: m.total.toFixed(1), duration: m.duration.toFixed(1)})}
+              onClick={() => {
+                const scale = m.duration / m.total;
+                m.views.filter(o => o.enabled).forEach((o, j) => { if (m.segments[j]) o.time = m.segments[j].time * scale; });
+                m.update();
+                this.forceUpdate();
+              }}>{_("Rebalance")}</button> : null;
     const canEditPoints = !!selectedItem && (selectedItem.type === "profile" ||
       (selectedItem.type === "measure" && !m.showCoordinates && !m.showAngles && !m.showCircle && !m.showAzimuth && !m.showHeight && m.kind !== "perpendicular"));
     const minPoints = selectedItem && selectedItem.type === "measure" && m.closed ? 3 : 2;
@@ -541,22 +550,24 @@ class ProjectPanel extends React.Component{
                          onChange={e => { v.enabled = e.target.checked; m.update(); this.forceUpdate(); }} />
                   {view.title}
                 </label>
-                {segment && segment.length > 0 && m.total > 0 ?
+                {v.enabled && !segment && m.segments.length > 0 ? rebalance : ""}
+                {segment ?
                 <input type="number" min="0.1" step="0.1" title={_("Seconds to the next view")}
-                       value={timeEdit && timeEdit.key === v.uuid ? timeEdit.value : +(segment.length * segment.weight / m.total * m.duration).toFixed(1)}
+                       value={timeEdit && timeEdit.key === v.uuid ? timeEdit.value : +segment.time.toFixed(1)}
                        onChange={e => this.setState({timeEdit: {key: v.uuid, value: e.target.value}})}
                        onKeyDown={e => { if (e.key === "Enter") e.target.blur(); }}
                        onBlur={e => {
                          const seconds = parseFloat(e.target.value);
                          if (timeEdit && timeEdit.key === v.uuid && seconds > 0){
-                           v.stretch = seconds * m.total / (segment.length * m.duration);
-                           m.setDuration(m.duration + seconds - segment.length * segment.weight / m.total * m.duration);
+                           m.views.filter(o => o.enabled).forEach((o, j) => { if (m.segments[j]) o.time = m.segments[j].time; });
+                           v.time = seconds;
                            m.update();
                          }
                          this.setState({timeEdit: null});
                        }} /> : ""}
               </div>);
             })}
+            {m.loop && m.segments.length > 0 ? <div className="mv-panel-key"><label></label>{rebalance}</div> : ""}
           </div> : null,
           m.kind === "orbit" && m.orbit ?
           <div key="lookat" className="mv-panel-field">

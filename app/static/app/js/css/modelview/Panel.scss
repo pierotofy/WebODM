@@ -152,6 +152,22 @@
                 margin: 0;
             }
 
+            .mv-panel-rebalance{
+                flex: none;
+                height: 26px;
+                padding: 0 8px;
+                font-size: 13px;
+                background: #fff;
+                color: #111;
+                border: none;
+                border-radius: 4px;
+
+                &:disabled{
+                    background: #2c3a40;
+                    color: #a9b7bc;
+                }
+            }
+
             input[type="number"]{
                 flex: none;
                 width: 64px;
