@@ -226,8 +226,10 @@ class ProjectPanel extends React.Component{
       else if (obj.showArea) icon = "mv-icon mv-icon-area";
       return {obj, type: "measure", icon, nameKey: "name"};
     }).concat(
-      scene.volumes.map(obj => ({obj, type: "volume", icon: obj.clip ? "mv-icon mv-icon-clipbox" : "mv-icon mv-icon-volume", nameKey: "name"})),
-      scene.profiles.map(obj => ({obj, type: "profile", icon: "mv-icon mv-icon-profile", nameKey: "name"})),
+      scene.volumes.filter(obj => !obj.clip).map(obj => ({obj, type: "volume", icon: "mv-icon mv-icon-volume", nameKey: "name"})),
+      scene.profiles.map(obj => ({obj, type: "profile", icon: "mv-icon mv-icon-profile", nameKey: "name"}))
+    );
+    let clips = scene.volumes.filter(obj => obj.clip).map(obj => ({obj, type: "volume", icon: "mv-icon mv-icon-clipbox", nameKey: "name"})).concat(
       scene.polygonClipVolumes.map(obj => ({obj, type: "polyclip", icon: "mv-icon mv-icon-clippolygon", nameKey: "name"}))
     );
     let annotations = scene.annotations.descendants().filter(obj => !obj.hasView()).map(obj => ({obj, type: "annotation", icon: "mv-icon mv-icon-annotation", nameKey: "title"}));
@@ -240,9 +242,10 @@ class ProjectPanel extends React.Component{
       measures = measures.filter(matches);
       annotations = annotations.filter(matches);
       animations = animations.filter(matches);
+      clips = clips.filter(matches);
     }
 
-    const selectedItem = measures.concat(annotations, animations).find(item => item.obj === selected);
+    const selectedItem = measures.concat(annotations, animations, clips).find(item => item.obj === selected);
 
     const conv = viewer.lengthUnitDisplay.unitspermeter / viewer.lengthUnit.unitspermeter;
     const unit = viewer.lengthUnitDisplay.code;
@@ -407,6 +410,9 @@ class ProjectPanel extends React.Component{
 
         {this.folder("animations", _("Animations"), animations, true)}
         {!closed.animations ? animations.map(this.itemRow) : ""}
+
+        {this.folder("clips", _("Clips"), clips, true)}
+        {!closed.clips ? clips.map(this.itemRow) : ""}
       </div>
 
       {selected === "cameras" ?
