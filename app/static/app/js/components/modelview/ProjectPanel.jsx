@@ -148,7 +148,7 @@ class ProjectPanel extends React.Component{
       <button key="delete" type="button" className="mv-panel-btn mv-danger" title={_("Delete all")}
               onClick={e => {
                 e.stopPropagation();
-                if (window.confirm(_("Are you sure you want to delete all items in this folder?"))){
+                if (window.confirm(_("Delete all items in this folder?"))){
                   items.forEach(this.remove);
                 }
               }}><i className="fa fa-trash"></i></button>,
@@ -666,7 +666,7 @@ class ProjectPanel extends React.Component{
                        this.setState({updated: i});
                        setTimeout(() => this.setState({updated: null}), 2000);
                      }}><i className={updated === i ? "fa fa-check" : "fa fa-expand"}></i></a>,
-                  <a key="move" href="javascript:void(0)" title={_("Move to the key frame")}
+                  <a key="move" href="javascript:void(0)" title={_("Go to key frame")}
                      onClick={() => {
                        scene.view.position.copy(m.controlPoints[i].position);
                        scene.view.lookAt(m.controlPoints[i].target);
@@ -687,7 +687,7 @@ class ProjectPanel extends React.Component{
       {menu ?
       <div className="mv-context-menu" style={{left: menu.x, top: menu.y}}>
         <div onClick={() => { this.setVisible(menu.item, !menu.item.obj.visible); this.forceUpdate(); }}><i className={"fa-fw " + (menu.item.obj.visible ? "far fa-eye-slash" : "far fa-eye")}></i> {menu.item.obj.visible ? _("Hide") : _("Show")}</div>
-        <div onClick={() => this.zoomTo(menu.item)}><i className="fa fa-search fa-fw"></i> {_("Zoom to")}</div>
+        <div onClick={() => this.zoomTo(menu.item)}><i className="fa fa-search fa-fw"></i> {_("Zoom To")}</div>
         <div onClick={() => this.setState({renaming: menu.item.obj})}><i className="fa fa-pen fa-fw"></i> {_("Rename")}</div>
         <div onClick={() => this.remove(menu.item)}><i className="fa fa-trash fa-fw"></i> {_("Delete")}</div>
       </div> : ""}

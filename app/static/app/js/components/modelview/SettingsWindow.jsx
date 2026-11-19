@@ -88,18 +88,18 @@ class SettingsWindow extends React.Component{
 
     if (tab === "general"){
       content = [
-        this.row(_("Magnifier"), _("Displays a scope for more accurate measurement point placement."),
+        this.row(_("Magnifier"), _("Displays a scope for more accurate point placement."),
           this.toggle("magnifier", settings.magnifier !== false)),
         this.row(_("Coordinate Unit"), _("Units for coordinates and measurements."),
           <UnitSelector />),
-        this.row(_("Orientation Indicator"), _("Displays X / Y / Z axes in the top-right. Click an axis to look along it."),
+        this.row(_("Orientation Indicator"), _("Displays X/Y/Z axes in the top-right."),
           this.toggle("gizmo", settings.gizmo === true)),
-        this.row(_("Navigation Compass"), _("Displays a north-pointing compass."),
+        this.row(_("Navigation Compass"), _("Displays a compass."),
           this.toggle("compass", viewer.compass.isVisible()))
       ];
 
       if (this.props.onSetInitialCameraView){
-        content.push(this.row(_("Initial Camera View"), viewError || _("Open this model from the current view every time."),
+        content.push(this.row(_("Initial Camera View"), viewError || _("Set this view on load."),
           <button type="button" className="mv-settings-action" disabled={viewSaving}
                   onClick={() => {
                     this.setState({viewSaving: true, viewSaved: false, viewError: ""});
@@ -114,7 +114,7 @@ class SettingsWindow extends React.Component{
     }else if (tab === "display"){
       const background = settings.background || "gradient";
       content = [
-        this.row(_("Background"), _("Pick a gradient or a plain color behind the model."),
+        this.row(_("Background"), _("Pick a gradient or color background."),
           <div className="mv-settings-backgrounds">
             <button type="button" className={"mv-background-gradient " + (background === "gradient" ? "active" : "")}
                     title={_("Gradient")} onClick={() => this.change("background", "gradient")}></button>
@@ -122,11 +122,11 @@ class SettingsWindow extends React.Component{
                    value={background === "gradient" ? "#4f4f4f" : background}
                    onChange={e => this.change("background", e.target.value)} />
           </div>),
-        this.row(_("Camera Display"), _("Perspective shows depth as the eye sees it. Orthographic keeps parallel lines parallel, better for measuring from the top or side."),
+        this.row(_("Camera Display"), _("Perspective shows depth as the eye sees it. Orthographic keeps parallel lines parallel."),
           this.segmented("cameraMode", Object.keys(Potree.CameraMode).find(k => Potree.CameraMode[k] === viewer.scene.cameraMode), [
             ["PERSPECTIVE", _("Perspective")], ["ORTHOGRAPHIC", _("Orthographic")]
           ])),
-        this.row(_("Show Minimap"), _("Toggles the minimap button at the bottom-left."),
+        this.row(_("Show Minimap"), _("Toggles a minimap button."),
           this.toggle("minimap", settings.minimap !== false)),
         this.row(_("Field of View"), _("How wide the camera sees."),
           this.slider("fov", viewer.getFOV(), 20, 100, 1, `${Math.round(viewer.getFOV())}°`))
@@ -155,13 +155,13 @@ class SettingsWindow extends React.Component{
 
       content = content.concat([
         <div className="mv-settings-section" key="advanced">{_("Advanced Rendering")}</div>,
-        this.row(_("Eye-Dome Lighting (EDL)"), _("Shades points by depth so shapes stand out."),
+        this.row(_("Eye-Dome Lighting"), _("Shades points by depth for better contrast."),
           this.toggle("edlEnabled", viewer.useEDL, modelType !== "cloud")),
         this.row(_("EDL Strength"), "",
           this.slider("edlStrength", viewer.edlStrength, 0, 5, 0.1, viewer.edlStrength.toFixed(1))),
         this.row(_("EDL Radius"), "",
           this.slider("edlRadius", viewer.edlRadius, 1, 4, 0.1, viewer.edlRadius.toFixed(1))),
-        this.row(_("High Quality (HQ)"), _("Blends overlapping points for a smoother image. Slower."),
+        this.row(_("High Quality)"), _("Blends overlapping points for a smoother image. Slower."),
           this.toggle("hq", !!viewer.useHQ))
       ]);
     }else if (tab === "navigation"){
@@ -186,7 +186,7 @@ class SettingsWindow extends React.Component{
         this.shortcut(_("Move Up"), ["R", "PgUp"]),
         this.shortcut(_("Move Down"), ["F", "PgDn"]),
         <div className="mv-settings-section" key="measurements">{_("Measurements")}</div>,
-        this.shortcut(_("Move Camera While Measuring"), [_("Hold Space")])
+        this.shortcut(_("Move Camera When Measuring"), [_("Hold Space")])
       ];
     }else{
       content = [
