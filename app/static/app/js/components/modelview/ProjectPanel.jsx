@@ -132,6 +132,20 @@ class ProjectPanel extends React.Component{
     else item.obj.visible = visible;
   }
 
+  seek = (animation, t, show) => {
+    const view = this.props.viewer.scene.view;
+    const before = animation.at(animation.t);
+    const follow = before && view.position.distanceTo(before.position) < 0.01;
+    animation.stop();
+    animation.set(t);
+    const frame = animation.at(t);
+    if (follow && frame){
+      view.position.copy(frame.position);
+      view.lookAt(frame.target);
+    }else if (show) animation.setVisible(true);
+    this.forceUpdate();
+  }
+
   download = (filename, text) => {
     const link = document.createElement("a");
     link.href = URL.createObjectURL(new Blob([text], {type: "application/octet-stream"}));
@@ -613,7 +627,7 @@ class ProjectPanel extends React.Component{
           <div key="time" className="mv-panel-field">
             <label>{_("Playback")}</label>
             <input type="range" min="0" max="1" step="0.001" value={selectedItem.obj.t}
-                   onChange={e => { selectedItem.obj.stop(); selectedItem.obj.set(parseFloat(e.target.value)); selectedItem.obj.setVisible(true); this.forceUpdate(); }} />
+                   onChange={e => this.seek(m, parseFloat(e.target.value), true)} />
           </div>,
           <div key="controls" className="mv-panel-controls">
             <button type="button" className="mv-panel-btn" title={m.onPlay ? _("Pause") : _("Play")} disabled={recording || !m.cameraCurve}
@@ -623,7 +637,7 @@ class ProjectPanel extends React.Component{
                       this.forceUpdate();
                     }}><i className={m.onPlay ? "fa fa-pause" : "fa fa-play"}></i></button>
             <button type="button" className="mv-panel-btn" title={_("Rewind")} disabled={recording}
-                    onClick={() => { selectedItem.obj.stop(); selectedItem.obj.set(0); this.forceUpdate(); }}><i className="fa fa-backward"></i></button>
+                    onClick={() => this.seek(m, 0, false)}><i className="fa fa-backward"></i></button>
             <button type="button" className="mv-panel-btn mv-danger" title={_("Record movie")} disabled={recording || !m.cameraCurve}
                     onClick={() => {
                       const animation = selectedItem.obj;
