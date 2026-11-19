@@ -73901,20 +73901,6 @@ void main() {
 			});
 			this.viewer.scene.addEventListener("pointcloud_added", this._recompute);
 
-			$("#potree_profile_rotate_amount").val(parseInt(this.rotateAmount));
-			$("#potree_profile_rotate_amount").on("input", (e) => {
-				const str = $("#potree_profile_rotate_amount").val();
-
-				if(!isNaN(str)){
-					const value = parseFloat(str);
-					this.rotateAmount = value;
-					$("#potree_profile_rotate_amount").css("background-color", "");
-				}else {
-					$("#potree_profile_rotate_amount").css("background-color", "#ff9999");
-				}
-
-			});
-
 			const rotate = (radians) => {
 				const profile = this.profile;
 				const points = profile.points;

@@ -9,14 +9,6 @@ class ProfilePanel extends React.Component{
     viewer: PropTypes.object.isRequired
   }
 
-  constructor(props){
-    super(props);
-
-    this.state = {
-      minimized: false
-    };
-  }
-
   componentDidMount(){
     const { viewer } = this.props;
 
@@ -28,14 +20,10 @@ class ProfilePanel extends React.Component{
   }
 
   render(){
-    const { minimized } = this.state;
-
-    return (<div id="profile_window" className={"mv-profile " + (minimized ? "minimized" : "")}
+    return (<div id="profile_window" className="mv-profile"
                  style={{display: "none"}} ref={domNode => { this.root = domNode; }}>
       <div id="profile_titlebar" className="mv-profile-header" ref={domNode => { this.header = domNode; }}>
         <span className="mv-profile-title">{_("Profile")}</span>
-        <button type="button" title={minimized ? _("Restore") : _("Minimize")}
-                onClick={() => this.setState({minimized: !minimized})}><i className="mv-icon mv-icon-minus"></i></button>
         <button type="button" id="closeProfileContainer" title={_("Close")}><i className="mv-icon mv-icon-close"></i></button>
       </div>
 
@@ -53,7 +41,6 @@ class ProfilePanel extends React.Component{
       </div>
 
       <div className="mv-profile-footer">
-        <input id="potree_profile_rotate_amount" type="text" maxLength="4" defaultValue="10" title={_("Rotation step (degrees)")} />
         <button type="button" id="potree_profile_rotate_cw" title={_("Rotate clockwise")}><i className="mv-icon mv-icon-rotatecw"></i></button>
         <button type="button" id="potree_profile_rotate_ccw" title={_("Rotate counterclockwise")}><i className="mv-icon mv-icon-rotateccw"></i></button>
         <button type="button" id="potree_profile_move_forward" title={_("Move forward")}><i className="mv-icon mv-icon-up"></i></button>
