@@ -89808,7 +89808,7 @@ ENDSEC
 							-f, -f, +1,
 						]);
 						annotation.marker = new Line2(geometry, new LineMaterial({
-							color: 0xff0000,
+							color: 0xffffff,
 							linewidth: 2,
 							resolution: new Vector2(1000, 1000),
 						}));
@@ -89822,6 +89822,7 @@ ENDSEC
 						: (camera.top - camera.bottom) / camera.zoom / renderAreaSize.y;
 
 					annotation.marker.visible = annotation.visible;
+					annotation.marker.material.color.set(annotation === this.selectedItem ? 0xffff00 : 0xffffff);
 					annotation.marker.position.copy(annotation.cameraPosition);
 					annotation.marker.lookAt(annotation.cameraTarget);
 					annotation.marker.scale.setScalar(perPixel * 40);

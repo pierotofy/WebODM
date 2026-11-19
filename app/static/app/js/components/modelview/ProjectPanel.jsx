@@ -54,6 +54,7 @@ class ProjectPanel extends React.Component{
 
   componentWillUnmount(){
     clearInterval(this.refreshInterval);
+    this.props.viewer.selectedItem = null;
     document.removeEventListener("click", this.closeMenus);
   }
 
@@ -198,6 +199,7 @@ class ProjectPanel extends React.Component{
     const { viewer } = this.props;
     const { selected, tab, cameraScale, search, closed, menu, exportOpen, recording, updated } = this.state;
     const scene = viewer.scene;
+    viewer.selectedItem = selected;
     const pc = scene.pointclouds[0];
 
     let measures = scene.measurements.map(obj => {
