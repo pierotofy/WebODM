@@ -211,7 +211,7 @@ class ProjectPanel extends React.Component{
 
   render(){
     const { viewer } = this.props;
-    const { selected, tab, cameraScale, search, closed, menu, exportOpen, recording, updated } = this.state;
+    const { selected, tab, cameraScale, search, closed, menu, exportOpen, recording, updated, timeEdit } = this.state;
     const scene = viewer.scene;
     viewer.selectedItem = selected;
     const name = this.props.task.name || "";
@@ -543,14 +543,17 @@ class ProjectPanel extends React.Component{
                 </label>
                 {segment && segment.length > 0 && m.total > 0 ?
                 <input type="number" min="0.1" step="0.1" title={_("Seconds to the next view")}
-                       value={+(segment.length * segment.weight / m.total * m.duration).toFixed(1)}
-                       onChange={e => {
+                       value={timeEdit && timeEdit.key === v.uuid ? timeEdit.value : +(segment.length * segment.weight / m.total * m.duration).toFixed(1)}
+                       onChange={e => this.setState({timeEdit: {key: v.uuid, value: e.target.value}})}
+                       onKeyDown={e => { if (e.key === "Enter") e.target.blur(); }}
+                       onBlur={e => {
                          const seconds = parseFloat(e.target.value);
-                         if (!(seconds > 0)) return;
-                         v.stretch = seconds * m.total / (segment.length * m.duration);
-                         m.setDuration(m.duration + seconds - segment.length * segment.weight / m.total * m.duration);
-                         m.update();
-                         this.forceUpdate();
+                         if (timeEdit && timeEdit.key === v.uuid && seconds > 0){
+                           v.stretch = seconds * m.total / (segment.length * m.duration);
+                           m.setDuration(m.duration + seconds - segment.length * segment.weight / m.total * m.duration);
+                           m.update();
+                         }
+                         this.setState({timeEdit: null});
                        }} /> : ""}
               </div>);
             })}
@@ -578,8 +581,14 @@ class ProjectPanel extends React.Component{
           </div>,
           <div key="duration" className="mv-panel-field">
             <label>{_("Duration")}</label>
-            <input type="number" min="0.1" step="0.5" value={+selectedItem.obj.duration.toFixed(1)}
-                   onChange={e => { selectedItem.obj.setDuration(parseFloat(e.target.value) || 1); this.forceUpdate(); }} />
+            <input type="number" min="0.1" step="0.5" value={timeEdit && timeEdit.key === "duration" ? timeEdit.value : +selectedItem.obj.duration.toFixed(1)}
+                   onChange={e => this.setState({timeEdit: {key: "duration", value: e.target.value}})}
+                   onKeyDown={e => { if (e.key === "Enter") e.target.blur(); }}
+                   onBlur={e => {
+                     const seconds = parseFloat(e.target.value);
+                     if (timeEdit && timeEdit.key === "duration" && seconds > 0) selectedItem.obj.setDuration(seconds);
+                     this.setState({timeEdit: null});
+                   }} />
           </div>,
           m.kind === "orbit" && m.orbit ?
           <div key="length" className="mv-panel-field">
