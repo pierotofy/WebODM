@@ -214,6 +214,8 @@ class ProjectPanel extends React.Component{
     const { selected, tab, cameraScale, search, closed, menu, exportOpen, recording, updated } = this.state;
     const scene = viewer.scene;
     viewer.selectedItem = selected;
+    const name = this.props.task.name || "";
+    const exportName = ((name.replace(/[ /]/g, "-").replace(/[^0-9a-zA-Z-_]+/g, "") + (name ? "-" : "")) + "measurements").replace(/-[-]+/g, "-");
     const pc = scene.pointclouds[0];
 
     let measures = scene.measurements.map(obj => {
@@ -704,7 +706,7 @@ class ProjectPanel extends React.Component{
           const geojson = Potree.GeoJSONExporter.toString([...scene.measurements, ...scene.profiles, ...scene.volumes]);
           const srs = task.epsg ? `EPSG:${task.epsg}` : task.wkt;
           if (!srs){
-            this.download("measurements.geojson", geojson);
+            this.download(`${exportName}.geojson`, geojson);
             return;
           }
           $.ajax({
@@ -712,10 +714,10 @@ class ProjectPanel extends React.Component{
             contentType: "application/json",
             data: JSON.stringify({geojson: JSON.parse(geojson), source: srs, target: "EPSG:4979"}),
             type: 'POST'
-          }).done(result => this.download("measurements.geojson", JSON.stringify(result, null, "\t")))
+          }).done(result => this.download(`${exportName}.geojson`, JSON.stringify(result, null, "\t")))
             .fail(xhr => window.alert((xhr.responseJSON && (xhr.responseJSON.error || xhr.responseJSON[0])) || _("Cannot export GeoJSON")));
         }}>GeoJSON</div>
-        <div onClick={() => this.download("measurements.dxf", Potree.DXFExporter.toString([...scene.measurements, ...scene.profiles, ...scene.volumes]))}>DXF</div>
+        <div onClick={() => this.download(`${exportName}.dxf`, Potree.DXFExporter.toString([...scene.measurements, ...scene.profiles, ...scene.volumes]))}>DXF</div>
         <div onClick={() => this.download("scene.json", JSON.stringify(Potree.saveProject(viewer), null, "\t"))}>{_("Potree scene")}</div>
       </div> : ""}
     </div>);
