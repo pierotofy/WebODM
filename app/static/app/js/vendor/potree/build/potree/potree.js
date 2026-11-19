@@ -74129,7 +74129,8 @@ void main() {
 			}
 
 			if (measurement.showDistances) {
-				measurement.edgeLabels.forEach((label) => {
+				measurement.edgeLabels.forEach((label, i) => {
+					if (!label.visible) return;
 					let labelPoint = {
 						type: 'Feature',
 						geometry: {
@@ -74137,7 +74138,7 @@ void main() {
 							coordinates: label.position.toArray()
 						},
 						properties: {
-							distance: label.text
+							distance: measurement.points[i].position.distanceTo(measurement.points[(i + 1) % measurement.points.length].position)
 						}
 					};
 					features.push(labelPoint);
@@ -74153,7 +74154,7 @@ void main() {
 						coordinates: point.toArray()
 					},
 					properties: {
-						area: measurement.areaLabel.text
+						area: measurement.getArea()
 					}
 				};
 				features.push(labelArea);
