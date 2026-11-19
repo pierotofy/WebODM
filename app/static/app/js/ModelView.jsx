@@ -1098,7 +1098,6 @@ class ModelView extends React.Component {
                     {viewer && panel === "project" ?
                     <ProjectPanel viewer={viewer}
                                 task={this.props.task}
-                                title={this.props.title}
                                 hasCameras={this.hasCameras()}
                                 camerasVisible={this.state.camerasVisible}
                                 onToggleCameras={this.toggleCameras}

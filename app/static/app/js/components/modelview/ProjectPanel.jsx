@@ -10,7 +10,6 @@ class ProjectPanel extends React.Component{
   static propTypes = {
     viewer: PropTypes.object.isRequired,
     task: PropTypes.object.isRequired,
-    title: PropTypes.string,
     hasCameras: PropTypes.bool.isRequired,
     camerasVisible: PropTypes.bool.isRequired,
     onToggleCameras: PropTypes.func.isRequired,
@@ -215,7 +214,7 @@ class ProjectPanel extends React.Component{
     const { selected, tab, cameraScale, search, closed, menu, exportOpen, recording, updated } = this.state;
     const scene = viewer.scene;
     viewer.selectedItem = selected;
-    const name = this.props.title || "";
+    const name = this.props.task.name || "";
     const exportName = ((name.replace(/[ /]/g, "-").replace(/[^0-9a-zA-Z-_]+/g, "") + (name ? "-" : "")) + "measurements").replace(/-[-]+/g, "-");
     const pc = scene.pointclouds[0];
 
