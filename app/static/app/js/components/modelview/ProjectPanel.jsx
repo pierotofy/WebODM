@@ -546,7 +546,7 @@ class ProjectPanel extends React.Component{
                            }}>
                 <i className="fa fa-grip-vertical"></i>
                 <label>
-                  <input type="checkbox" checked={v.enabled}
+                  <input type="checkbox" checked={v.enabled} tabIndex="-1"
                          onChange={e => { v.enabled = e.target.checked; m.update(); this.forceUpdate(); }} />
                   {view.title}
                 </label>
