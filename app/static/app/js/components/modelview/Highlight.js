@@ -33,9 +33,10 @@ class Highlight{
 
     for (const [obj, on] of [[this.last !== item ? this.last : null, false], [item, true]]){
       if (obj instanceof Potree.Measure){
-        const dot = obj.maxMarkers === 1;
+        const dot = obj.showCoordinates;
         const lines = !dot && !(obj.closed && (obj.showArea || obj.showAngles)) && !obj.showCircle && !obj.showAzimuth;
-        obj.spheres.forEach(s => s.material.color.set(on && dot ? 0xffff00 : obj.color));
+        obj.color.set(on && dot ? 0xffff00 : 0xff0000);
+        obj.spheres.forEach(s => s.material.color.set(obj.color));
         obj.edges.forEach(e => e.material.color.set(on && lines ? 0xffff00 : 0xff0000));
       }else if (obj instanceof Potree.BoxVolume){
         obj.material.color.set(on ? 0xffff00 : 0x00ff00);
