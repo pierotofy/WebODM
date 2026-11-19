@@ -192,7 +192,13 @@ class SettingsWindow extends React.Component{
       content = [
         this.row(_("Name"), "", <span>{this.props.title}</span>),
         this.row(_("Coordinate System"), "", <span>{task.epsg ? `EPSG:${task.epsg}` : _("None")}</span>),
-        this.row(_("Coordinate Unit"), "", <span>{task.srs.units || "m"}</span>)
+        this.row(_("Coordinate Unit"), "", <span>{task.srs.units || "m"}</span>),
+        <div className="mv-settings-credits" key="credits">
+          <div className="mv-settings-section">{_("Credits")}</div>
+          <div><a href="http://potree.org" target="_blank">Potree</a> {_("is a viewer for large point cloud / LIDAR data sets, developed at the Vienna University of Technology.")}</div>
+          <div><b>{_("Author:")}</b> <a href="mailto:mschuetz@potree.org">Markus Schütz</a></div>
+          <div><b>{_("License:")}</b> <a href="https://github.com/potree/potree/blob/develop/LICENSE/" target="_blank">FreeBSD (2-clause BSD)</a></div>
+        </div>
       ];
     }
 

@@ -95,6 +95,12 @@
         min-width: 0;
         padding: 8px 24px 16px 16px;
         overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+
+        > *{
+            flex: none;
+        }
     }
 
     .mv-settings-section{
@@ -108,6 +114,17 @@
         align-items: center;
         gap: 24px;
         padding: 12px 0;
+    }
+
+    .mv-settings-credits{
+        margin-top: auto;
+        padding-top: 12px;
+        line-height: 1.6;
+
+        a{
+            color: #fff;
+            text-decoration: underline;
+        }
     }
 
     .mv-settings-text{
