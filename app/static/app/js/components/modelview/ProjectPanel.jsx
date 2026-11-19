@@ -41,6 +41,7 @@ class ProjectPanel extends React.Component{
   componentDidMount(){
     this.refreshInterval = setInterval(() => this.forceUpdate(), 500);
     document.addEventListener("click", this.closeMenus);
+    document.addEventListener("keydown", this.handleKeyDown);
     if (this.props.focused && this.panel.querySelector(".mv-tree-row.selected")) this.panel.querySelector(".mv-tree-row.selected").scrollIntoView({block: "nearest"});
   }
 
@@ -60,6 +61,8 @@ class ProjectPanel extends React.Component{
     clearTimeout(this.deselectTimeout);
     this.props.viewer.selectedItem = null;
     document.removeEventListener("click", this.closeMenus);
+    document.removeEventListener("keydown", this.handleKeyDown);
+    this.stopRecording();
   }
 
   closeMenus = (e) => {
@@ -130,6 +133,20 @@ class ProjectPanel extends React.Component{
   setVisible = (item, visible) => {
     if (item.type === "animation") item.obj.setVisible(visible);
     else item.obj.visible = visible;
+  }
+
+  stopRecording = () => {
+    clearTimeout(this.recordTimeout);
+    if (this.recorder && this.recorder.state === "recording") this.recorder.stop();
+    else if (this.recorded && this.props.viewer.recording){
+      this.props.viewer.recording = false;
+      this.recorded.setVisible(true);
+      this.setState({recording: false});
+    }
+  }
+
+  handleKeyDown = (e) => {
+    if (e.key === "Escape" && this.state.recording) this.stopRecording();
   }
 
   seek = (animation, t, show) => {
@@ -638,24 +655,39 @@ class ProjectPanel extends React.Component{
                     }}><i className={m.onPlay ? "fa fa-pause" : "fa fa-play"}></i></button>
             <button type="button" className="mv-panel-btn" title={_("Rewind")} disabled={recording}
                     onClick={() => this.seek(m, 0, false)}><i className="fa fa-backward"></i></button>
-            <button type="button" className="mv-panel-btn mv-danger" title={_("Record movie")} disabled={recording || !m.cameraCurve}
+            <button type="button" className="mv-panel-btn mv-danger" title={recording ? _("Stop recording") : _("Record movie")} disabled={!m.cameraCurve}
                     onClick={() => {
-                      const animation = selectedItem.obj;
-                      this.setState({recording: true});
-                      animation.setVisible(false);
+                      if (recording){
+                        this.stopRecording();
+                        return;
+                      }
 
-                      setTimeout(() => {
+                      const animation = selectedItem.obj;
+                      this.recorded = animation;
+                      this.setState({recording: true});
+                      animation.stop();
+                      animation.setVisible(false);
+                      viewer.recording = true;
+
+                      this.recordTimeout = setTimeout(() => {
                         const chunks = [];
                         const recorder = new MediaRecorder(viewer.renderer.domElement.captureStream(29.97), {mimeType: "video/webm; codecs=vp8"});
+                        this.recorder = recorder;
                         recorder.ondataavailable = e => {
                           chunks.push(e.data);
                           if (recorder.state === "recording") recorder.stop();
                         };
                         recorder.onstop = () => {
-                          const link = document.createElement("a");
-                          link.href = URL.createObjectURL(new Blob(chunks, {type: "video/webm"}));
-                          link.download = "recording.webm";
-                          link.click();
+                          const video = new Blob(chunks, {type: "video/webm"});
+                          if (video.size > 0){
+                            const link = document.createElement("a");
+                            link.href = URL.createObjectURL(video);
+                            link.download = "recording.webm";
+                            link.click();
+                          }
+                          this.recorder = null;
+                          viewer.recording = false;
+                          animation.stop();
                           animation.setVisible(true);
                           this.setState({recording: false});
                         };
@@ -663,7 +695,7 @@ class ProjectPanel extends React.Component{
                         animation.play(true);
                         recorder.start(animation.duration * 1000 + 1000);
                       }, 1000);
-                    }}><i className={recording ? "fa fa-circle-notch fa-spin" : "fa fa-circle"}></i></button>
+                    }}><i className={recording ? "fa fa-stop" : "fa fa-circle"}></i></button>
           </div>] : ""}
 
           {selectedItem.type === "annotation" ? [

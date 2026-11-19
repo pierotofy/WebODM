@@ -65013,7 +65013,7 @@ void main() {
 			const camera = viewer.scene.getActiveCamera();
 			const {width, height} = viewer.renderer.getSize(new Vector2());
 
-			this.node.visible = this.visible;
+			this.node.visible = this.visible && !viewer.recording;
 
 			const positions = [], targets = [], times = [];
 			let closed = true;
@@ -89728,7 +89728,7 @@ ENDSEC
 						? 2 * distance * Math.tan(MathUtils.degToRad(camera.fov) / 2) / renderAreaSize.y
 						: (camera.top - camera.bottom) / camera.zoom / renderAreaSize.y;
 
-					annotation.marker.visible = annotation.visible;
+					annotation.marker.visible = annotation.visible && !this.recording;
 					annotation.marker.material.color.set(annotation === this.selectedItem ? 0xffff00 : 0xffffff);
 					annotation.marker.position.copy(annotation.cameraPosition);
 					annotation.marker.lookAt(annotation.cameraTarget);
