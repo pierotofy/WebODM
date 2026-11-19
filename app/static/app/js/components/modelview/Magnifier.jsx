@@ -22,7 +22,7 @@ class Magnifier extends React.Component{
     const drag = handler.drag;
     const parent = drag && drag.object ? drag.object.parent : null;
 
-    if (!(parent instanceof Potree.Measure) && !(parent instanceof Potree.Profile)){
+    if (!(parent instanceof Potree.Measure) && !(parent instanceof Potree.Profile) && !(drag && drag.object && drag.object.magnify)){
       if (this.hidden){
         this.hidden.visible = true;
         this.hidden = null;

@@ -81159,6 +81159,7 @@ ENDSEC
 
 			let drop = (e) => {
 				this.viewer.scene.scene.remove(this.s);
+				this.s.magnify = false;
 				line.parent.remove(line);
 				this.s.removeEventListener("drag", drag);
 				this.s.removeEventListener("drop", drop);
@@ -81167,6 +81168,7 @@ ENDSEC
 			this.s.addEventListener('drag', drag);
 			this.s.addEventListener('drop', drop);
 
+			this.s.magnify = true;
 			this.viewer.scene.scene.add(this.s);
 			this.viewer.inputHandler.startDragging(this.s);
 		}
