@@ -553,6 +553,7 @@ class ProjectPanel extends React.Component{
                 {v.enabled && !segment && m.segments.length > 0 ? rebalance : ""}
                 {segment ?
                 <input type="number" min="0.1" step="0.1" title={_("Seconds to the next view")}
+                       draggable onDragStart={e => { e.preventDefault(); e.stopPropagation(); }}
                        value={timeEdit && timeEdit.key === v.uuid ? timeEdit.value : +segment.time.toFixed(1)}
                        onChange={e => this.setState({timeEdit: {key: v.uuid, value: e.target.value}})}
                        onKeyDown={e => { if (e.key === "Enter") e.target.blur(); }}
