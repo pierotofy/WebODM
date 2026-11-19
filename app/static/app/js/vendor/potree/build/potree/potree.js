@@ -57834,6 +57834,11 @@ uniform float uOrthoHeight;
 
 uniform int clipTask;
 uniform int clipMethod;
+#if defined(reveal_enabled)
+	uniform vec3 uRevealCenter;
+	uniform vec2 uReveal;
+	uniform vec2 uRevealSolid;
+#endif
 #if defined(num_clipboxes) && num_clipboxes > 0
 	uniform mat4 clipBoxes[num_clipboxes];
 	uniform vec2 clipSelected;
@@ -58797,6 +58802,22 @@ void main() {
 
 		}
 
+	#endif
+
+	#if defined(reveal_enabled)
+	{
+		float revealDistance = distance(mvPosition.xyz, uRevealCenter);
+		float revealShown = clamp((uReveal.x - revealDistance) * uReveal.y, 0.0, 1.0);
+		float revealSolid = clamp((uRevealSolid.x - revealDistance) * uRevealSolid.y, 0.0, 1.0);
+		float revealSeed = fract(sin(dot(position.xyz, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+
+		if(revealShown <= revealSeed){
+			gl_Position = vec4(100.0, 100.0, 100.0, 1.0);
+		}
+
+		gl_PointSize = mix(min(pointSize, 1.5), pointSize, revealSolid);
+		vPointSize = gl_PointSize;
+	}
 	#endif
 }
 `;
@@ -63790,6 +63811,10 @@ void main() {
 						`#define num_cropvertices ${numCropVertices}`,
 					];
 
+					if(material.reveal){
+						defines.push("#define reveal_enabled");
+					}
+
 
 					if(octree.pcoGeometry.root.isLoaded()){
 						let attributes = octree.pcoGeometry.root.geometry.attributes;
@@ -63976,6 +64001,12 @@ void main() {
 					//gl.uniformMatrix4fv(lClipSpheres, false, material.uniforms.clipSpheres.value);
 				}
 
+
+				if(material.reveal){
+					shader.setUniform3f("uRevealCenter", material.reveal.center.clone().applyMatrix4(view).toArray());
+					shader.setUniform2f("uReveal", material.reveal.shown);
+					shader.setUniform2f("uRevealSolid", material.reveal.solid);
+				}
 
 				shader.setUniform1f("size", material.size);
 				shader.setUniform1f("maxSize", material.uniforms.maxSize.value);
