@@ -558,11 +558,12 @@ class ProjectPanel extends React.Component{
           </div>] : ""}
 
           {selectedItem.type === "annotation" ? [
+          m.hasView() ? null :
           <div key="title" className="mv-panel-field">
             <label>{_("Title")}</label>
             <input type="text" value={selectedItem.obj.title || ""}
                    onChange={e => { selectedItem.obj.title = e.target.value; this.forceUpdate(); }}
-                   onBlur={e => { if (!e.target.value.trim()){ selectedItem.obj.title = selectedItem.obj.hasView() ? _("Point of View") : _("Annotation"); this.forceUpdate(); } }} />
+                   onBlur={e => { if (!e.target.value.trim()){ selectedItem.obj.title = _("Annotation"); this.forceUpdate(); } }} />
           </div>,
           m.hasView() ? null :
           <div key="description" className="mv-panel-field">
