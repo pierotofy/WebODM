@@ -55,6 +55,7 @@ class ProjectPanel extends React.Component{
 
   componentWillUnmount(){
     clearInterval(this.refreshInterval);
+    clearTimeout(this.deselectTimeout);
     this.props.viewer.selectedItem = null;
     document.removeEventListener("click", this.closeMenus);
   }
@@ -171,10 +172,12 @@ class ProjectPanel extends React.Component{
          onClick={e => {
            if (e.detail > 1) return;
            const row = e.currentTarget;
-           this.setState({selected: selected === item.obj ? null : item.obj, tab: "properties"}, () => row.scrollIntoView({block: "nearest"}));
+           if (selected === item.obj) this.deselectTimeout = setTimeout(() => this.setState({selected: null}), 250);
+           else this.setState({selected: item.obj, tab: "properties"}, () => row.scrollIntoView({block: "nearest"}));
          }}
          onDoubleClick={e => {
            if (e.target.closest("button")) return;
+           clearTimeout(this.deselectTimeout);
            this.setState({selected: item.obj});
            this.zoomTo(item);
          }}
@@ -192,7 +195,7 @@ class ProjectPanel extends React.Component{
              onFocus={e => e.target.select()}
              onBlur={e => { item.obj[item.nameKey] = e.target.value || item.obj[item.nameKey]; this.setState({renaming: null}); }}
              onKeyDown={e => { if (e.key === "Enter" || e.key === "Escape") e.target.blur(); }} />
-      : <span className="mv-tree-label"><span onDoubleClick={e => { e.stopPropagation(); this.setState({renaming: item.obj, selected: item.obj}); }}>{item.obj[item.nameKey] || _("Annotation")}</span></span>}
+      : <span className="mv-tree-label"><span onDoubleClick={e => { e.stopPropagation(); clearTimeout(this.deselectTimeout); this.setState({renaming: item.obj, selected: item.obj}); }}>{item.obj[item.nameKey] || _("Annotation")}</span></span>}
       <button type="button" className="mv-panel-btn mv-danger" title={_("Delete")}
               onClick={e => { e.stopPropagation(); if (e.detail <= 1) this.remove(item); }}><i className="fa fa-trash"></i></button>
       <button type="button" className="mv-panel-btn" title={item.obj.visible ? _("Hide") : _("Show")}
