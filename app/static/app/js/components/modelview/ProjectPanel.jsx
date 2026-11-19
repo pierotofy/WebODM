@@ -205,7 +205,6 @@ class ProjectPanel extends React.Component{
     let measures = scene.measurements.map(obj => {
       let icon = "mv-icon mv-icon-distance";
       if (obj.kind === "perpendicular") icon = "mv-icon mv-icon-perpendicular";
-      else if (obj.kind === "area-plane") icon = "mv-icon mv-icon-areaplane";
       else if (obj.showAngles) icon = "mv-icon mv-icon-angle";
       else if (obj.showCoordinates) icon = "mv-icon mv-icon-point";
       else if (obj.showCircle) icon = "mv-icon mv-icon-circle";
@@ -243,8 +242,7 @@ class ProjectPanel extends React.Component{
 
       if (m.kind === "perpendicular" && points.length === 2) properties.push([_("Distance"), `${this.fmt(m.getPerpendicularDistance() * conv)} ${unit}`]);
       if (m.showDistances && points.length > 1) properties.push([_("Total distance"), `${this.fmt(m.getTotalDistance() * conv)} ${unit}`]);
-      if (m.showArea && m.kind === "area-plane" && points.length > 2) properties.push([_("Horizontal area"), `${this.fmt(m.getHorizontalArea() * conv * conv)} ${unit}²`]);
-      if (m.showArea && m.kind !== "area-plane" && points.length > 2) properties.push([_("Area"), `${this.fmt(m.getArea() * conv * conv)} ${unit}²`]);
+      if (m.showArea && points.length > 2) properties.push([_("Area"), `${this.fmt(m.getArea() * conv * conv)} ${unit}²`]);
       if (m.showHeight && points.length > 1){
         const zs = points.map(p => p.z);
         properties.push([_("Height"), `${this.fmt((Math.max(...zs) - Math.min(...zs)) * conv)} ${unit}`]);

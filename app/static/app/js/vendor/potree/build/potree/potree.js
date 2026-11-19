@@ -54161,20 +54161,6 @@
 			return Math.sqrt(areaVectorX * areaVectorX + areaVectorY * areaVectorY + areaVectorZ * areaVectorZ) / 2.0;
 		};
 
-		getHorizontalArea () {
-			let area = 0;
-			let j = this.points.length - 1;
-
-			for (let i = 0; i < this.points.length; i++) {
-				let p1 = this.points[i].position;
-				let p2 = this.points[j].position;
-				area += (p2.x + p1.x) * (p1.y - p2.y);
-				j = i;
-			}
-
-			return Math.abs(area / 2);
-		};
-
 		getPerpendicularDistance () {
 			if (this.points.length < 2 || !this.normal) {
 				return 0;
@@ -54468,7 +54454,7 @@
 			{ // update area label
 				this.areaLabel.position.copy(centroid);
 				this.areaLabel.visible = this.showArea && this.points.length >= 3;
-				let area = this.kind === 'area-plane' ? this.getHorizontalArea() : this.getArea();
+				let area = this.getArea();
 
 				let suffix = "";
 				if(this.lengthUnit != null && this.lengthUnitDisplay != null){
