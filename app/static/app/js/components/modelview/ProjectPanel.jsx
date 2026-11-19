@@ -548,6 +548,11 @@ class ProjectPanel extends React.Component{
             })}
           </div> : null,
           m.kind === "orbit" && m.orbit ?
+          <div key="lookat" className="mv-panel-field">
+            <button type="button" className="mv-panel-action"
+                    onClick={() => viewer.annotationTool.startLookAt({cameraTarget: m.orbit.target, cameraPosition: (m.at(m.t) || {position: m.orbit.center}).position.clone(), position: new THREE.Vector3(), marker: {parent: scene.scene}})}><i className="fa fa-crosshairs"></i> {_("Look At")}</button>
+          </div> : null,
+          m.kind === "orbit" && m.orbit ?
           <div key="height" className="mv-panel-field">
             <label>{interpolate(_("Height (%(unit)s)"), {unit})}</label>
             <input type="number" step="0.1" value={+((m.orbit.center.z - m.orbit.target.z) * conv).toFixed(2)}
@@ -659,9 +664,6 @@ class ProjectPanel extends React.Component{
                     }}><i className={updated === "view" ? "fa fa-check" : "fa fa-expand"}></i> {_("Update")}</button> : ""}
             {selectedItem.type === "annotation" && m.hasView() ?
             <button type="button" className="mv-panel-action" onClick={() => viewer.annotationTool.startLookAt(m)}><i className="fa fa-crosshairs"></i> {_("Look At")}</button> : ""}
-            {selectedItem.type === "animation" && m.kind === "orbit" && m.orbit ?
-            <button type="button" className="mv-panel-action"
-                    onClick={() => viewer.annotationTool.startLookAt({cameraTarget: m.orbit.target, cameraPosition: (m.at(m.t) || {position: m.orbit.center}).position.clone(), position: new THREE.Vector3(), marker: {parent: scene.scene}})}><i className="fa fa-crosshairs"></i> {_("Look At")}</button> : ""}
             {selectedItem.type === "annotation" && m.hasView() && this.props.onSetInitialCameraView ?
             <button type="button" className="mv-panel-action" disabled={updated === "saving"}
                     onClick={() => {
