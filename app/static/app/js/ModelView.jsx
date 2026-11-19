@@ -656,7 +656,7 @@ class ModelView extends React.Component {
     if (evt.button !== 2 || this.placingOnMouseDown || viewer.inputHandler.getNormalizedDrag().length() !== 0) return;
 
     const hovered = viewer.inputHandler.hoveredElements.map(h => h.object);
-    const item = viewer.scene.measurements.concat(viewer.scene.profiles).find(m => m.spheres.some(s => hovered.indexOf(s) !== -1)) || this.pointOfViewAt(evt);
+    const item = viewer.scene.measurements.concat(viewer.scene.profiles).find(m => m.spheres.some(s => hovered.indexOf(s) !== -1)) || viewer.scene.volumes.find(v => hovered.indexOf(v) !== -1) || this.pointOfViewAt(evt);
     if (item) this.setState({panel: "project", inserted: null, focused: {item}});
   }
 
