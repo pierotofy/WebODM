@@ -57864,6 +57864,7 @@ uniform float minSize;
 uniform float maxSize;
 
 uniform float uPCIndex;
+uniform float uFade;
 uniform float uOctreeSpacing;
 uniform float uNodeSpacing;
 uniform float uOctreeSize;
@@ -58803,6 +58804,14 @@ void main() {
 		}
 
 	#endif
+
+	if(uFade < 1.0){
+		float fadeSeed = fract(sin(dot(position.xyz, vec3(39.346, 11.135, 83.155))) * 43758.5453);
+
+		if(uFade <= fadeSeed){
+			gl_Position = vec4(100.0, 100.0, 100.0, 1.0);
+		}
+	}
 
 	#if defined(reveal_enabled)
 	{
@@ -63517,6 +63526,11 @@ void main() {
 				//shader.setUniformMatrix4("modelMatrix", world);
 				//shader.setUniformMatrix4("modelViewMatrix", worldView);
 				shader.setUniform1f("uLevel", level);
+
+				const now = performance.now();
+				if(node.fadeSeen === undefined || now - node.fadeSeen > 500) node.fadeStart = now;
+				node.fadeSeen = now;
+				shader.setUniform1f("uFade", Math.min((now - node.fadeStart) / 300, 1));
 				shader.setUniform1f("uNodeSpacing", node.geometryNode.estimatedSpacing);
 
 				shader.setUniform1f("uPCIndex", i);
