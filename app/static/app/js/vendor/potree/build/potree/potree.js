@@ -68263,10 +68263,12 @@ void main() {
 			let hover = e => {
 				let first = svg.find("polyline")[0].points;
 				this.closing = polyClipVol.markers.length > 3 && Math.hypot(e.offsetX - first.getItem(0).x, e.offsetY - first.getItem(0).y) < 12;
+				let x = this.closing ? first.getItem(0).x : e.offsetX;
+				let y = this.closing ? first.getItem(0).y : e.offsetY;
 				svg.find("polyline").each((index, target) => {
 					let p = svg[0].createSVGPoint();
-					p.x = e.offsetX;
-					p.y = e.offsetY;
+					p.x = x;
+					p.y = y;
 					if(target.points.numberOfItems > polyClipVol.markers.length - 1) target.points.replaceItem(p, target.points.numberOfItems - 1);
 					else target.points.appendItem(p);
 				});
