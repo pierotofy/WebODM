@@ -1,5 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import * as THREE from 'THREE';
 import '../../css/modelview/Minimap.scss';
 import { _ } from '../../classes/gettext';
 
@@ -146,18 +147,34 @@ class Minimap extends React.Component{
     const ctx = this.canvas.getContext("2d");
     const x = Math.min(Math.max(offsetX + (view.position.x - minX) * scale, 6), this.canvas.width - 6);
     const y = Math.min(Math.max(offsetY + (maxY - view.position.y) * scale, 6), this.canvas.height - 6);
-    const direction = view.direction;
-    const angle = Math.atan2(-direction.y, direction.x);
-    const spread = viewer.getFOV() * Math.PI / 360;
+    const camera = viewer.scene.getActiveCamera();
+    const ground = view.getPivot().z;
+    const reach = Math.hypot(this.canvas.width, this.canvas.height) / scale;
 
     ctx.putImageData(this.image, 0, 0);
 
-    ctx.fillStyle = "rgba(255, 221, 51, 0.6)";
+    ctx.fillStyle = "rgba(255, 221, 51, 0.4)";
+    ctx.strokeStyle = "rgba(255, 221, 51, 0.9)";
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.arc(x, y, 36, angle - spread, angle + spread);
+    [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach((corner, i) => {
+      const near = new THREE.Vector3(corner[0], corner[1], -1).unproject(camera);
+      const ray = new THREE.Vector3(corner[0], corner[1], 1).unproject(camera).sub(near);
+      const t = ray.z < 0 ? (ground - near.z) / ray.z : Infinity;
+      let px = near.x + ray.x * t, py = near.y + ray.y * t;
+
+      if (!(Math.hypot(px - near.x, py - near.y) <= reach)){
+        const flat = Math.hypot(ray.x, ray.y) || 1;
+        px = near.x + ray.x / flat * reach;
+        py = near.y + ray.y / flat * reach;
+      }
+
+      if (i === 0) ctx.moveTo(offsetX + (px - minX) * scale, offsetY + (maxY - py) * scale);
+      else ctx.lineTo(offsetX + (px - minX) * scale, offsetY + (maxY - py) * scale);
+    });
     ctx.closePath();
     ctx.fill();
+    ctx.stroke();
 
     ctx.fillStyle = "#ff0000";
     ctx.beginPath();
