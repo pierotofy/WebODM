@@ -64936,7 +64936,7 @@ void main() {
 			this.node.add(this.frustum);
 
 			this.line = new Line2(new LineGeometry(), new LineMaterial({ 
-				color: 0x00ff00, 
+				color: 0xffffff, 
 				linewidth: 2, 
 				resolution:  new Vector2(1000, 1000),
 			}));
@@ -65121,7 +65121,10 @@ void main() {
 			if(frame){
 				this.frustum.position.copy(frame.position);
 				this.frustum.lookAt(...frame.target.toArray());
-				this.frustum.scale.set(20, 20, 20);
+				const perPixel = camera.isPerspectiveCamera
+					? 2 * camera.position.distanceTo(frame.position) * Math.tan(MathUtils.degToRad(camera.fov) / 2) / height
+					: (camera.top - camera.bottom) / camera.zoom / height;
+				this.frustum.scale.setScalar(perPixel * 32);
 				this.frustum.material.resolution.set(width, height);
 			}
 
@@ -65145,32 +65148,33 @@ void main() {
 
 		createFrustum(){
 
-			const f = 0.3;
+			const w = 0.6;
+			const h = 0.4;
 
 			const positions = [
 				 0,  0,  0,
-				-f, -f, +1,
+				-w, -h, +1,
 
 				 0,  0,  0,
-				 f, -f, +1,
+				 w, -h, +1,
 
 				 0,  0,  0,
-				 f,  f, +1,
+				 w,  h, +1,
 
 				 0,  0,  0,
-				-f,  f, +1,
+				-w,  h, +1,
 
-				-f, -f, +1,
-				 f, -f, +1,
+				-w, -h, +1,
+				 w, -h, +1,
 
-				 f, -f, +1,
-				 f,  f, +1,
+				 w, -h, +1,
+				 w,  h, +1,
 
-				 f,  f, +1,
-				-f,  f, +1,
+				 w,  h, +1,
+				-w,  h, +1,
 
-				-f,  f, +1,
-				-f, -f, +1,
+				-w,  h, +1,
+				-w, -h, +1,
 			];
 
 			const geometry = new LineGeometry();
@@ -65180,13 +65184,14 @@ void main() {
 			geometry.computeBoundingSphere();
 
 			let material = new LineMaterial({ 
-				color: 0xff0000, 
+				color: 0xffffff, 
 				linewidth: 2, 
 				resolution:  new Vector2(1000, 1000),
 			});
 
 			const line = new Line2(geometry, material);
 			line.computeLineDistances();
+			line.up.set(0, 0, 1);
 			
 			return line;
 		}
