@@ -20,6 +20,7 @@ import ProjectPanel from './components/modelview/ProjectPanel';
 import SettingsWindow from './components/modelview/SettingsWindow';
 import Magnifier from './components/modelview/Magnifier';
 import Roofs from './components/modelview/Roofs';
+import Highlight from './components/modelview/Highlight';
 import ProfilePanel from './components/modelview/ProfilePanel';
 import HistoryPanel from './components/modelview/HistoryPanel';
 import Gizmo from './components/modelview/Gizmo';
@@ -360,6 +361,7 @@ class ModelView extends React.Component {
         });
     });
 
+    this.highlight = new Highlight(viewer);
     viewer.roofTool = new Roofs(viewer, item => this.setState({panel: "project", inserted: item, focused: null}));
     viewer.renderer.domElement.addEventListener( 'mousedown', this.handleRenderMouseClick );
     viewer.renderer.domElement.addEventListener( 'mousedown', this.handleRenderMouseDownCapture, true );
@@ -586,6 +588,7 @@ class ModelView extends React.Component {
     clearInterval(this.historyInterval);
     document.removeEventListener("keydown", this.handleKeyDown);
     viewer.roofTool.dispose();
+    this.highlight.dispose();
     viewer.renderer.domElement.removeEventListener( 'mousedown', this.handleRenderMouseClick );
     viewer.renderer.domElement.removeEventListener( 'mousedown', this.handleRenderMouseDownCapture, true );
     viewer.renderer.domElement.removeEventListener( 'mouseup', this.handleRenderMouseUpCapture, true );

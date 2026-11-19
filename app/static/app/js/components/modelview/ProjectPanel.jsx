@@ -293,7 +293,7 @@ class ProjectPanel extends React.Component{
     if (selected === "pointcloud" && pc){
       const material = pc.material;
       const attributes = pc.pcoGeometry.pointAttributes.attributes.map(a => a.name)
-                           .filter(name => ["POSITION_CARTESIAN", "position"].indexOf(name) === -1)
+                           .filter(name => ["rgba", "intensity", "classification", "returnNumber", "number of returns"].indexOf(name) !== -1)
                            .concat(["elevation"]);
       const box = pc.pcoGeometry.tightBoundingBox || pc.boundingBox;
       const zMin = box.min.z + pc.position.z;

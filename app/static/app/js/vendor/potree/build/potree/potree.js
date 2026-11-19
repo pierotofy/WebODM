@@ -57836,6 +57836,7 @@ uniform int clipTask;
 uniform int clipMethod;
 #if defined(num_clipboxes) && num_clipboxes > 0
 	uniform mat4 clipBoxes[num_clipboxes];
+	uniform vec2 clipSelected;
 #endif
 
 #if defined(num_clipspheres) && num_clipspheres > 0
@@ -58608,6 +58609,7 @@ void doClipping(){
 
 	int clipVolumesCount = 0;
 	int insideCount = 0;
+	bool insideSelected = false;
 
 	#if defined(num_clipboxes) && num_clipboxes > 0
 		for(int i = 0; i < num_clipboxes; i++){
@@ -58616,6 +58618,7 @@ void doClipping(){
 			inside = inside && -0.5 <= clipPosition.y && clipPosition.y <= 0.5;
 			inside = inside && -0.5 <= clipPosition.z && clipPosition.z <= 0.5;
 
+			if(inside && float(i) >= clipSelected.x && float(i) <= clipSelected.y) insideSelected = true;
 			insideCount = insideCount + (inside ? 1 : 0);
 			clipVolumesCount++;
 		}	
@@ -58646,6 +58649,7 @@ void doClipping(){
 	if(clipMethod == CLIPMETHOD_INSIDE_ANY){
 		if(insideAny && clipTask == CLIPTASK_HIGHLIGHT){
 			vColor.r += 0.5;
+			if(insideSelected) vColor.g += 0.5;
 		}else if(!insideAny && clipTask == CLIPTASK_SHOW_INSIDE){
 			gl_Position = vec4(100.0, 100.0, 100.0, 1.0);
 		}else if(insideAny && clipTask == CLIPTASK_SHOW_OUTSIDE){
@@ -58654,6 +58658,7 @@ void doClipping(){
 	}else if(clipMethod == CLIPMETHOD_INSIDE_ALL){
 		if(insideAll && clipTask == CLIPTASK_HIGHLIGHT){
 			vColor.r += 0.5;
+			if(insideSelected) vColor.g += 0.5;
 		}else if(!insideAll && clipTask == CLIPTASK_SHOW_INSIDE){
 			gl_Position = vec4(100.0, 100.0, 100.0, 1.0);
 		}else if(insideAll && clipTask == CLIPTASK_SHOW_OUTSIDE){
@@ -63937,6 +63942,9 @@ void main() {
 
 					const lClipBoxes = shader.uniformLocations["clipBoxes[0]"];
 					gl.uniformMatrix4fv(lClipBoxes, false, material.uniforms.clipBoxes.value);
+
+					const chosen = material.clipBoxes.map((c, i) => c.box.parent === window.viewer.selectedItem ? i : -1).filter(i => i !== -1);
+					shader.setUniform2f("clipSelected", chosen.length ? [chosen[0], chosen[chosen.length - 1]] : [-1, -2]);
 				}
 
 				// TODO CLIPSPHERES
@@ -81060,6 +81068,11 @@ ENDSEC
 			};
 			domElement.addEventListener('mouseup', insertionCallback, true);
 
+			let escape = (e) => {
+				if (e.key === 'Escape') domElement.dispatchEvent(new MouseEvent('mouseup', {button: 2, bubbles: true}));
+			};
+			document.addEventListener('keydown', escape);
+
 			let drag = (e) => {
 				let I = Utils.getMousePointCloudIntersection(
 					e.drag.end, 
@@ -81083,6 +81096,7 @@ ENDSEC
 				this.viewer.scene.scene.remove(this.s);
 				this.s.magnify = false;
 				line.parent.remove(line);
+				document.removeEventListener('keydown', escape);
 				this.s.removeEventListener("drag", drag);
 				this.s.removeEventListener("drop", drop);
 			};
