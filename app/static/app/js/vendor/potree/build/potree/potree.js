@@ -81104,6 +81104,72 @@ ENDSEC
 
 			return annotation;
 		}
+
+		startLookAt (annotation) {
+			let domElement = this.viewer.renderer.domElement;
+			const start = annotation.cameraTarget.clone();
+
+			const geometry = new LineGeometry();
+			geometry.setPositions([0, 0, 0, 0, 0, 1]);
+			const line = new Line2(geometry, new LineMaterial({
+				color: 0xffffff,
+				linewidth: 2,
+				resolution: this.viewer.renderer.getSize(new Vector2()),
+				dashSize: 0.01,
+				gapSize: 0.01,
+				transparent: true,
+				opacity: 0.5
+			}));
+			line.material.defines.USE_DASH = "";
+			line.computeLineDistances();
+			line.visible = false;
+			annotation.marker.parent.add(line);
+
+			let insertionCallback = (e) => {
+				if (e.button === MOUSE.RIGHT) {
+					annotation.cameraTarget.copy(start);
+				} else if (e.button === MOUSE.LEFT) {
+					annotation.position.copy(annotation.cameraTarget);
+					if (this.viewer.scene.view.position.distanceTo(annotation.cameraPosition) < 0.01) {
+						this.viewer.scene.view.lookAt(annotation.cameraTarget);
+					}
+				}
+				domElement.removeEventListener('mouseup', insertionCallback, true);
+			};
+			domElement.addEventListener('mouseup', insertionCallback, true);
+
+			let drag = (e) => {
+				let I = Utils.getMousePointCloudIntersection(
+					e.drag.end, 
+					e.viewer.scene.getActiveCamera(), 
+					e.viewer, 
+					e.viewer.scene.pointclouds,
+					{pickClipped: true});
+
+				if (I) {
+					this.s.position.copy(I.location);
+					annotation.cameraTarget.copy(I.location);
+
+					line.position.copy(annotation.cameraPosition);
+					line.lookAt(I.location);
+					line.scale.set(1, 1, annotation.cameraPosition.distanceTo(I.location));
+					line.visible = true;
+				}
+			};
+
+			let drop = (e) => {
+				this.viewer.scene.scene.remove(this.s);
+				line.parent.remove(line);
+				this.s.removeEventListener("drag", drag);
+				this.s.removeEventListener("drop", drop);
+			};
+
+			this.s.addEventListener('drag', drag);
+			this.s.addEventListener('drop', drop);
+
+			this.viewer.scene.scene.add(this.s);
+			this.viewer.inputHandler.startDragging(this.s);
+		}
 		
 		update(){
 			// let camera = this.viewer.scene.getActiveCamera();

@@ -274,11 +274,6 @@ class ProjectPanel extends React.Component{
       points = selectedItem.obj.controlPoints.map(cp => cp.position);
     }else if (selectedItem && selectedItem.type === "annotation"){
       points = [selectedItem.obj.position];
-      if (selectedItem.obj.hasView()){
-        const a = selectedItem.obj;
-        properties.push([_("Position"), `${this.fmt(a.cameraPosition.x)}, ${this.fmt(a.cameraPosition.y)}, ${this.fmt(a.cameraPosition.z * conv)}`]);
-        properties.push([_("Target"), `${this.fmt(a.cameraTarget.x)}, ${this.fmt(a.cameraTarget.y)}, ${this.fmt(a.cameraTarget.z * conv)}`]);
-      }
     }
 
     const isPoint = !!selectedItem && selectedItem.type === "measure" && selectedItem.obj.showCoordinates;
@@ -599,6 +594,8 @@ class ProjectPanel extends React.Component{
                       this.setState({updated: "view"});
                       setTimeout(() => this.setState({updated: null}), 2000);
                     }}><i className={updated === "view" ? "fa fa-check" : "fa fa-expand"}></i> {_("Update")}</button> : ""}
+            {selectedItem.type === "annotation" && m.hasView() ?
+            <button type="button" className="mv-panel-action" onClick={() => viewer.annotationTool.startLookAt(m)}><i className="fa fa-crosshairs"></i> {_("Look At")}</button> : ""}
             {selectedItem.type === "annotation" && m.hasView() && this.props.onSetInitialCameraView ?
             <button type="button" className="mv-panel-action" disabled={updated === "saving"}
                     onClick={() => {
