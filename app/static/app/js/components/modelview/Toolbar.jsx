@@ -2,7 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import '../../css/modelview/Toolbar.scss';
 import '../../css/modelview/Icons.scss';
-import { _ } from '../../classes/gettext';
+import { _, interpolate } from '../../classes/gettext';
 
 class Toolbar extends React.Component{
   static propTypes = {
@@ -191,8 +191,13 @@ class Toolbar extends React.Component{
           { icon: "mv-icon mv-icon-pov", title: _("Point of View"),
             onClick: () => {
               const view = viewer.scene.view;
+              const [prefix, suffix] = _("View %(num)s").split("%(num)s");
+              const nums = viewer.scene.annotations.descendants()
+                .filter(a => a.hasView() && a.title.startsWith(prefix) && a.title.endsWith(suffix))
+                .map(a => parseInt(a.title.slice(prefix.length, a.title.length - suffix.length)))
+                .filter(n => !isNaN(n));
               this.props.onInsert(viewer.scene.addAnnotation(view.getPivot(), {
-                title: _("Point of View"),
+                title: interpolate(_("View %(num)s"), {num: Math.max(0, ...nums) + 1}),
                 cameraPosition: view.position.clone(),
                 cameraTarget: view.getPivot()
               }));
