@@ -547,8 +547,7 @@ class ProjectPanel extends React.Component{
           </div>,
           m.hasView() ? null :
           <div key="description" className="mv-panel-field">
-            <label>{_("Description")}</label>
-            <textarea rows="3" value={selectedItem.obj.description || ""}
+            <textarea rows="3" placeholder={_("Description")} value={selectedItem.obj.description || ""}
                       onChange={e => { selectedItem.obj.description = e.target.value; this.forceUpdate(); }}></textarea>
           </div>,
           m.hasView() ? null :
