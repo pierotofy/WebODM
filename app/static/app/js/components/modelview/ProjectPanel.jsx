@@ -172,8 +172,10 @@ class ProjectPanel extends React.Component{
          onClick={e => {
            if (e.detail > 1) return;
            const row = e.currentTarget;
-           if (selected === item.obj) this.deselectTimeout = setTimeout(() => this.setState({selected: null}), 250);
-           else this.setState({selected: item.obj, tab: "properties"}, () => row.scrollIntoView({block: "nearest"}));
+           const toggle = () => this.setState({selected: this.state.selected === item.obj ? null : item.obj, tab: "properties"}, () => row.scrollIntoView({block: "nearest"}));
+           clearTimeout(this.deselectTimeout);
+           if (selected === item.obj || e.target.closest(".mv-tree-text")) this.deselectTimeout = setTimeout(toggle, 250);
+           else toggle();
          }}
          onDoubleClick={e => {
            if (e.target.closest("button")) return;
@@ -195,7 +197,7 @@ class ProjectPanel extends React.Component{
              onFocus={e => e.target.select()}
              onBlur={e => { item.obj[item.nameKey] = e.target.value || item.obj[item.nameKey]; this.setState({renaming: null}); }}
              onKeyDown={e => { if (e.key === "Enter" || e.key === "Escape") e.target.blur(); }} />
-      : <span className="mv-tree-label"><span onDoubleClick={e => { e.stopPropagation(); clearTimeout(this.deselectTimeout); this.setState({renaming: item.obj, selected: item.obj}); }}>{item.obj[item.nameKey] || _("Annotation")}</span></span>}
+      : <span className="mv-tree-label"><span className="mv-tree-text" onDoubleClick={e => { e.stopPropagation(); clearTimeout(this.deselectTimeout); this.setState({renaming: item.obj}); }}>{item.obj[item.nameKey] || _("Annotation")}</span></span>}
       <button type="button" className="mv-panel-btn mv-danger" title={_("Delete")}
               onClick={e => { e.stopPropagation(); if (e.detail <= 1) this.remove(item); }}><i className="fa fa-trash"></i></button>
       <button type="button" className="mv-panel-btn" title={item.obj.visible ? _("Hide") : _("Show")}
