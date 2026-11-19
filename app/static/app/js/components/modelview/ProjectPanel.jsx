@@ -513,6 +513,14 @@ class ProjectPanel extends React.Component{
             </select>
           </div>,
           m.kind === "views" ?
+          <div key="interpolation" className="mv-panel-field">
+            <label>{_("Interpolation")}</label>
+            <select value={m.curveType} onChange={e => { m.curveType = e.target.value; m.update(); this.forceUpdate(); }}>
+              <option value="centripetal">{_("Centripetal")}</option>
+              <option value="chordal">{_("Chordal")}</option>
+            </select>
+          </div> : null,
+          m.kind === "views" ?
           <div key="views" className="mv-panel-keys">
             {m.views.map((v, i) => {
               const view = scene.annotations.descendants().find(a => a.uuid === v.uuid);

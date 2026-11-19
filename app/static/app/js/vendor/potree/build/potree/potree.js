@@ -64718,6 +64718,7 @@ void main() {
 			t: animation.t,
 			visible: animation.visible,
 			kind: animation.kind,
+			curveType: animation.curveType,
 			loop: animation.loop,
 			views: animation.views.map(v => Object.assign({}, v)),
 			orbit: animation.orbit ? {center: animation.orbit.center.toArray(), a: animation.orbit.a, b: animation.orbit.b, rotation: animation.orbit.rotation, length: animation.orbit.length, target: animation.orbit.target.toArray()} : null,
@@ -64947,6 +64948,7 @@ void main() {
 			this.t = 0;
 			this.visible = true;
 			this.kind = "orbit";
+			this.curveType = "centripetal";
 			this.loop = false;
 			this.views = [];
 			this.orbit = null;
@@ -65044,7 +65046,7 @@ void main() {
 				}
 			}
 
-			const signature = JSON.stringify([closed, weights, positions.map(p => p.toArray()), targets.map(p => p.toArray())]);
+			const signature = JSON.stringify([closed, this.curveType, weights, positions.map(p => p.toArray()), targets.map(p => p.toArray())]);
 			if(signature !== this.signature){
 				this.signature = signature;
 				this.positions = positions;
@@ -65055,8 +65057,8 @@ void main() {
 				this.total = 0;
 
 				if(positions.length >= 2){
-					this.cameraCurve = new CatmullRomCurve3(positions, closed, "centripetal");
-					this.targetCurve = new CatmullRomCurve3(targets, closed, "centripetal");
+					this.cameraCurve = new CatmullRomCurve3(positions, closed, this.curveType);
+					this.targetCurve = new CatmullRomCurve3(targets, closed, this.curveType);
 
 					const count = closed ? positions.length : positions.length - 1;
 					const first = positions[0];
@@ -65444,6 +65446,7 @@ void main() {
 		animation.t = data.t;
 		animation.visible = data.visible;
 		animation.kind = data.kind;
+		animation.curveType = data.curveType === "chordal" ? "chordal" : "centripetal";
 		animation.loop = data.loop;
 		animation.views = data.views.map(v => Object.assign({}, v));
 		animation.orbit = data.orbit ? {center: new Vector3(...data.orbit.center), a: data.orbit.a, b: data.orbit.b, rotation: data.orbit.rotation || 0, length: data.orbit.length || 1, target: new Vector3(...(data.orbit.target || data.orbit.center))} : null;
