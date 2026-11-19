@@ -65055,8 +65055,8 @@ void main() {
 				this.total = 0;
 
 				if(positions.length >= 2){
-					this.cameraCurve = new CatmullRomCurve3(positions, closed, "catmullrom");
-					this.targetCurve = new CatmullRomCurve3(targets, closed, "catmullrom");
+					this.cameraCurve = new CatmullRomCurve3(positions, closed, "centripetal");
+					this.targetCurve = new CatmullRomCurve3(targets, closed, "centripetal");
 
 					const count = closed ? positions.length : positions.length - 1;
 					const first = positions[0];
