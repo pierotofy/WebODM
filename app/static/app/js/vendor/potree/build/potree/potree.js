@@ -73329,61 +73329,11 @@ void main() {
 						}
 						
 
-						let info = this.elRoot.find('#profileSelectionProperties');
-						let html = '<table>';
-
-						for (let attributeName of Object.keys(point)) {
-
-							let value = point[attributeName];
-							let attribute = closest.pointcloud.getAttribute(attributeName);
-
-							let transform = value => value;
-							if(attribute && attribute.type.size > 4){
-								let range = attribute.initialRange;
-								let scale = 1 / (range[1] - range[0]);
-								let offset = range[0];
-								transform = value => value / scale + offset;
-							}
-
-							if (attributeName === 'position') {
-								let values = [...position];
-								html += `
-								<tr>
-									<td>x</td>
-									<td>${Utils.addCommas(values[0].toFixed(3))}</td>
-								</tr>
-								<tr>
-									<td>y</td>
-									<td>${Utils.addCommas(values[1].toFixed(3))}</td>
-								</tr>
-								<tr>
-									<td>z</td>
-									<td>${Utils.addCommas((values[2] / this.viewer.lengthUnit.unitspermeter * this.viewer.lengthUnitDisplay.unitspermeter).toFixed(3))}</td>
-								</tr>`;
-							} else if (attributeName === 'rgba') {
-								html += `
-								<tr>
-									<td>${attributeName}</td>
-									<td>${value.join(', ')}</td>
-								</tr>`;
-							} else if (attributeName === 'normal') {
-								continue;
-							} else if (attributeName === 'mileage') {
-								html += `
-								<tr>
-									<td>${attributeName}</td>
-									<td>${(value / this.viewer.lengthUnit.unitspermeter * this.viewer.lengthUnitDisplay.unitspermeter).toFixed(3)}</td>
-								</tr>`;
-							} else if (attributeName === "classification") {
-								html += `
-								<tr>
-									<td style="padding-right: 4px">${attributeName}</td>
-									<td>${transform(value)}</td>
-								</tr>`;
-							}
-						}
-						html += '</table>';
-						info.html(html);
+						this.elRoot.find('#profileSelectionProperties').text([
+							Utils.addCommas(position[0].toFixed(3)),
+							Utils.addCommas(position[1].toFixed(3)),
+							Utils.addCommas((position[2] / this.viewer.lengthUnit.unitspermeter * this.viewer.lengthUnitDisplay.unitspermeter).toFixed(3))
+						].join(' / '));
 
 						this.selectedPoint = point;
 					} else {
