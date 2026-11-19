@@ -324,6 +324,8 @@ class ModelView extends React.Component {
             // Load
             const potreeLoadProject = () => {
                 Potree.loadProject(viewer, sceneData);
+                viewer.scene.annotations.descendants().forEach(a => { if (a.hasView()) a.visible = false; });
+                viewer.scene.cameraAnimations.forEach(a => a.setVisible(false));
                 viewer.removeEventListener("update", potreeLoadProject);
             };
             viewer.addEventListener("update", potreeLoadProject);
@@ -430,12 +432,17 @@ class ModelView extends React.Component {
     data.classification = live.classification;
     data.pointclouds = [];
 
+    const hidden = scene.annotations.descendants().concat(scene.cameraAnimations).filter(a => !a.visible).map(a => a.uuid);
+
     viewer.inputHandler.deselectAll();
     scene.removeAllMeasurements();
     scene.annotations.removeAllChildren();
     while (scene.cameraAnimations.length > 0) scene.removeCameraAnimation(scene.cameraAnimations[0]);
 
     Potree.loadProject(viewer, data);
+
+    scene.annotations.descendants().forEach(a => { if (hidden.indexOf(a.uuid) !== -1) a.visible = false; });
+    scene.cameraAnimations.forEach(a => { if (hidden.indexOf(a.uuid) !== -1) a.setVisible(false); });
 
     this.historyIndex = index;
     this.forceUpdate();
