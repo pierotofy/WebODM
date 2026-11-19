@@ -61209,7 +61209,7 @@ void main() {
 			let height = Math.ceil(getVal(params.height, size.height));
 
 			let pointSizeType = getVal(params.pointSizeType, this.material.pointSizeType);
-			let pointSize = getVal(params.pointSize, this.material.size);
+			let pointSize = getVal(params.pointSize, this.material.size * 2);
 
 			let nodes = this.nodesOnRay(this.visibleNodes, ray);
 

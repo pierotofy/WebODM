@@ -14,10 +14,6 @@ class Roofs{
     this.shift = false;
     this.pressed = null;
     this.finish = false;
-    this.fill = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({color: 0xffff00, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthTest: false, depthWrite: false}));
-    this.fill.visible = false;
-    this.filled = "";
-    viewer.measuringTool.scene.add(this.fill);
 
     viewer.addEventListener("update", this.update);
     window.addEventListener("keydown", this.handleKeys, true);
@@ -29,9 +25,6 @@ class Roofs{
   }
 
   dispose(){
-    this.viewer.measuringTool.scene.remove(this.fill);
-    this.fill.geometry.dispose();
-    this.fill.material.dispose();
     this.viewer.removeEventListener("update", this.update);
     window.removeEventListener("keydown", this.handleKeys, true);
     window.removeEventListener("keyup", this.handleKeys, true);
@@ -255,26 +248,6 @@ class Roofs{
         this.dragged = null;
       }
     }
-
-    const chosen = faces.find(m => m === viewer.selectedItem && m.visible && !m.open && m.points.length >= 3);
-    const filled = chosen ? chosen.points.map(p => key(p.position)).join(" ") : "";
-    this.fill.visible = !!chosen;
-    if (chosen && filled !== this.filled){
-      const origin = chosen.points[0].position;
-      const flat = chosen.points.map(p => new THREE.Vector2(p.position.x - origin.x, p.position.y - origin.y));
-      const positions = [];
-      for (const triangle of THREE.ShapeUtils.triangulateShape(flat, [])){
-        for (const i of triangle){
-          const p = chosen.points[i].position;
-          positions.push(p.x - origin.x, p.y - origin.y, p.z - origin.z);
-        }
-      }
-      this.fill.geometry.dispose();
-      this.fill.geometry = new THREE.BufferGeometry();
-      this.fill.geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-      this.fill.position.copy(origin);
-    }
-    this.filled = filled;
 
     for (const face of faces){
       if (face.open && !(held && held.face === face) && !(viewer.inputHandler.paused && viewer.inputHandler.paused.parent === face)){

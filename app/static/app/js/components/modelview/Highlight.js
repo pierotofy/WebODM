@@ -28,7 +28,8 @@ class Highlight{
   update = () => {
     const item = this.viewer.selectedItem;
     const drag = this.viewer.inputHandler.drag;
-    this.viewer.renderer.domElement.style.cursor = drag && drag.object ? "crosshair" : "";
+    const handle = this.viewer.inputHandler.hoveredElements.some(h => h.object.parent && h.object.parent.spheres && h.object.parent.spheres.indexOf(h.object) !== -1);
+    this.viewer.renderer.domElement.style.cursor = drag && drag.object ? "crosshair" : (handle ? "pointer" : "");
     const measure = item instanceof Potree.Measure && item.visible && !item.open ? item : null;
     const polygon = measure && measure.closed && (measure.showArea || measure.showAngles) && measure.points.length >= 3;
     const circle = measure && measure.showCircle && measure.points.length === 3;

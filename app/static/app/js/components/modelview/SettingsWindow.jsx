@@ -195,7 +195,7 @@ class SettingsWindow extends React.Component{
         this.row(_("Coordinate Unit"), "", <span>{task.srs.units || "m"}</span>),
         <div className="mv-settings-section" key="credits">{_("Credits")}</div>,
         <div className="mv-settings-credits" key="potree">
-          {_("This viewer is originally based on")} <a href="http://potree.org" target="_blank">Potree</a>{_(", a viewer for large point cloud / LIDAR data sets, developed at the Vienna University of Technology by")} <a href="mailto:mschuetz@potree.org">Markus Schütz</a>.
+          {_("This viewer is originally based on")} <a href="http://potree.org" target="_blank">Potree</a>{_(", a viewer for large point clouds developed at the Vienna University of Technology by")} Markus Schütz.
         </div>
       ];
     }
