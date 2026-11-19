@@ -18,6 +18,7 @@ class Highlight{
 
   dispose(){
     this.viewer.removeEventListener("update", this.update);
+    this.viewer.renderer.domElement.style.cursor = "";
     this.viewer.measuringTool.scene.remove(this.fill, this.disc);
     this.fill.geometry.dispose();
     this.disc.geometry.dispose();
@@ -26,6 +27,8 @@ class Highlight{
 
   update = () => {
     const item = this.viewer.selectedItem;
+    const drag = this.viewer.inputHandler.drag;
+    this.viewer.renderer.domElement.style.cursor = drag && drag.object ? "crosshair" : "";
     const measure = item instanceof Potree.Measure && item.visible && !item.open ? item : null;
     const polygon = measure && measure.closed && (measure.showArea || measure.showAngles) && measure.points.length >= 3;
     const circle = measure && measure.showCircle && measure.points.length === 3;
