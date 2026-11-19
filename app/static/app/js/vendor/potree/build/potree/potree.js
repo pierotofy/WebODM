@@ -68200,10 +68200,11 @@ void main() {
 			let insertionCallback = (e) => {
 				if(e.button === MOUSE.LEFT){
 					let first = svg.find("polyline")[0].points;
-					if(polyClipVol.markers.length > 3 && Math.hypot(e.offsetX - first.getItem(0).x, e.offsetY - first.getItem(0).y) < 12){
+					if(polyClipVol.markers.length > 3 && (e.detail > 1 || Math.hypot(e.offsetX - first.getItem(0).x, e.offsetY - first.getItem(0).y) < 12)){
 						cancel.callback(e);
 						return;
 					}
+					if(e.detail > 1) return;
 
 					polyClipVol.addMarker();
 
@@ -68244,6 +68245,9 @@ void main() {
 				this.viewer.renderer.domElement.removeEventListener("mouseup", insertionCallback, false);
 				this.viewer.removeEventListener("cancel_insertions", cancel.callback);
 				document.removeEventListener("keydown", enter);
+				this.viewer.renderer.domElement.removeEventListener("mousemove", hover, false);
+				setTimeout(() => this.viewer.renderer.domElement.removeEventListener("dblclick", noZoom, true), 300);
+				this.closing = false;
 				this.viewer.inputHandler.enabled = true;
 			};
 
@@ -68253,6 +68257,15 @@ void main() {
 				}
 			};
 			document.addEventListener("keydown", enter);
+
+			let hover = e => {
+				let first = svg.find("polyline")[0].points;
+				this.closing = polyClipVol.markers.length > 3 && Math.hypot(e.offsetX - first.getItem(0).x, e.offsetY - first.getItem(0).y) < 12;
+			};
+			this.viewer.renderer.domElement.addEventListener("mousemove", hover, false);
+
+			let noZoom = e => e.stopImmediatePropagation();
+			this.viewer.renderer.domElement.addEventListener("dblclick", noZoom, true);
 			
 			this.viewer.addEventListener("cancel_insertions", cancel.callback);
 			this.viewer.renderer.domElement.addEventListener("mouseup", insertionCallback , false);
