@@ -326,15 +326,20 @@ class ProjectPanel extends React.Component{
             {Object.keys(Potree.Gradients).map(name => <option key={name} value={name}>{name.charAt(0) + name.slice(1).toLowerCase().replace(/_/g, " ")}</option>)}
           </select>
         </div>,
-        <div key="min" className="mv-panel-field">
+        <div key="range" className="mv-panel-field">
           <label>{interpolate(_("Min (%(value)s)"), {value: this.fmt(elevation[0] * conv)})}</label>
-          <input type="range" min={zMin} max={zMax} step={(zMax - zMin) / 200} value={elevation[0]}
-                 onChange={e => { material.elevationRange = [Math.min(parseFloat(e.target.value), elevation[1]), elevation[1]]; this.forceUpdate(); }} />
-        </div>,
-        <div key="max" className="mv-panel-field">
-          <label>{interpolate(_("Max (%(value)s)"), {value: this.fmt(elevation[1] * conv)})}</label>
-          <input type="range" min={zMin} max={zMax} step={(zMax - zMin) / 200} value={elevation[1]}
-                 onChange={e => { material.elevationRange = [elevation[0], Math.max(parseFloat(e.target.value), elevation[0])]; this.forceUpdate(); }} />
+          <label style={{marginLeft: "auto"}}>{interpolate(_("Max (%(value)s)"), {value: this.fmt(elevation[1] * conv)})}</label>
+          <div className="mv-panel-dual">
+            <div className="mv-panel-dual-fill" style={{
+              left: `calc(8px + ${(elevation[0] - zMin) / (zMax - zMin)} * (100% - 16px))`,
+              width: `calc(${(elevation[1] - elevation[0]) / (zMax - zMin)} * (100% - 16px))`}}></div>
+            <input type="range" min={zMin} max={zMax} step={(zMax - zMin) / 200} value={elevation[0]}
+                   style={{zIndex: elevation[0] > (zMin + zMax) / 2 ? 2 : 1}}
+                   onChange={e => { material.elevationRange = [parseFloat(e.target.value), Math.max(parseFloat(e.target.value), elevation[1])]; this.forceUpdate(); }} />
+            <input type="range" min={zMin} max={zMax} step={(zMax - zMin) / 200} value={elevation[1]}
+                   style={{zIndex: 1}}
+                   onChange={e => { material.elevationRange = [Math.min(parseFloat(e.target.value), elevation[0]), parseFloat(e.target.value)]; this.forceUpdate(); }} />
+          </div>
         </div>] : ""}
 
         {material.activeAttributeName === "intensity" ? [
