@@ -205,6 +205,7 @@ class ProjectPanel extends React.Component{
     let measures = scene.measurements.map(obj => {
       let icon = "mv-icon mv-icon-distance";
       if (obj.kind === "perpendicular") icon = "mv-icon mv-icon-perpendicular";
+      else if (obj.kind === "stockpile") icon = "mv-icon mv-icon-stockpile";
       else if (obj.showAngles) icon = "mv-icon mv-icon-angle";
       else if (obj.showCoordinates) icon = "mv-icon mv-icon-point";
       else if (obj.showCircle) icon = "mv-icon mv-icon-circle";
@@ -411,7 +412,7 @@ class ProjectPanel extends React.Component{
       {selectedItem ?
       <div className="mv-panel-properties">
         <div className="mv-panel-tabs">
-          <div className={"mv-panel-tab " + (tab === "properties" ? "active" : "")} onClick={() => this.setState({tab: "properties"})}>{_("Properties / Actions")}</div>
+          <div className={"mv-panel-tab " + (tab === "properties" ? "active" : "")} onClick={() => this.setState({tab: "properties"})}>{_("Properties")}</div>
           {selectedItem.type !== "volume" && selectedItem.type !== "polyclip" && m.kind !== "perpendicular" ?
           <div className={"mv-panel-tab " + (tab === "points" ? "active" : "")} onClick={() => this.setState({tab: "points"})}>{isPoint ? _("Point attributes") : _("Points")}</div>
           : ""}
@@ -421,6 +422,123 @@ class ProjectPanel extends React.Component{
           {properties.map((p, i) => <div key={i} className="mv-panel-property">
             <span>{p[0]}</span><span>{p[1]}</span>
           </div>)}
+
+          {selectedItem.type === "measure" && m.kind === "stockpile" && m.stockpile ? [
+          <div key="sp-result" className="mv-stockpile-result">
+            <div className="mv-stockpile-net">
+              <span>{_("Net volume")}</span>
+              <span>{m.stockpileResult && m.stockpileResult.state === "done" ? `${this.fmt(m.stockpileResult.net * conv * conv * conv)} ${unit}³` : "—"}</span>
+            </div>
+            <div className="mv-stockpile-parts">
+              <div><span>{_("Cut")}</span><span>{m.stockpileResult && m.stockpileResult.state === "done" ? `${this.fmt(m.stockpileResult.cut * conv * conv * conv)} ${unit}³` : "—"}</span></div>
+              <div><span>{_("Fill")}</span><span>{m.stockpileResult && m.stockpileResult.state === "done" ? `${this.fmt(m.stockpileResult.fill * conv * conv * conv)} ${unit}³` : "—"}</span></div>
+            </div>
+            {m.stockpileResult && m.stockpileResult.state === "done" ?
+            <div className="mv-stockpile-legend">
+              <div className="mv-stockpile-bar"></div>
+              <div>
+                <span>{_("Fill")} −{this.fmt(m.stockpileResult.maxDelta * conv)} {unit}</span>
+                <span title={_("Smaller differences are not colored")}>±{this.fmt(0.05 * conv)} {unit}</span>
+                <span>{_("Cut")} +{this.fmt(m.stockpileResult.maxDelta * conv)} {unit}</span>
+              </div>
+            </div> : ""}
+          </div>,
+
+          points.length < 3 ?
+          <div key="sp-hint" className="mv-panel-field"><span className="mv-stockpile-note">{_("Click around the area to measure")}</span></div> : "",
+          m.stockpileResult && m.stockpileResult.state === "pending" ?
+          <div key="sp-pending" className="mv-panel-field"><span className="mv-stockpile-note"><i className="fa fa-circle-notch fa-spin"></i> {_("Computing...")}</span></div> : "",
+          m.stockpileResult && m.stockpileResult.state === "error" ?
+          <div key="sp-error" className="mv-panel-field"><span className="mv-panel-error">{{
+            small: _("Area too small to measure"),
+            intersect: _("The outline crosses itself"),
+            base: _("Outline points are in a line, pick another base"),
+            window: _("Lowest altitude must be below the highest"),
+            nopoints: _("No visible point cloud to measure")
+          }[m.stockpileResult.error]}</span></div> : "",
+          m.stockpileResult && m.stockpileResult.state === "done" && m.stockpileResult.coverage < 0.8 ?
+          <div key="sp-coverage" className="mv-panel-field"><span className="mv-stockpile-warning">{_("Parts of the area have no points, the volume may be too low")}</span></div> : "",
+          m.stockpileResult && m.stockpileResult.state === "done" && m.stockpileResult.gaps > 0 ?
+          <div key="sp-gaps" className="mv-panel-field"><span className="mv-stockpile-warning">{interpolate(_("%(count)s gaps (%(area)s) were too wide to fill"), {count: m.stockpileResult.gaps, area: `${this.fmt(m.stockpileResult.gapArea * conv * conv)} ${unit}²`})}</span></div> : "",
+          m.stockpileResult && m.stockpileResult.state === "done" && m.stockpileResult.limited ?
+          <div key="sp-limited" className="mv-panel-field"><span className="mv-stockpile-warning">{interpolate(_("Cell size raised to %(size)s to stay fast"), {size: `${this.fmt(m.stockpileResult.cell * conv)} ${unit}`})}</span></div> : "",
+
+          <div key="sp-mode" className="mv-panel-field">
+            <label>{_("Type")}</label>
+            <select value={m.stockpile.mode} onChange={e => { m.stockpile.mode = e.target.value; this.forceUpdate(); }}>
+              <option value="stockpile">{_("Stockpile")}</option>
+              <option value="excavation">{_("Excavation")}</option>
+            </select>
+          </div>,
+          <div key="sp-base" className="mv-panel-field">
+            <label>{_("Base")}</label>
+            <select value={m.stockpile.base} onChange={e => { m.stockpile.base = e.target.value; this.forceUpdate(); }}>
+              <option value="ground">{_("Surrounding ground")}</option>
+              <option value="plane">{_("Sloped plane")}</option>
+              <option value="lowest">{_("Lowest point")}</option>
+            </select>
+            <span className="mv-stockpile-note">{{
+              ground: _("The base follows the ground heights at the outline points."),
+              plane: _("The base is one flat plane fitted through the outline points."),
+              lowest: _("The base is level, at the lowest outline point.")
+            }[m.stockpile.base]}</span>
+          </div>,
+          <div key="sp-limit" className="mv-panel-field">
+            <label><input type="checkbox" checked={!!m.stockpile.limitHeight}
+                          onChange={e => { m.stockpile.limitHeight = e.target.checked; this.forceUpdate(); }} /> {_("Limit height")}</label>
+          </div>,
+          m.stockpile.limitHeight ? ["heightMin", "heightMax"].map(k =>
+          <div key={k} className="mv-panel-field">
+            <label>{k === "heightMin" ? _("Lowest altitude") : _("Highest altitude")}</label>
+            <input type="number" step="0.01" key={k + m.stockpile[k]}
+                   defaultValue={m.stockpile[k] == null ? "" : (m.stockpile[k] * conv).toFixed(2)}
+                   onKeyDown={e => { if (e.key === "Enter") e.target.blur(); }}
+                   onBlur={e => {
+                     const value = parseFloat(e.target.value);
+                     m.stockpile[k] = isNaN(value) ? null : value / conv;
+                     this.forceUpdate();
+                   }} />
+            <button type="button" className="mv-panel-btn" title={_("Pick")}
+                    onClick={() => {
+                      const canvas = viewer.renderer.domElement;
+                      const pick = e => {
+                        canvas.removeEventListener("mouseup", pick, true);
+                        if (e.button !== 0) return;
+                        const hit = Potree.Utils.getMousePointCloudIntersection(viewer.inputHandler.mouse, scene.getActiveCamera(), viewer, scene.pointclouds, {pickClipped: true});
+                        if (hit){
+                          m.stockpile[k] = hit.location.z;
+                          this.forceUpdate();
+                        }
+                      };
+                      canvas.addEventListener("mouseup", pick, true);
+                    }}><i className="fa fa-crosshairs"></i></button>
+            <button type="button" className="mv-panel-btn" title={_("Clear")} disabled={m.stockpile[k] == null}
+                    onClick={() => { m.stockpile[k] = null; this.forceUpdate(); }}><i className="fa fa-times"></i></button>
+          </div>) : "",
+          <div key="sp-cell" className="mv-panel-field">
+            <label>{_("Cell size")}</label>
+            <label><input type="checkbox" checked={m.stockpile.cellSize == null}
+                          onChange={e => {
+                            m.stockpile.cellSize = e.target.checked ? null : (m.stockpileResult && m.stockpileResult.cell ? +m.stockpileResult.cell.toFixed(3) : 0.5);
+                            this.forceUpdate();
+                          }} /> {interpolate(_("Auto (%(size)s)"), {size: m.stockpileResult && m.stockpileResult.cell ? `${this.fmt(m.stockpileResult.cell * conv)} ${unit}` : "—"})}</label>
+            {m.stockpile.cellSize != null ?
+            <input type="number" min="0" step="0.01" key={"cell" + m.stockpile.cellSize}
+                   defaultValue={(m.stockpile.cellSize * conv).toFixed(2)}
+                   onKeyDown={e => { if (e.key === "Enter") e.target.blur(); }}
+                   onBlur={e => {
+                     const value = parseFloat(e.target.value);
+                     if (value > 0) m.stockpile.cellSize = value / conv;
+                     this.forceUpdate();
+                   }} /> : ""}
+          </div>,
+          <div key="sp-show" className="mv-panel-field">
+            <label><input type="checkbox" checked={m.stockpile.showVolume}
+                          onChange={e => { m.stockpile.showVolume = e.target.checked; this.forceUpdate(); }} /> {_("Show volume")}</label>
+            <label><input type="checkbox" checked={m.stockpile.showBase}
+                          onChange={e => { m.stockpile.showBase = e.target.checked; this.forceUpdate(); }} /> {_("Show base")}</label>
+          </div>
+          ] : ""}
 
           {isPoint && points.length === 1 ?
           <div className="mv-panel-field mv-panel-xyz">
@@ -578,6 +696,7 @@ class ProjectPanel extends React.Component{
                         maxMarkers, name: m.name
                       });
                       if (m.kind) fresh.kind = m.kind;
+                      if (m.stockpile) fresh.stockpile = m.stockpile;
                       this.setState({selected: fresh});
                     }}><i className="far fa-edit"></i> {_("Redo")}</button> : ""}
             {selectedItem.type === "volume" ?

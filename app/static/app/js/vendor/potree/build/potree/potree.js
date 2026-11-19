@@ -54466,6 +54466,18 @@
 				let msg =  `${txtArea} ${suffix}\u00B2`;
 				this.areaLabel.setText(msg);
 
+				if(this.kind === 'stockpile' && this.points.length >= 3){
+					let volume = this.stockpileNet;
+					let unit = "";
+					if(this.lengthUnit != null && this.lengthUnitDisplay != null){
+						if(volume != null) volume = volume / Math.pow(this.lengthUnit.unitspermeter, 3) * Math.pow(this.lengthUnitDisplay.unitspermeter, 3);
+						unit = this.lengthUnitDisplay.code;
+					}
+					this.areaLabel.visible = true;
+					if(this.stockpileAltitude != null) this.areaLabel.position.z = this.stockpileAltitude;
+					this.areaLabel.setText(volume == null ? "—" : `${Utils.addCommas(volume.toFixed(1))} ${unit}³`);
+				}
+
 				if(this.kind === 'perpendicular' && this.points.length === 2){
 					const p1 = this.points[0].position;
 					const p2 = this.points[1].position;
@@ -64732,6 +64744,9 @@ void main() {
 		if(measurement.kind){
 			data.kind = measurement.kind;
 		}
+		if(measurement.stockpile){
+			data.stockpile = measurement.stockpile;
+		}
 		if(measurement.kind === 'perpendicular' && measurement.normal && measurement.points.length === 2){
 			data.points.push(measurement.points[0].position.clone().add(measurement.normal).toArray());
 		}
@@ -65507,6 +65522,9 @@ void main() {
 		measure.showEdges = data.showEdges;
 		if(data.kind){
 			measure.kind = data.kind;
+		}
+		if(data.stockpile){
+			measure.stockpile = Object.assign({}, data.stockpile);
 		}
 		// color
 
