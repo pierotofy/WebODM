@@ -1,5 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import $ from 'jquery';
 import * as THREE from 'THREE';
 import '../../css/modelview/Panel.scss';
 import { _, interpolate } from '../../classes/gettext';
@@ -8,6 +9,7 @@ import { systems } from '../../classes/Units';
 class ProjectPanel extends React.Component{
   static propTypes = {
     viewer: PropTypes.object.isRequired,
+    task: PropTypes.object.isRequired,
     hasCameras: PropTypes.bool.isRequired,
     camerasVisible: PropTypes.bool.isRequired,
     onToggleCameras: PropTypes.func.isRequired,
@@ -697,7 +699,21 @@ class ProjectPanel extends React.Component{
 
       {exportOpen ?
       <div className="mv-context-menu mv-export-menu">
-        <div onClick={() => this.download("measurements.geojson", Potree.GeoJSONExporter.toString([...scene.measurements, ...scene.profiles, ...scene.volumes]))}>GeoJSON</div>
+        <div onClick={() => {
+          const { task } = this.props;
+          const geojson = Potree.GeoJSONExporter.toString([...scene.measurements, ...scene.profiles, ...scene.volumes]);
+          if (!task.epsg){
+            this.download("measurements.geojson", geojson);
+            return;
+          }
+          $.ajax({
+            url: `/api/projects/${task.project}/tasks/${task.id}/reproject`,
+            contentType: "application/json",
+            data: JSON.stringify({geojson: JSON.parse(geojson), source_epsg: task.epsg, target_epsg: 4979}),
+            type: 'POST'
+          }).done(result => this.download("measurements.geojson", JSON.stringify(result, null, "\t")))
+            .fail(xhr => window.alert((xhr.responseJSON && (xhr.responseJSON.error || xhr.responseJSON[0])) || _("Cannot export GeoJSON")));
+        }}>GeoJSON</div>
         <div onClick={() => this.download("measurements.dxf", Potree.DXFExporter.toString([...scene.measurements, ...scene.profiles, ...scene.volumes]))}>DXF</div>
         <div onClick={() => this.download("scene.json", JSON.stringify(Potree.saveProject(viewer), null, "\t"))}>{_("Potree scene")}</div>
       </div> : ""}
