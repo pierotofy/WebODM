@@ -611,7 +611,7 @@ class ProjectPanel extends React.Component{
                       m.position.copy(scene.view.getPivot());
                       this.setState({updated: "view"});
                       setTimeout(() => this.setState({updated: null}), 2000);
-                    }}><i className={updated === "view" ? "fa fa-check" : "fa fa-expand"}></i> {_("Update")}</button> : ""}
+                    }}><i className={updated === "view" ? "fa fa-check" : "fa fa-expand"}></i> {_("Match Current")}</button> : ""}
             {selectedItem.type === "annotation" && m.hasView() ?
             <button type="button" className="mv-panel-action" onClick={() => viewer.annotationTool.startLookAt(m)}><i className="fa fa-crosshairs"></i> {_("Look At")}</button> : ""}
             {selectedItem.type === "annotation" && m.hasView() && this.props.onSetInitialCameraView ?
