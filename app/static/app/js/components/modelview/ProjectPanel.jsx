@@ -520,8 +520,8 @@ class ProjectPanel extends React.Component{
               if (!view) return null;
               const segment = v.enabled ? m.segments[m.views.slice(0, i).filter(o => o.enabled).length] : null;
               return (<div key={v.uuid} className="mv-panel-key" draggable
-                           onDragStart={e => { this.draggedView = i; e.dataTransfer.effectAllowed = "move"; }}
-                           onDragOver={e => e.preventDefault()}
+                           onDragStart={e => { this.draggedView = i; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", ""); }}
+                           onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
                            onDrop={e => {
                              e.preventDefault();
                              m.views.splice(i, 0, m.views.splice(this.draggedView, 1)[0]);
