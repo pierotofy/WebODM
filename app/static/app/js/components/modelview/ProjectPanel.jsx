@@ -168,7 +168,7 @@ class ProjectPanel extends React.Component{
 
     return (<div key={item.obj.uuid}
          className={"mv-tree-row mv-tree-child " + (selected === item.obj ? "selected" : "")}
-         onClick={() => this.setState({selected: item.obj, tab: "properties"})}
+         onClick={e => { const row = e.currentTarget; this.setState({selected: item.obj, tab: "properties"}, () => row.scrollIntoView({block: "nearest"})); }}
          onDoubleClick={e => { if (!e.target.closest("button")) this.zoomTo(item); }}
          onContextMenu={e => {
            e.preventDefault();
