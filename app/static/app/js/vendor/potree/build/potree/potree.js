@@ -68206,10 +68206,12 @@ void main() {
 					}
 					if(e.detail > 1) return;
 
+					let placed = polyClipVol.markers.length - 1;
 					polyClipVol.addMarker();
 
 					// SVC Screen Line
 					svg.find("polyline").each((index, target) => {
+						while(target.points.numberOfItems > placed) target.points.removeItem(target.points.numberOfItems - 1);
 						let newPoint = svg[0].createSVGPoint();
 						newPoint.x = e.offsetX;
 						newPoint.y = e.offsetY;
@@ -68261,6 +68263,13 @@ void main() {
 			let hover = e => {
 				let first = svg.find("polyline")[0].points;
 				this.closing = polyClipVol.markers.length > 3 && Math.hypot(e.offsetX - first.getItem(0).x, e.offsetY - first.getItem(0).y) < 12;
+				svg.find("polyline").each((index, target) => {
+					let p = svg[0].createSVGPoint();
+					p.x = e.offsetX;
+					p.y = e.offsetY;
+					if(target.points.numberOfItems > polyClipVol.markers.length - 1) target.points.replaceItem(p, target.points.numberOfItems - 1);
+					else target.points.appendItem(p);
+				});
 			};
 			this.viewer.renderer.domElement.addEventListener("mousemove", hover, false);
 
