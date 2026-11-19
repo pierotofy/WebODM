@@ -63507,7 +63507,7 @@ void main() {
 				shader.setUniform1f("uLevel", level);
 
 				if(node.fadeStart === undefined) node.fadeStart = performance.now();
-				shader.setUniform1f("uFade", Math.min((performance.now() - node.fadeStart) / 300, 1));
+				shader.setUniform1f("uFade", Math.min((performance.now() - node.fadeStart) / 200, 1));
 				shader.setUniform1f("uNodeSpacing", node.geometryNode.estimatedSpacing);
 
 				shader.setUniform1f("uPCIndex", i);
