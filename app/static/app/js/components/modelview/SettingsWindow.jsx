@@ -186,7 +186,10 @@ class SettingsWindow extends React.Component{
         this.shortcut(_("Move Up"), ["R", "PgUp"]),
         this.shortcut(_("Move Down"), ["F", "PgDn"]),
         <div className="mv-settings-section" key="measurements">{_("Measurements")}</div>,
-        this.shortcut(_("Move Camera When Measuring"), [_("Hold Space")])
+        this.shortcut(_("Move Camera When Measuring"), [_("Hold Space")]),
+        this.shortcut(_("Roof: Detect Face"), [_("Click")]),
+        this.shortcut(_("Roof: Outline By Hand"), [_("Shift + Click")]),
+        this.shortcut(_("Roof: Finish"), [_("Right Click"), "Esc"])
       ];
     }else{
       content = [

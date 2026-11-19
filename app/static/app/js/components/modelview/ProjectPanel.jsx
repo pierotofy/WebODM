@@ -27,7 +27,7 @@ class ProjectPanel extends React.Component{
       cameraScale: 1,
       search: "",
       closed: {},
-      renaming: props.inserted instanceof Potree.Annotation && !props.inserted.hasView() ? null : props.inserted,
+      renaming: (props.inserted instanceof Potree.Annotation && !props.inserted.hasView()) || (props.inserted && props.inserted.kind === "roof") ? null : props.inserted,
       menu: null,
       exportOpen: false,
       recording: false,
@@ -48,7 +48,7 @@ class ProjectPanel extends React.Component{
       });
     }
     if (this.props.inserted && this.props.inserted !== prevProps.inserted){
-      this.setState({selected: this.props.inserted, renaming: this.props.inserted instanceof Potree.Annotation && !this.props.inserted.hasView() ? null : this.props.inserted, tab: "properties", closed: {}});
+      this.setState({selected: this.props.inserted, renaming: (this.props.inserted instanceof Potree.Annotation && !this.props.inserted.hasView()) || this.props.inserted.kind === "roof" ? null : this.props.inserted, tab: "properties", closed: {}});
     }
   }
 
@@ -205,6 +205,7 @@ class ProjectPanel extends React.Component{
     let measures = scene.measurements.map(obj => {
       let icon = "mv-icon mv-icon-distance";
       if (obj.kind === "perpendicular") icon = "mv-icon mv-icon-perpendicular";
+      else if (obj.kind === "roof") icon = "mv-icon mv-icon-roof";
       else if (obj.showAngles) icon = "mv-icon mv-icon-angle";
       else if (obj.showCoordinates) icon = "mv-icon mv-icon-point";
       else if (obj.showCircle) icon = "mv-icon mv-icon-circle";
@@ -241,8 +242,24 @@ class ProjectPanel extends React.Component{
       points = m.points.map(p => p.position);
 
       if (m.kind === "perpendicular" && points.length === 2) properties.push([_("Distance"), `${this.fmt(m.getPerpendicularDistance() * conv)} ${unit}`]);
-      if (m.showDistances && points.length > 1) properties.push([_("Total distance"), `${this.fmt(m.getTotalDistance() * conv)} ${unit}`]);
-      if (m.showArea && points.length > 2) properties.push([_("Area"), `${this.fmt(m.getArea() * conv * conv)} ${unit}²`]);
+      if (m.kind === "roof" && m.roof){
+        const feet = unit.indexOf("ft") === 0;
+        const kinds = [["ridge", _("Ridges")], ["hip", _("Hips")], ["valley", _("Valleys")], ["rake", _("Rakes")], ["eave", _("Eaves")]];
+        properties.push([_("Area"), `${this.fmt(m.roof.area * conv * conv)} ${unit}²` + (feet ? ` (${(m.roof.area * conv * conv / 100).toFixed(2)} sq)` : "")]);
+        properties.push([_("Pitch"), `${(m.roof.slope * 12).toFixed(1)}/12 · ${(Math.atan(m.roof.slope) * 180 / Math.PI).toFixed(1)}°`]);
+        kinds.forEach(k => {
+          const length = m.roof.edges.filter(e => e.type === k[0]).reduce((sum, e) => sum + e.length, 0);
+          if (length > 0) properties.push([k[1], `${this.fmt(length * conv)} ${unit}`]);
+        });
+        if (m.roof.totals && m.roof.totals.faces > 1){
+          properties.push([interpolate(_("Whole roof (%(num)s faces)"), {num: m.roof.totals.faces}), ""]);
+          properties.push([_("Area"), `${this.fmt(m.roof.totals.area * conv * conv)} ${unit}²` + (feet ? ` (${(m.roof.totals.area * conv * conv / 100).toFixed(2)} sq)` : "")]);
+          properties.push([_("Main pitch"), `${m.roof.totals.pitch}/12`]);
+          kinds.forEach(k => { if (m.roof.totals[k[0]] > 0) properties.push([k[1], `${this.fmt(m.roof.totals[k[0]] * conv)} ${unit}`]); });
+        }
+      }
+      if (m.kind !== "roof" && m.showDistances && points.length > 1) properties.push([_("Total distance"), `${this.fmt(m.getTotalDistance() * conv)} ${unit}`]);
+      if (m.kind !== "roof" && m.showArea && points.length > 2) properties.push([_("Area"), `${this.fmt(m.getArea() * conv * conv)} ${unit}²`]);
       if (m.showHeight && points.length > 1){
         const zs = points.map(p => p.z);
         properties.push([_("Height"), `${this.fmt((Math.max(...zs) - Math.min(...zs)) * conv)} ${unit}`]);

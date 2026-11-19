@@ -54317,7 +54317,7 @@
 					}
 
 					let txtLength = Utils.addCommas(distance.toFixed(2));
-					edgeLabel.setText(`${txtLength} ${suffix}`);
+					edgeLabel.setText(this.kind === 'roof' && this.roof && this.roof.edges[index] ? `${this.roof.edges[index].label} ${txtLength} ${suffix}` : `${txtLength} ${suffix}`);
 					edgeLabel.visible = this.showDistances && (index < lastIndex || this.closed) && this.points.length >= 2 && distance > 0;
 				}
 
@@ -54464,7 +54464,7 @@
 
 				let txtArea = Utils.addCommas(area.toFixed(1));
 				let msg =  `${txtArea} ${suffix}\u00B2`;
-				this.areaLabel.setText(msg);
+				this.areaLabel.setText(this.kind === 'roof' && this.roof ? `${msg} \u00B7 ${(this.roof.slope * 12).toFixed(1)}/12` : msg);
 
 				if(this.kind === 'perpendicular' && this.points.length === 2){
 					const p1 = this.points[0].position;
