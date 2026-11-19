@@ -297,10 +297,15 @@ class ModelView extends React.Component {
 
           if (this.props.modelType === "cloud"){
             const box = e.pointcloud.pcoGeometry.tightBoundingBox || e.pointcloud.boundingBox;
-            const center = box.getCenter(new THREE.Vector3()).add(e.pointcloud.position);
-            const radius = box.getSize(new THREE.Vector3()).length() / 2;
+            const min = box.min.clone().add(e.pointcloud.position);
+            const max = box.max.clone().add(e.pointcloud.position);
             const start = performance.now();
             const reveal = () => {
+              const eye = viewer.scene.view.position;
+              const center = new THREE.Vector3(eye.x, eye.y, (min.z + max.z) / 2);
+              const radius = Math.hypot(Math.max(Math.abs(center.x - min.x), Math.abs(center.x - max.x)),
+                                        Math.max(Math.abs(center.y - min.y), Math.abs(center.y - max.y)),
+                                        (max.z - min.z) / 2);
               const elapsed = performance.now() - start;
               const shown = Math.pow(Math.max((elapsed + 300) / 1800, 0), 2.5) * radius;
               const solid = Math.pow(Math.max((elapsed - 400) / 1800, 0), 2.5) * radius;
