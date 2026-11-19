@@ -89780,24 +89780,25 @@ ENDSEC
 
 				if (annotation.hasView() && annotation.cameraPosition && annotation.cameraTarget) {
 					if (!annotation.marker) {
-						const f = 0.3;
+						const w = 0.6;
+						const h = 0.4;
 						const geometry = new LineGeometry();
 						geometry.setPositions([
 							 0,  0,  0,
-							 f, -f, +1,
+							 w, -h, +1,
 
 							 0,  0,  0,
-							 f,  f, +1,
+							 w,  h, +1,
 
 							 0,  0,  0,
-							-f,  f, +1,
+							-w,  h, +1,
 
 							 0,  0,  0,
-							-f, -f, +1,
+							-w, -h, +1,
 
-							-f,  f, +1,
-							 f,  f, +1,
-							 f, -f, +1,
+							-w,  h, +1,
+							 w,  h, +1,
+							 w, -h, +1,
 						]);
 						annotation.marker = new Line2(geometry, new LineMaterial({
 							color: 0xffffff,
@@ -89826,7 +89827,7 @@ ENDSEC
 					annotation.marker.material.color.set(annotation === this.selectedItem ? 0xffff00 : 0xffffff);
 					annotation.marker.position.copy(annotation.cameraPosition);
 					annotation.marker.lookAt(annotation.cameraTarget);
-					annotation.marker.scale.setScalar(perPixel * 40);
+					annotation.marker.scale.setScalar(perPixel * 32);
 					annotation.marker.material.resolution.set(renderAreaSize.x, renderAreaSize.y);
 				}
 
