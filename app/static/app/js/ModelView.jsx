@@ -643,7 +643,7 @@ class ModelView extends React.Component {
     if (evt.button !== 2 || this.placingOnMouseDown || viewer.inputHandler.getNormalizedDrag().length() !== 0) return;
 
     const hovered = viewer.inputHandler.hoveredElements.map(h => h.object);
-    const item = viewer.scene.measurements.concat(viewer.scene.profiles).find(m => m.spheres.some(s => hovered.indexOf(s) !== -1));
+    const item = viewer.scene.measurements.concat(viewer.scene.profiles).find(m => m.spheres.some(s => hovered.indexOf(s) !== -1)) || this.pointOfViewAt(evt);
     if (item) this.setState({panel: "project", inserted: null, focused: {item}});
   }
 
@@ -655,18 +655,22 @@ class ModelView extends React.Component {
     if (item) this.setState({panel: "project", inserted: null, focused: {item}});
   }
 
-  handleRenderDoubleClickCapture = (evt) => {
+  pointOfViewAt = (evt) => {
     const rect = viewer.renderer.domElement.getBoundingClientRect();
     const camera = viewer.scene.getActiveCamera();
-    const item = viewer.scene.annotations.descendants().find(a => {
+    return viewer.scene.annotations.descendants().find(a => {
       if (!a.marker || !a.marker.visible) return false;
       const p = a.marker.localToWorld(new THREE.Vector3(0, 0, 0.5)).project(camera);
       return Math.abs(p.z) < 1 && Math.hypot(rect.left + (p.x + 1) / 2 * rect.width - evt.clientX, rect.top + (1 - p.y) / 2 * rect.height - evt.clientY) < 25;
     });
+  }
+
+  handleRenderDoubleClickCapture = (evt) => {
+    const item = this.pointOfViewAt(evt);
     if (!item) return;
 
     evt.stopImmediatePropagation();
-    item.moveHere(camera);
+    item.moveHere(viewer.scene.getActiveCamera());
     this.setState({panel: "project", inserted: null, focused: {item}});
   }
 

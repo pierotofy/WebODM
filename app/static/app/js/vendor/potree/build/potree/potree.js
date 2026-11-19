@@ -89784,9 +89784,6 @@ ENDSEC
 						const geometry = new LineGeometry();
 						geometry.setPositions([
 							 0,  0,  0,
-							-f, -f, +1,
-
-							 0,  0,  0,
 							 f, -f, +1,
 
 							 0,  0,  0,
@@ -89795,24 +89792,28 @@ ENDSEC
 							 0,  0,  0,
 							-f,  f, +1,
 
+							 0,  0,  0,
 							-f, -f, +1,
-							 f, -f, +1,
-
-							 f, -f, +1,
-							 f,  f, +1,
-
-							 f,  f, +1,
-							-f,  f, +1,
 
 							-f,  f, +1,
-							-f, -f, +1,
+							 f,  f, +1,
+							 f, -f, +1,
 						]);
 						annotation.marker = new Line2(geometry, new LineMaterial({
 							color: 0xffffff,
 							linewidth: 2,
 							resolution: new Vector2(1000, 1000),
 						}));
-						this.scene.scene.add(annotation.marker);
+						annotation.marker.up.set(0, 0, 1);
+
+						if (!this.markerScene) {
+							this.markerScene = new Scene();
+							this.addEventListener('render.pass.perspective_overlay', () => {
+								this.renderer.clearDepth();
+								this.renderer.render(this.markerScene, this.scene.getActiveCamera());
+							});
+						}
+						this.markerScene.add(annotation.marker);
 					}
 
 					const camera = this.scene.getActiveCamera();
