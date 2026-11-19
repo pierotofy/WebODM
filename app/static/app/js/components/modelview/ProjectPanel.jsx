@@ -327,8 +327,8 @@ class ProjectPanel extends React.Component{
           </select>
         </div>,
         <div key="range" className="mv-panel-field">
-          <label>{interpolate(_("Min (%(value)s)"), {value: this.fmt(elevation[0] * conv)})}</label>
-          <label style={{marginLeft: "auto"}}>{interpolate(_("Max (%(value)s)"), {value: this.fmt(elevation[1] * conv)})}</label>
+          <label>{`${this.fmt(elevation[0] * conv)} ${unit || ""}`.trim()}</label>
+          <label style={{marginLeft: "auto"}}>{`${this.fmt(elevation[1] * conv)} ${unit || ""}`.trim()}</label>
           <div className="mv-panel-dual">
             <div className="mv-panel-dual-fill" style={{
               left: `calc(8px + ${(elevation[0] - zMin) / (zMax - zMin)} * (100% - 16px))`,
