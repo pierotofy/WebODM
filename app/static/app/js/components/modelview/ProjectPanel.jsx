@@ -571,7 +571,7 @@ class ProjectPanel extends React.Component{
           <div key="time" className="mv-panel-field">
             <label>{_("Time")}</label>
             <input type="range" min="0" max="1" step="0.001" value={selectedItem.obj.t}
-                   onChange={e => { selectedItem.obj.set(parseFloat(e.target.value)); this.forceUpdate(); }} />
+                   onChange={e => { selectedItem.obj.set(parseFloat(e.target.value)); selectedItem.obj.setVisible(true); this.forceUpdate(); }} />
           </div>,
           <div key="controls" className="mv-panel-controls">
             <button type="button" className="mv-panel-btn" title={_("Play")} disabled={recording || !m.cameraCurve}
