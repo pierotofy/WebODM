@@ -166,8 +166,6 @@ class Toolbar extends React.Component{
             onClick: () => this.measure({showDistances: false, showArea: false, closed: false, maxMarkers: 2, name: _("Perpendicular distance")}, "perpendicular") },
           { icon: "mv-icon mv-icon-area", title: _("Surface area"),
             onClick: () => this.measure({showDistances: true, showArea: true, closed: true, name: _("Area")}) },
-          { icon: "mv-icon mv-icon-volume", title: _("Volume"),
-            onClick: () => { this.inserting = viewer.volumeTool.startInsertion(); this.props.onInsert(this.inserting); } },
           { icon: "mv-icon mv-icon-stockpile", title: _("Stockpile"),
             onClick: () => this.measure({showDistances: false, showArea: false, closed: true, name: _("Stockpile")}, "stockpile") },
           { icon: "mv-icon mv-icon-profile", title: _("Height profile"),
