@@ -74131,6 +74131,7 @@ void main() {
 			features.forEach(f => {
 				if (measurement.showDistances && coords.length > 1) f.properties.distance = measurement.getTotalDistance();
 				if (measurement.showArea && coords.length > 2) f.properties.area = measurement.getArea();
+				if (measurement.showHeight && coords.length > 1) f.properties.height = Math.max(...coords.map(c => c[2])) - Math.min(...coords.map(c => c[2]));
 			});
 
 			return features;
