@@ -294,30 +294,6 @@ class ModelView extends React.Component {
           material.size = 1;
 
           viewer.fitToScreen();
-
-          if (this.props.modelType === "cloud"){
-            const box = e.pointcloud.pcoGeometry.tightBoundingBox || e.pointcloud.boundingBox;
-            const min = box.min.clone().add(e.pointcloud.position);
-            const max = box.max.clone().add(e.pointcloud.position);
-            const start = performance.now();
-            const reveal = () => {
-              const eye = viewer.scene.view.position;
-              const center = new THREE.Vector3(eye.x, eye.y, (min.z + max.z) / 2);
-              const radius = Math.hypot(Math.max(Math.abs(center.x - min.x), Math.abs(center.x - max.x)),
-                                        Math.max(Math.abs(center.y - min.y), Math.abs(center.y - max.y)),
-                                        (max.z - min.z) / 2);
-              const elapsed = performance.now() - start - 1500;
-              const shown = Math.pow(Math.max((elapsed + 300) / 1800, 0), 2.5) * radius;
-              const solid = Math.pow(Math.max((elapsed - 400) / 1800, 0), 2.5) * radius;
-              if (solid * 0.9 >= radius){
-                material.reveal = null;
-                return;
-              }
-              material.reveal = {center, shown: [shown * 1.1, 1 / (shown * 0.2 || 1)], solid: [solid * 1.1, 1 / (solid * 0.2 || 1)]};
-              requestAnimationFrame(reveal);
-            };
-            reveal();
-          }
         
           this.handleUnitSystemChanged();
 
