@@ -573,6 +573,12 @@ class ProjectPanel extends React.Component{
             <input type="number" min="0.1" step="0.5" value={+selectedItem.obj.duration.toFixed(1)}
                    onChange={e => { selectedItem.obj.setDuration(parseFloat(e.target.value) || 1); this.forceUpdate(); }} />
           </div>,
+          m.kind === "orbit" && m.orbit ?
+          <div key="length" className="mv-panel-field">
+            <label>{_("Length")}</label>
+            <input type="range" min="0.05" max="1" step="0.01" value={m.orbit.length}
+                   onChange={e => { m.orbit.length = parseFloat(e.target.value); m.update(); this.forceUpdate(); }} />
+          </div> : null,
           <div key="time" className="mv-panel-field">
             <label>{_("Time")}</label>
             <input type="range" min="0" max="1" step="0.001" value={selectedItem.obj.t}

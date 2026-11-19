@@ -64720,7 +64720,7 @@ void main() {
 			kind: animation.kind,
 			loop: animation.loop,
 			views: animation.views.map(v => Object.assign({}, v)),
-			orbit: animation.orbit ? {center: animation.orbit.center.toArray(), a: animation.orbit.a, b: animation.orbit.b, rotation: animation.orbit.rotation, target: animation.orbit.target.toArray()} : null,
+			orbit: animation.orbit ? {center: animation.orbit.center.toArray(), a: animation.orbit.a, b: animation.orbit.b, rotation: animation.orbit.rotation, length: animation.orbit.length, target: animation.orbit.target.toArray()} : null,
 		};
 
 		return data;
@@ -65002,7 +65002,7 @@ void main() {
 				const target = box.isEmpty() ? this.viewer.scene.view.getPivot() : box.getCenter(new Vector3());
 				const position = this.viewer.scene.view.position;
 				const radius = Math.max(Math.hypot(position.x - target.x, position.y - target.y), 0.01);
-				this.orbit = {center: new Vector3(target.x, target.y, position.z), a: radius, b: radius, rotation: 0, target: target};
+				this.orbit = {center: new Vector3(target.x, target.y, position.z), a: radius, b: radius, rotation: 0, length: 1, target: target};
 			}
 		}
 
@@ -65031,8 +65031,9 @@ void main() {
 				}
 				closed = this.loop;
 			}else if(this.kind === "orbit" && this.orbit){
-				for(let i = 0; i < 32; i++){
-					const angle = 2 * Math.PI * i / 32;
+				closed = this.orbit.length >= 1;
+				for(let i = 0; i < (closed ? 32 : 33); i++){
+					const angle = 2 * Math.PI * this.orbit.length * i / 32;
 					const x = this.orbit.a * Math.cos(angle), y = this.orbit.b * Math.sin(angle);
 					positions.push(new Vector3(
 						this.orbit.center.x + x * Math.cos(this.orbit.rotation) - y * Math.sin(this.orbit.rotation),
@@ -65445,7 +65446,7 @@ void main() {
 		animation.kind = data.kind;
 		animation.loop = data.loop;
 		animation.views = data.views.map(v => Object.assign({}, v));
-		animation.orbit = data.orbit ? {center: new Vector3(...data.orbit.center), a: data.orbit.a, b: data.orbit.b, rotation: data.orbit.rotation || 0, target: new Vector3(...(data.orbit.target || data.orbit.center))} : null;
+		animation.orbit = data.orbit ? {center: new Vector3(...data.orbit.center), a: data.orbit.a, b: data.orbit.b, rotation: data.orbit.rotation || 0, length: data.orbit.length || 1, target: new Vector3(...(data.orbit.target || data.orbit.center))} : null;
 		if(data.orbit && !data.orbit.target) animation.orbit.center.z += data.orbit.height;
 
 		viewer.scene.addCameraAnimation(animation);
