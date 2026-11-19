@@ -486,26 +486,6 @@ class ProjectPanel extends React.Component{
             })}
           </div>) : ""}
 
-          {selectedItem.type === "volume" ?
-          <div className="mv-panel-field">
-            <label><input type="checkbox" checked={selectedItem.obj.clip}
-                          onChange={e => { selectedItem.obj.clip = e.target.checked; this.forceUpdate(); }} /> {_("Use as clip volume")}</label>
-          </div> : ""}
-
-          {selectedItem.type === "volume" && m.clip ? [
-          <div key="lock" className="mv-panel-field">
-            <label><input type="checkbox" checked={!!m.locked}
-                          onChange={e => {
-                            m.locked = e.target.checked;
-                            viewer.inputHandler.deselectAll();
-                            this.forceUpdate();
-                          }} /> {_("Lock")}</label>
-          </div>,
-          <div key="frame" className="mv-panel-field">
-            <label><input type="checkbox" checked={m.frame.visible}
-                          onChange={e => { m.frame.visible = e.target.checked; this.forceUpdate(); }} /> {_("Show frame")}</label>
-          </div>] : ""}
-
           {selectedItem.type === "profile" ? [
           <div key="width" className="mv-panel-field">
             <label>{interpolate(_("Width (%(unit)s)"), {unit: viewer.lengthUnit.code})}</label>
