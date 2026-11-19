@@ -185,10 +185,8 @@ class ProjectPanel extends React.Component{
              onBlur={e => { item.obj[item.nameKey] = e.target.value || item.obj[item.nameKey]; this.setState({renaming: null}); }}
              onKeyDown={e => { if (e.key === "Enter" || e.key === "Escape") e.target.blur(); }} />
       : <span className="mv-tree-label"><span onDoubleClick={e => { e.stopPropagation(); this.setState({renaming: item.obj}); }}>{item.obj[item.nameKey] || _("Annotation")}</span></span>}
-      {selected === item.obj ?
       <button type="button" className="mv-panel-btn mv-danger" title={_("Delete")}
               onClick={e => { e.stopPropagation(); if (e.detail <= 1) this.remove(item); }}><i className="fa fa-trash"></i></button>
-      : ""}
       <button type="button" className="mv-panel-btn" title={item.obj.visible ? _("Hide") : _("Show")}
               onClick={e => { e.stopPropagation(); this.setVisible(item, !item.obj.visible); this.forceUpdate(); }}>
         <i className={item.obj.visible ? "far fa-eye" : "far fa-eye-slash"}></i>
