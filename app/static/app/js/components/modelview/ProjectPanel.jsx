@@ -168,8 +168,16 @@ class ProjectPanel extends React.Component{
 
     return (<div key={item.obj.uuid}
          className={"mv-tree-row mv-tree-child " + (selected === item.obj ? "selected" : "")}
-         onClick={e => { const row = e.currentTarget; this.setState({selected: item.obj, tab: "properties"}, () => row.scrollIntoView({block: "nearest"})); }}
-         onDoubleClick={e => { if (!e.target.closest("button")) this.zoomTo(item); }}
+         onClick={e => {
+           if (e.detail > 1) return;
+           const row = e.currentTarget;
+           this.setState({selected: selected === item.obj ? null : item.obj, tab: "properties"}, () => row.scrollIntoView({block: "nearest"}));
+         }}
+         onDoubleClick={e => {
+           if (e.target.closest("button")) return;
+           this.setState({selected: item.obj});
+           this.zoomTo(item);
+         }}
          onContextMenu={e => {
            e.preventDefault();
            e.stopPropagation();
@@ -184,7 +192,7 @@ class ProjectPanel extends React.Component{
              onFocus={e => e.target.select()}
              onBlur={e => { item.obj[item.nameKey] = e.target.value || item.obj[item.nameKey]; this.setState({renaming: null}); }}
              onKeyDown={e => { if (e.key === "Enter" || e.key === "Escape") e.target.blur(); }} />
-      : <span className="mv-tree-label"><span onDoubleClick={e => { e.stopPropagation(); this.setState({renaming: item.obj}); }}>{item.obj[item.nameKey] || _("Annotation")}</span></span>}
+      : <span className="mv-tree-label"><span onDoubleClick={e => { e.stopPropagation(); this.setState({renaming: item.obj, selected: item.obj}); }}>{item.obj[item.nameKey] || _("Annotation")}</span></span>}
       <button type="button" className="mv-panel-btn mv-danger" title={_("Delete")}
               onClick={e => { e.stopPropagation(); if (e.detail <= 1) this.remove(item); }}><i className="fa fa-trash"></i></button>
       <button type="button" className="mv-panel-btn" title={item.obj.visible ? _("Hide") : _("Show")}
@@ -365,7 +373,7 @@ class ProjectPanel extends React.Component{
       <div className="mv-panel-body">
         {this.props.hasCameras ?
         <div className={"mv-tree-row mv-tree-root " + (selected === "cameras" ? "selected" : "")}
-             onClick={() => this.setState({selected: "cameras"})}
+             onClick={e => { if (e.detail <= 1) this.setState({selected: selected === "cameras" ? null : "cameras"}); }}
              onDoubleClick={e => { if (!e.target.closest("button")) this.props.onToggleCameras(); }}>
           <i className="fa fa-camera fa-fw"></i>
           <span className="mv-tree-label">{_("Cameras")}</span>
@@ -376,7 +384,7 @@ class ProjectPanel extends React.Component{
           </button>
         </div> : ""}
         <div className={"mv-tree-row mv-tree-root " + (selected === "pointcloud" ? "selected" : "")}
-             onClick={() => this.setState({selected: "pointcloud"})}>
+             onClick={e => { if (e.detail <= 1) this.setState({selected: selected === "pointcloud" ? null : "pointcloud"}); }}>
           <i className="fa fa-pointcloud"></i>
           <span className="mv-tree-label">{_("Point Cloud")}</span>
         </div>

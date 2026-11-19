@@ -205,6 +205,10 @@
         flex: 1 1 auto;
         min-height: 96px;
         overflow-y: auto;
+
+        &::-webkit-scrollbar{
+            background-color: transparent;
+        }
         padding: 8px 0;
     }
 
@@ -243,6 +247,10 @@
         flex: none;
         height: 50%;
         overflow-y: auto;
+
+        &::-webkit-scrollbar{
+            background-color: transparent;
+        }
         border-top: 1px solid #44575f;
         padding-bottom: 12px;
     }
