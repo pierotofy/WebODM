@@ -306,14 +306,14 @@ class ModelView extends React.Component {
               const radius = Math.hypot(Math.max(Math.abs(center.x - min.x), Math.abs(center.x - max.x)),
                                         Math.max(Math.abs(center.y - min.y), Math.abs(center.y - max.y)),
                                         (max.z - min.z) / 2);
-              const elapsed = performance.now() - start;
+              const elapsed = performance.now() - start - 1500;
               const shown = Math.pow(Math.max((elapsed + 300) / 1800, 0), 2.5) * radius;
               const solid = Math.pow(Math.max((elapsed - 400) / 1800, 0), 2.5) * radius;
               if (solid * 0.9 >= radius){
                 material.reveal = null;
                 return;
               }
-              material.reveal = {center, shown: [shown * 1.1, 1 / (shown * 0.2)], solid: [solid * 1.1, 1 / (solid * 0.2 || 1)]};
+              material.reveal = {center, shown: [shown * 1.1, 1 / (shown * 0.2 || 1)], solid: [solid * 1.1, 1 / (solid * 0.2 || 1)]};
               requestAnimationFrame(reveal);
             };
             reveal();
