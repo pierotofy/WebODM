@@ -1238,7 +1238,6 @@ class Task(models.Model):
         """
         return {
             'id': str(self.id),
-            'name': self.name,
             'project': self.project.id,
             'available_assets': self.available_assets,
             'public': self.public,
