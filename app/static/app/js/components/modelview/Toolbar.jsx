@@ -229,7 +229,7 @@ class Toolbar extends React.Component{
           { icon: "mv-icon mv-icon-clipout", title: _("Clip Out"),
             active: viewer.clipTask === Potree.ClipTask.SHOW_OUTSIDE,
             onClick: () => viewer.setClipTask(Potree.ClipTask.SHOW_OUTSIDE) },
-          { icon: "mv-icon mv-icon-trash", title: _("Remove all clip volumes"),
+          { icon: "mv-icon mv-icon-trash", title: _("Remove all clips"),
             onClick: () => viewer.scene.removeAllClipVolumes() }
         ]
       },
