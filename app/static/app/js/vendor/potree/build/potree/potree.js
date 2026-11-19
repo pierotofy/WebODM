@@ -74128,37 +74128,10 @@ void main() {
 				features.push(object);
 			}
 
-			if (measurement.showDistances) {
-				measurement.edgeLabels.forEach((label, i) => {
-					if (!label.visible) return;
-					let labelPoint = {
-						type: 'Feature',
-						geometry: {
-							type: 'Point',
-							coordinates: label.position.toArray()
-						},
-						properties: {
-							distance: measurement.points[i].position.distanceTo(measurement.points[(i + 1) % measurement.points.length].position)
-						}
-					};
-					features.push(labelPoint);
-				});
-			}
-
-			if (measurement.showArea) {
-				let point = measurement.areaLabel.position;
-				let labelArea = {
-					type: 'Feature',
-					geometry: {
-						type: 'Point',
-						coordinates: point.toArray()
-					},
-					properties: {
-						area: measurement.getArea()
-					}
-				};
-				features.push(labelArea);
-			}
+			features.forEach(f => {
+				if (measurement.showDistances && coords.length > 1) f.properties.distance = measurement.getTotalDistance();
+				if (measurement.showArea && coords.length > 2) f.properties.area = measurement.getArea();
+			});
 
 			return features;
 		}
