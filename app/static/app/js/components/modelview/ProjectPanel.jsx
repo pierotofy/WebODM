@@ -718,7 +718,6 @@ class ProjectPanel extends React.Component{
             .fail(xhr => window.alert((xhr.responseJSON && (xhr.responseJSON.error || xhr.responseJSON[0])) || _("Cannot export GeoJSON")));
         }}>GeoJSON</div>
         <div onClick={() => this.download(`${exportName}.dxf`, Potree.DXFExporter.toString([...scene.measurements, ...scene.profiles, ...scene.volumes]))}>DXF</div>
-        <div onClick={() => this.download("scene.json", JSON.stringify(Potree.saveProject(viewer), null, "\t"))}>{_("Potree scene")}</div>
       </div> : ""}
     </div>);
   }
