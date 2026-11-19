@@ -702,7 +702,7 @@ class ProjectPanel extends React.Component{
         <div onClick={() => {
           const { task } = this.props;
           const geojson = Potree.GeoJSONExporter.toString([...scene.measurements, ...scene.profiles, ...scene.volumes]);
-          const srs = task.epsg || task.wkt;
+          const srs = task.epsg ? `EPSG:${task.epsg}` : task.wkt;
           if (!srs){
             this.download("measurements.geojson", geojson);
             return;
@@ -710,7 +710,7 @@ class ProjectPanel extends React.Component{
           $.ajax({
             url: `/api/projects/${task.project}/tasks/${task.id}/reproject`,
             contentType: "application/json",
-            data: JSON.stringify({geojson: JSON.parse(geojson), source_srs: srs, target_srs: 4979}),
+            data: JSON.stringify({geojson: JSON.parse(geojson), source: srs, target: "EPSG:4979"}),
             type: 'POST'
           }).done(result => this.download("measurements.geojson", JSON.stringify(result, null, "\t")))
             .fail(xhr => window.alert((xhr.responseJSON && (xhr.responseJSON.error || xhr.responseJSON[0])) || _("Cannot export GeoJSON")));

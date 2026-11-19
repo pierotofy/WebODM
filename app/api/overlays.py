@@ -303,7 +303,7 @@ class TaskReproject(TaskNestedView):
 
     def post(self, request, pk=None, project_pk=None):
         """
-        Reproject a GeoJSON from a source SRS to a target SRS (EPSG code or WKT)
+        Reproject a GeoJSON from a source SRS to a target SRS (EPSG:<code> or WKT)
         """
         task = self.get_and_check_task(request, pk)
 
@@ -318,13 +318,13 @@ class TaskReproject(TaskNestedView):
         if not isinstance(geojson, dict):
             raise exceptions.ValidationError(detail=_("Invalid GeoJSON"))
 
-        source = request.data.get('source_srs', task.epsg if task.epsg is not None else task.wkt)
-        target = request.data.get('target_srs')
-        if source is None or target is None:
+        source = request.data.get('source', "EPSG:{}".format(task.epsg) if task.epsg is not None else task.wkt)
+        target = request.data.get('target')
+        if not isinstance(source, str) or not isinstance(target, str):
             raise exceptions.ValidationError(detail=_("Invalid SRS"))
         try:
-            source = CRS.from_user_input(int(source) if str(source).strip().isdigit() else source)
-            target = CRS.from_user_input(int(target) if str(target).strip().isdigit() else target)
+            source = CRS.from_user_input(source)
+            target = CRS.from_user_input(target)
         except (TypeError, ValueError, ProjError):
             raise exceptions.ValidationError(detail=_("Invalid SRS"))
 
