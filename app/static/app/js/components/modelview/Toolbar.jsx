@@ -71,6 +71,8 @@ class Toolbar extends React.Component{
       }
     }else if (item instanceof Potree.Volume){
       viewer.scene.removeVolume(item);
+    }else if (item instanceof Potree.PolygonClipVolume){
+      viewer.scene.removePolygonClipVolume(item);
     }
   }
 
@@ -212,7 +214,7 @@ class Toolbar extends React.Component{
         id: "clipping", icon: "mv-icon mv-icon-clip", title: _("Clipping"),
         items: [
           { icon: "mv-icon mv-icon-clipbox", title: _("Clip box"),
-            onClick: () => { this.inserting = viewer.volumeTool.startInsertion({clip: true}); this.props.onInsert(this.inserting); } },
+            onClick: () => { this.inserting = viewer.volumeTool.startInsertion({clip: true, name: _("Clip box")}); this.props.onInsert(this.inserting); } },
           { icon: "mv-icon mv-icon-clippolygon", title: _("Clip polygon"),
             onClick: () => {
               this.inserting = viewer.clippingTool.startInsertion({type: "polygon"});

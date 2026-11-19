@@ -57845,7 +57845,7 @@ uniform int clipMethod;
 
 #if defined(num_clippolygons) && num_clippolygons > 0
 	uniform int uClipPolygonVCount[num_clippolygons];
-	uniform vec3 uClipPolygonVertices[num_clippolygons * 8];
+	uniform vec3 uClipPolygonVertices[num_clippolygons * max_clippolygon_vertices];
 	uniform mat4 uClipPolygonWVP[num_clippolygons];
 #endif
 
@@ -58523,7 +58523,7 @@ bool pointInClipPolygon(vec3 point, int polyIdx) {
 
 	int j = uClipPolygonVCount[polyIdx] - 1;
 	bool c = false;
-	for(int i = 0; i < 8; i++) {
+	for(int i = 0; i < max_clippolygon_vertices; i++) {
 		if(i == uClipPolygonVCount[polyIdx]) {
 			break;
 		}
@@ -58537,8 +58537,8 @@ bool pointInClipPolygon(vec3 point, int polyIdx) {
 		//verti.xy = verti.xy / verti.w * 0.5 + 0.5;
 		//vertj.xy = vertj.xy / vertj.w * 0.5 + 0.5;
 
-		vec3 verti = uClipPolygonVertices[polyIdx * 8 + i];
-		vec3 vertj = uClipPolygonVertices[polyIdx * 8 + j];
+		vec3 verti = uClipPolygonVertices[polyIdx * max_clippolygon_vertices + i];
+		vec3 vertj = uClipPolygonVertices[polyIdx * max_clippolygon_vertices + j];
 
 		if( ((verti.y > pointNDC.y) != (vertj.y > pointNDC.y)) && 
 			(pointNDC.x < (vertj.x-verti.x) * (pointNDC.y-verti.y) / (vertj.y-verti.y) + verti.x) ) {
@@ -63467,13 +63467,14 @@ void main() {
 
 						let flattenedMatrices = [].concat(...worldViewProjMatrices.map(m => m.elements));
 
-						let flattenedVertices = new Array(8 * 3 * material.clipPolygons.length);
+						let stride = 3 * Math.max(8, ...material.clipPolygons.map(p => p.markers.length));
+						let flattenedVertices = new Array(stride * material.clipPolygons.length).fill(0);
 						for(let i = 0; i < material.clipPolygons.length; i++){
 							let clipPolygon = material.clipPolygons[i];
 							for(let j = 0; j < clipPolygon.markers.length; j++){
-								flattenedVertices[i * 24 + (j * 3 + 0)] = clipPolygon.markers[j].position.x;
-								flattenedVertices[i * 24 + (j * 3 + 1)] = clipPolygon.markers[j].position.y;
-								flattenedVertices[i * 24 + (j * 3 + 2)] = clipPolygon.markers[j].position.z;
+								flattenedVertices[i * stride + (j * 3 + 0)] = clipPolygon.markers[j].position.x;
+								flattenedVertices[i * stride + (j * 3 + 1)] = clipPolygon.markers[j].position.y;
+								flattenedVertices[i * stride + (j * 3 + 2)] = clipPolygon.markers[j].position.z;
 							}
 						}
 
@@ -63799,6 +63800,7 @@ void main() {
 						`#define num_clipboxes ${numClipBoxes}`,
 						`#define num_clipspheres ${numClipSpheres}`,
 						`#define num_clippolygons ${numClipPolygons}`,
+						`#define max_clippolygon_vertices ${Math.max(8, ...(material.clipPolygons || []).map(p => p.markers.length))}`,
 						`#define num_cropvertices ${numCropVertices}`,
 					];
 
@@ -68100,7 +68102,6 @@ void main() {
 
 			this.viewer = viewer;
 
-			this.maxPolygonVertices = 8; 
 			
 			this.addEventListener("start_inserting_clipping_volume", e => {
 				this.viewer.dispatchEvent({
@@ -68198,7 +68199,12 @@ void main() {
 
 			let insertionCallback = (e) => {
 				if(e.button === MOUSE.LEFT){
-					
+					let first = svg.find("polyline")[0].points;
+					if(polyClipVol.markers.length > 3 && Math.hypot(e.offsetX - first.getItem(0).x, e.offsetY - first.getItem(0).y) < 12){
+						cancel.callback(e);
+						return;
+					}
+
 					polyClipVol.addMarker();
 
 					// SVC Screen Line
@@ -68209,10 +68215,6 @@ void main() {
 						let polyline = target.points.appendItem(newPoint);
 					});
 					
-					
-					if(polyClipVol.markers.length > this.maxPolygonVertices){
-						cancel.callback();
-					}
 					
 					this.viewer.inputHandler.startDragging(
 						polyClipVol.markers[polyClipVol.markers.length - 1]);
@@ -68241,8 +68243,16 @@ void main() {
 
 				this.viewer.renderer.domElement.removeEventListener("mouseup", insertionCallback, false);
 				this.viewer.removeEventListener("cancel_insertions", cancel.callback);
+				document.removeEventListener("keydown", enter);
 				this.viewer.inputHandler.enabled = true;
 			};
+
+			let enter = e => {
+				if(e.key === "Enter" && polyClipVol.markers.length > 3){
+					this.viewer.renderer.domElement.dispatchEvent(new MouseEvent("mouseup", {button: 2, bubbles: true}));
+				}
+			};
+			document.addEventListener("keydown", enter);
 			
 			this.viewer.addEventListener("cancel_insertions", cancel.callback);
 			this.viewer.renderer.domElement.addEventListener("mouseup", insertionCallback , false);
@@ -90220,7 +90230,7 @@ ENDSEC
 				// set clip volumes in material
 				for(let pointcloud of visiblePointClouds){
 					pointcloud.material.setClipBoxes(clipBoxes);
-					pointcloud.material.setClipPolygons(clipPolygons, this.clippingTool.maxPolygonVertices);
+					pointcloud.material.setClipPolygons(clipPolygons);
 					pointcloud.material.clipTask = this.clipTask;
 					pointcloud.material.clipMethod = this.clipMethod;
 				}
