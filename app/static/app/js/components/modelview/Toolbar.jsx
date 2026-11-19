@@ -241,7 +241,7 @@ class Toolbar extends React.Component{
         onClick: () => this.props.onTogglePanel("history")
       },
       {
-        id: "settings", icon: "fa fa-cog", title: _("Settings"),
+        id: "settings", icon: "mv-icon mv-icon-settings", title: _("Settings"),
         active: this.props.panel === "settings",
         onClick: () => this.props.onTogglePanel("settings")
       }

@@ -77,7 +77,7 @@ class SettingsWindow extends React.Component{
     const material = pc ? pc.material : null;
 
     const tabs = [
-      ["general", "fa fa-cog", _("General")],
+      ["general", "mv-icon mv-icon-settings", _("General")],
       ["display", "mv-icon mv-icon-display", _("Display")],
       ["pointcloud", "fa fa-pointcloud", _("Point Cloud")],
       ["navigation", "mv-icon mv-icon-navigation", _("Navigation")],
