@@ -360,7 +360,7 @@ class ModelView extends React.Component {
         });
     });
 
-    viewer.roofTool = new Roofs(viewer);
+    viewer.roofTool = new Roofs(viewer, item => this.setState({panel: "project", inserted: item, focused: null}));
     viewer.renderer.domElement.addEventListener( 'mousedown', this.handleRenderMouseClick );
     viewer.renderer.domElement.addEventListener( 'mousedown', this.handleRenderMouseDownCapture, true );
     viewer.renderer.domElement.addEventListener( 'mouseup', this.handleRenderMouseUpCapture, true );
