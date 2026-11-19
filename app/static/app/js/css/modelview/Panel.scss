@@ -146,6 +146,12 @@
                 font-weight: normal;
             }
 
+            input[type="checkbox"]{
+                flex: none;
+                top: 0;
+                margin: 0;
+            }
+
             input[type="number"]{
                 flex: none;
                 width: 64px;

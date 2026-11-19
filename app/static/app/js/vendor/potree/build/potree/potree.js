@@ -64720,8 +64720,7 @@ void main() {
 			kind: animation.kind,
 			loop: animation.loop,
 			views: animation.views.map(v => Object.assign({}, v)),
-			keypoints: animation.keypoints.map(k => ({position: k.position.toArray(), enabled: k.enabled})),
-			orbit: animation.orbit ? {center: animation.orbit.center.toArray(), a: animation.orbit.a, b: animation.orbit.b, height: animation.orbit.height} : null,
+			orbit: animation.orbit ? {center: animation.orbit.center.toArray(), a: animation.orbit.a, b: animation.orbit.b, target: animation.orbit.target.toArray()} : null,
 		};
 
 		return data;
@@ -64950,7 +64949,6 @@ void main() {
 			this.kind = "orbit";
 			this.loop = false;
 			this.views = [];
-			this.keypoints = [];
 			this.orbit = null;
 
 			this.signature = null;
@@ -64966,17 +64964,17 @@ void main() {
 
 			this.handles = [
 				this.createHandle("red", ray => {
-					const s = (this.orbit.center.z + this.orbit.height - ray.origin.z) / ray.direction.z;
+					const s = (this.orbit.center.z - ray.origin.z) / ray.direction.z;
 					if(isFinite(s) && s > 0) this.orbit.a = Math.max(Math.abs(ray.origin.x + ray.direction.x * s - this.orbit.center.x), 0.01);
 				}),
 				this.createHandle("red", ray => {
-					const s = (this.orbit.center.z + this.orbit.height - ray.origin.z) / ray.direction.z;
+					const s = (this.orbit.center.z - ray.origin.z) / ray.direction.z;
 					if(isFinite(s) && s > 0) this.orbit.b = Math.max(Math.abs(ray.origin.y + ray.direction.y * s - this.orbit.center.y), 0.01);
 				}),
 				this.createHandle("white", ray => {
-					const w = this.orbit.center.clone().sub(ray.origin);
-					const denom = 1 - ray.direction.z * ray.direction.z;
-					if(denom > 1e-6) this.orbit.height = (ray.direction.z * ray.direction.dot(w) - w.z) / denom;
+					const normal = this.viewer.scene.getActiveCamera().getWorldDirection(new Vector3());
+					const s = this.orbit.center.clone().sub(ray.origin).dot(normal) / ray.direction.dot(normal);
+					if(isFinite(s) && s > 0) this.orbit.center.copy(ray.origin).addScaledVector(ray.direction, s);
 				}),
 			];
 
@@ -64989,30 +64987,12 @@ void main() {
 
 			if(kind === "views" && this.views.length === 0){
 				this.views = this.viewer.scene.annotations.descendants().filter(a => a.hasView()).map(a => ({uuid: a.uuid, enabled: true, stretch: 1}));
-			}else if(kind === "flythrough" && this.keypoints.length === 0 && this.viewer.shotsUrl){
-				fetch(this.viewer.shotsUrl).then(r => r.json()).then(geojson => {
-					const points = geojson.features.map(f => f.properties.translation).sort((p, q) => p[0] - q[0] || p[1] - q[1]);
-					const hull = [];
-					for(const list of [points, points.slice().reverse()]){
-						const start = hull.length;
-						for(const p of list){
-							while(hull.length - start >= 2){
-								const o = hull[hull.length - 2], a = hull[hull.length - 1];
-								if((a[0] - o[0]) * (p[1] - o[1]) - (a[1] - o[1]) * (p[0] - o[0]) > 0) break;
-								hull.pop();
-							}
-							hull.push(p);
-						}
-						hull.pop();
-					}
-					this.keypoints = hull.map(p => ({position: new Vector3(p[0], p[1], p[2]), enabled: true}));
-				});
 			}else if(kind === "orbit" && !this.orbit){
 				const box = this.viewer.getBoundingBox();
-				const center = box.isEmpty() ? this.viewer.scene.view.getPivot() : box.getCenter(new Vector3());
+				const target = box.isEmpty() ? this.viewer.scene.view.getPivot() : box.getCenter(new Vector3());
 				const position = this.viewer.scene.view.position;
-				const radius = Math.max(Math.hypot(position.x - center.x, position.y - center.y), 0.01);
-				this.orbit = {center: center, a: radius, b: radius, height: position.z - center.z};
+				const radius = Math.max(Math.hypot(position.x - target.x, position.y - target.y), 0.01);
+				this.orbit = {center: new Vector3(target.x, target.y, position.z), a: radius, b: radius, target: target};
 			}
 		}
 
@@ -65040,30 +65020,14 @@ void main() {
 					weights.push(v.stretch);
 				}
 				closed = this.loop;
-			}else if(this.kind === "flythrough"){
-				const used = this.keypoints.filter(k => k.enabled);
-				const box = viewer.getBoundingBox();
-				const target = new Vector3();
-				if(box.isEmpty()){
-					used.forEach(k => target.add(k.position));
-					target.divideScalar(Math.max(used.length, 1));
-					target.z = Math.min(...used.map(k => k.position.z));
-				}else {
-					target.set((box.min.x + box.max.x) / 2, (box.min.y + box.max.y) / 2, box.min.z);
-				}
-				for(const k of used){
-					positions.push(k.position.clone());
-					targets.push(target.clone());
-					weights.push(1);
-				}
 			}else if(this.kind === "orbit" && this.orbit){
 				for(let i = 0; i < 32; i++){
 					const angle = 2 * Math.PI * i / 32;
 					positions.push(new Vector3(
 						this.orbit.center.x + this.orbit.a * Math.cos(angle),
 						this.orbit.center.y + this.orbit.b * Math.sin(angle),
-						this.orbit.center.z + this.orbit.height));
-					targets.push(this.orbit.center.clone());
+						this.orbit.center.z));
+					targets.push(this.orbit.target.clone());
 					weights.push(1);
 				}
 			}
@@ -65135,7 +65099,7 @@ void main() {
 					const projected = new Vector3(
 						this.orbit.center.x + (i === 0 ? this.orbit.a : 0),
 						this.orbit.center.y + (i === 1 ? this.orbit.b : 0),
-						this.orbit.center.z + this.orbit.height).project(camera);
+						this.orbit.center.z).project(camera);
 					visible = projected.z < 1 && projected.z > -1;
 					if(visible){
 						svg.style.left = (width * (projected.x * 0.5 + 0.5) - svg.clientWidth / 2) + "px";
@@ -65454,7 +65418,7 @@ void main() {
 	function loadCameraAnimation(viewer, data){
 
 		const duplicate = viewer.scene.cameraAnimations.find(a => a.uuid === data.uuid);
-		if(duplicate || !data.kind){
+		if(duplicate || (data.kind !== "views" && data.kind !== "orbit")){
 			return;
 		}
 
@@ -65468,8 +65432,8 @@ void main() {
 		animation.kind = data.kind;
 		animation.loop = data.loop;
 		animation.views = data.views.map(v => Object.assign({}, v));
-		animation.keypoints = data.keypoints.map(k => ({position: new Vector3(...k.position), enabled: k.enabled}));
-		animation.orbit = data.orbit ? {center: new Vector3(...data.orbit.center), a: data.orbit.a, b: data.orbit.b, height: data.orbit.height} : null;
+		animation.orbit = data.orbit ? {center: new Vector3(...data.orbit.center), a: data.orbit.a, b: data.orbit.b, target: new Vector3(...(data.orbit.target || data.orbit.center))} : null;
+		if(data.orbit && !data.orbit.target) animation.orbit.center.z += data.orbit.height;
 
 		viewer.scene.addCameraAnimation(animation);
 	}

@@ -206,7 +206,7 @@ class Toolbar extends React.Component{
             onClick: () => {
               const animation = new Potree.CameraAnimation(viewer);
               animation.name = _("Camera Animation");
-              animation.setKind(viewer.scene.annotations.descendants().some(a => a.hasView()) ? "views" : (viewer.shotsUrl ? "flythrough" : "orbit"));
+              animation.setKind(viewer.scene.annotations.descendants().some(a => a.hasView()) ? "views" : "orbit");
               viewer.scene.addCameraAnimation(animation);
               this.props.onInsert(animation);
             } }

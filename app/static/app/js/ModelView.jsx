@@ -323,8 +323,6 @@ class ModelView extends React.Component {
                 }
             }
 
-            viewer.shotsUrl = this.hasCameras() ? `/api/projects/${this.props.task.project}/tasks/${this.props.task.id}/download/shots.geojson` : null;
-
             // Load
             const potreeLoadProject = () => {
                 Potree.loadProject(viewer, sceneData);
