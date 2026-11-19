@@ -1,4 +1,5 @@
 import * as THREE from 'THREE';
+import { unitSystem } from '../../classes/Units';
 
 class Roofs{
   constructor(viewer){
@@ -94,7 +95,11 @@ class Roofs{
         y += (p.z - n.z) * (p.x + n.x);
         z += (p.x - n.x) * (p.y + n.y);
       });
-      face.roof = {slope: Math.abs(z) > 1e-9 ? Math.hypot(x, y) / Math.abs(z) : Infinity};
+      const pitch = Math.atan2(Math.hypot(x, y), Math.abs(z)) * 180 / Math.PI;
+      const label = unitSystem().pitch(pitch).toString();
+      const stale = !face.roof || face.roof.label !== label;
+      face.roof = {pitch, label};
+      if (stale) face.update();
     }
   }
 }

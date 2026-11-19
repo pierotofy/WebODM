@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import * as THREE from 'THREE';
 import '../../css/modelview/Panel.scss';
 import { _, interpolate } from '../../classes/gettext';
+import { systems } from '../../classes/Units';
 
 class ProjectPanel extends React.Component{
   static propTypes = {
@@ -244,7 +245,7 @@ class ProjectPanel extends React.Component{
       if (m.kind === "perpendicular" && points.length === 2) properties.push([_("Distance"), `${this.fmt(m.getPerpendicularDistance() * conv)} ${unit}`]);
       if (m.showDistances && points.length > 1) properties.push([_("Total distance"), `${this.fmt(m.getTotalDistance() * conv)} ${unit}`]);
       if (m.showArea && points.length > 2) properties.push([_("Area"), `${this.fmt(m.getArea() * conv * conv)} ${unit}²` + (m.kind === "roof" && unit.indexOf("ft") === 0 ? ` (${(m.getArea() * conv * conv / 100).toFixed(2)} sq)` : "")]);
-      if (m.kind === "roof" && m.roof && m.showArea) properties.push([_("Pitch"), `${(m.roof.slope * 12).toFixed(1)}/12 · ${(Math.atan(m.roof.slope) * 180 / Math.PI).toFixed(1)}°`]);
+      if (m.kind === "roof" && m.roof && m.showArea) properties.push([_("Pitch"), `${systems.imperial.pitch(m.roof.pitch)} · ${systems.metric.pitch(m.roof.pitch)}`]);
       if (m.showHeight && points.length > 1){
         const zs = points.map(p => p.z);
         properties.push([_("Height"), `${this.fmt((Math.max(...zs) - Math.min(...zs)) * conv)} ${unit}`]);
