@@ -95,12 +95,6 @@
         min-width: 0;
         padding: 8px 24px 16px 16px;
         overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-
-        > *{
-            flex: none;
-        }
     }
 
     .mv-settings-section{
@@ -117,8 +111,7 @@
     }
 
     .mv-settings-credits{
-        margin-top: auto;
-        padding-top: 12px;
+        padding: 12px 0;
         line-height: 1.6;
 
         a{
