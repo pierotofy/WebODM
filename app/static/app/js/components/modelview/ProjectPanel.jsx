@@ -214,19 +214,21 @@ class ProjectPanel extends React.Component{
     }).concat(
       scene.volumes.map(obj => ({obj, type: "volume", icon: obj.clip ? "mv-icon mv-icon-clipbox" : "mv-icon mv-icon-volume", nameKey: "name"})),
       scene.profiles.map(obj => ({obj, type: "profile", icon: "mv-icon mv-icon-profile", nameKey: "name"})),
-      scene.cameraAnimations.map(obj => ({obj, type: "animation", icon: "mv-icon mv-icon-film", nameKey: "name"})),
       scene.polygonClipVolumes.map(obj => ({obj, type: "polyclip", icon: "mv-icon mv-icon-clippolygon", nameKey: "name"}))
     );
     let annotations = scene.annotations.descendants().filter(obj => !obj.hasView()).map(obj => ({obj, type: "annotation", icon: "mv-icon mv-icon-annotation", nameKey: "title"}));
-    measures = measures.concat(scene.annotations.descendants().filter(obj => obj.hasView()).map(obj => ({obj, type: "annotation", icon: "mv-icon mv-icon-pov", nameKey: "title"})));
+    let animations = scene.annotations.descendants().filter(obj => obj.hasView()).map(obj => ({obj, type: "annotation", icon: "mv-icon mv-icon-pov", nameKey: "title"})).concat(
+      scene.cameraAnimations.map(obj => ({obj, type: "animation", icon: "mv-icon mv-icon-film", nameKey: "name"}))
+    );
 
     if (search){
       const matches = item => String(item.obj[item.nameKey]).toLowerCase().indexOf(search.toLowerCase()) !== -1;
       measures = measures.filter(matches);
       annotations = annotations.filter(matches);
+      animations = animations.filter(matches);
     }
 
-    const selectedItem = measures.concat(annotations).find(item => item.obj === selected);
+    const selectedItem = measures.concat(annotations, animations).find(item => item.obj === selected);
 
     const conv = viewer.lengthUnitDisplay.unitspermeter / viewer.lengthUnit.unitspermeter;
     const unit = viewer.lengthUnitDisplay.code;
@@ -388,6 +390,9 @@ class ProjectPanel extends React.Component{
 
         {this.folder("annotations", _("Annotations"), annotations, true)}
         {!closed.annotations ? annotations.map(this.itemRow) : ""}
+
+        {this.folder("animations", _("Animations"), animations, true)}
+        {!closed.animations ? animations.map(this.itemRow) : ""}
       </div>
 
       {selected === "cameras" ?

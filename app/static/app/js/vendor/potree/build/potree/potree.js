@@ -56473,6 +56473,9 @@
 		};
 
 		dispose () {
+			if (this.marker && this.marker.parent) {
+				this.marker.parent.remove(this.marker);
+			}
 			if (this.domElement.parentElement) {
 				this.domElement.parentElement.removeChild(this.domElement);
 			}
@@ -89773,6 +89776,56 @@ ENDSEC
 
 				if (annotation === this.scene.annotations) {
 					return true;
+				}
+
+				if (annotation.hasView() && annotation.cameraPosition && annotation.cameraTarget) {
+					if (!annotation.marker) {
+						const f = 0.3;
+						const geometry = new LineGeometry();
+						geometry.setPositions([
+							 0,  0,  0,
+							-f, -f, +1,
+
+							 0,  0,  0,
+							 f, -f, +1,
+
+							 0,  0,  0,
+							 f,  f, +1,
+
+							 0,  0,  0,
+							-f,  f, +1,
+
+							-f, -f, +1,
+							 f, -f, +1,
+
+							 f, -f, +1,
+							 f,  f, +1,
+
+							 f,  f, +1,
+							-f,  f, +1,
+
+							-f,  f, +1,
+							-f, -f, +1,
+						]);
+						annotation.marker = new Line2(geometry, new LineMaterial({
+							color: 0xff0000,
+							linewidth: 2,
+							resolution: new Vector2(1000, 1000),
+						}));
+						this.scene.scene.add(annotation.marker);
+					}
+
+					const camera = this.scene.getActiveCamera();
+					const distance = camera.position.distanceTo(annotation.cameraPosition);
+					const perPixel = camera.isPerspectiveCamera
+						? 2 * distance * Math.tan(MathUtils.degToRad(camera.fov) / 2) / renderAreaSize.y
+						: (camera.top - camera.bottom) / camera.zoom / renderAreaSize.y;
+
+					annotation.marker.visible = annotation.visible;
+					annotation.marker.position.copy(annotation.cameraPosition);
+					annotation.marker.lookAt(annotation.cameraTarget);
+					annotation.marker.scale.setScalar(perPixel * 40);
+					annotation.marker.material.resolution.set(renderAreaSize.x, renderAreaSize.y);
 				}
 
 				if (!annotation.visible) {

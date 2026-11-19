@@ -361,6 +361,7 @@ class ModelView extends React.Component {
     viewer.renderer.domElement.addEventListener( 'mousedown', this.handleRenderMouseDownCapture, true );
     viewer.renderer.domElement.addEventListener( 'mouseup', this.handleRenderMouseUpCapture, true );
     viewer.renderArea.addEventListener( 'contextmenu', this.handleAnnotationContextMenu );
+    viewer.renderer.domElement.addEventListener( 'dblclick', this.handleRenderDoubleClickCapture, true );
     viewer.renderer.domElement.addEventListener( 'mousemove', this.handleRenderMouseMove );
     viewer.renderer.domElement.addEventListener( 'touchstart', this.handleRenderTouchStart );
     
@@ -579,6 +580,7 @@ class ModelView extends React.Component {
     viewer.renderer.domElement.removeEventListener( 'mousedown', this.handleRenderMouseDownCapture, true );
     viewer.renderer.domElement.removeEventListener( 'mouseup', this.handleRenderMouseUpCapture, true );
     viewer.renderArea.removeEventListener( 'contextmenu', this.handleAnnotationContextMenu );
+    viewer.renderer.domElement.removeEventListener( 'dblclick', this.handleRenderDoubleClickCapture, true );
     viewer.renderer.domElement.removeEventListener( 'mousemove', this.handleRenderMouseMove );
     viewer.renderer.domElement.removeEventListener( 'touchstart', this.handleRenderTouchStart );
     
@@ -651,6 +653,21 @@ class ModelView extends React.Component {
 
     const item = viewer.scene.annotations.descendants().find(a => a.domElement[0] === el);
     if (item) this.setState({panel: "project", inserted: null, focused: {item}});
+  }
+
+  handleRenderDoubleClickCapture = (evt) => {
+    const rect = viewer.renderer.domElement.getBoundingClientRect();
+    const camera = viewer.scene.getActiveCamera();
+    const item = viewer.scene.annotations.descendants().find(a => {
+      if (!a.marker || !a.marker.visible) return false;
+      const p = a.marker.localToWorld(new THREE.Vector3(0, 0, 0.5)).project(camera);
+      return Math.abs(p.z) < 1 && Math.hypot(rect.left + (p.x + 1) / 2 * rect.width - evt.clientX, rect.top + (1 - p.y) / 2 * rect.height - evt.clientY) < 25;
+    });
+    if (!item) return;
+
+    evt.stopImmediatePropagation();
+    item.moveHere(camera);
+    this.setState({panel: "project", inserted: null, focused: {item}});
   }
 
   handleRenderMouseClick = (evt) => {
