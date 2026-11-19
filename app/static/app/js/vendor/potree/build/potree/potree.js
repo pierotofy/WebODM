@@ -54317,7 +54317,7 @@
 					}
 
 					let txtLength = Utils.addCommas(distance.toFixed(2));
-					edgeLabel.setText(this.kind === 'roof' && this.roof && this.roof.edges[index] ? `${this.roof.edges[index].label} ${txtLength} ${suffix}` : `${txtLength} ${suffix}`);
+					edgeLabel.setText(this.kind === 'roof' && this.roof && this.roof.edges[index] && this.roof.edges[index].type !== 'ridge' ? `${this.roof.edges[index].label} ${txtLength} ${suffix}` : `${txtLength} ${suffix}`);
 					edgeLabel.visible = this.showDistances && (index < lastIndex || this.closed) && this.points.length >= 2 && distance > 0;
 				}
 
