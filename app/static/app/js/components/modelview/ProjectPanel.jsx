@@ -297,7 +297,6 @@ class ProjectPanel extends React.Component{
 
     const isPoint = !!selectedItem && selectedItem.type === "measure" && selectedItem.obj.showCoordinates;
     const m = selectedItem ? selectedItem.obj : null;
-    if (selectedItem && selectedItem.type === "animation" && !(m.durationMax >= m.duration)) m.durationMax = Math.max(120, m.duration);
     const rebalance = selectedItem && selectedItem.type === "animation" ?
       <button type="button" className="mv-panel-rebalance" disabled={!(m.total > 0) || Math.abs(m.total - m.duration) < 0.05}
               title={interpolate(_("Times add up to %(total)s s. Scale them to fit %(duration)s s."), {total: m.total.toFixed(1), duration: m.duration.toFixed(1)})}
@@ -557,6 +556,7 @@ class ProjectPanel extends React.Component{
                        draggable onDragStart={e => { e.preventDefault(); e.stopPropagation(); }}
                        value={timeEdit && timeEdit.key === v.uuid ? timeEdit.value : +segment.time.toFixed(1)}
                        onChange={e => this.setState({timeEdit: {key: v.uuid, value: e.target.value}})}
+                       onDoubleClick={() => this.setState({timeEdit: {key: v.uuid, value: ""}})}
                        onKeyDown={e => { if (e.key === "Enter") e.target.blur(); }}
                        onBlur={e => {
                          const seconds = parseFloat(e.target.value);
@@ -596,17 +596,13 @@ class ProjectPanel extends React.Component{
             <label>{_("Duration")}</label>
             <input type="number" min="0.1" step="0.5" value={timeEdit && timeEdit.key === "duration" ? timeEdit.value : +selectedItem.obj.duration.toFixed(1)}
                    onChange={e => this.setState({timeEdit: {key: "duration", value: e.target.value}})}
+                   onDoubleClick={() => this.setState({timeEdit: {key: "duration", value: ""}})}
                    onKeyDown={e => { if (e.key === "Enter") e.target.blur(); }}
                    onBlur={e => {
                      const seconds = parseFloat(e.target.value);
-                     if (timeEdit && timeEdit.key === "duration" && seconds > 0){
-                       selectedItem.obj.setDuration(seconds);
-                       m.durationMax = Math.max(120, seconds);
-                     }
+                     if (timeEdit && timeEdit.key === "duration" && seconds > 0) selectedItem.obj.setDuration(seconds);
                      this.setState({timeEdit: null});
                    }} />
-            <input type="range" min="1" max={m.durationMax} step="1" value={m.duration} style={{flex: "1 1 100%"}}
-                   onChange={e => { m.setDuration(parseFloat(e.target.value)); this.forceUpdate(); }} />
           </div>,
           m.kind === "orbit" && m.orbit ?
           <div key="length" className="mv-panel-field">
@@ -615,15 +611,19 @@ class ProjectPanel extends React.Component{
                    onChange={e => { m.orbit.length = parseFloat(e.target.value); m.update(); this.forceUpdate(); }} />
           </div> : null,
           <div key="time" className="mv-panel-field">
-            <label>{_("Scrub")}</label>
+            <label>{_("Playback")}</label>
             <input type="range" min="0" max="1" step="0.001" value={selectedItem.obj.t}
-                   onChange={e => { selectedItem.obj.set(parseFloat(e.target.value)); selectedItem.obj.setVisible(true); this.forceUpdate(); }} />
+                   onChange={e => { selectedItem.obj.stop(); selectedItem.obj.set(parseFloat(e.target.value)); selectedItem.obj.setVisible(true); this.forceUpdate(); }} />
           </div>,
           <div key="controls" className="mv-panel-controls">
-            <button type="button" className="mv-panel-btn" title={_("Play")} disabled={recording || !m.cameraCurve}
-                    onClick={() => selectedItem.obj.play()}><i className="fa fa-play"></i></button>
+            <button type="button" className="mv-panel-btn" title={m.onPlay ? _("Pause") : _("Play")} disabled={recording || !m.cameraCurve}
+                    onClick={() => {
+                      if (m.onPlay) m.stop();
+                      else m.play();
+                      this.forceUpdate();
+                    }}><i className={m.onPlay ? "fa fa-pause" : "fa fa-play"}></i></button>
             <button type="button" className="mv-panel-btn" title={_("Rewind")} disabled={recording}
-                    onClick={() => { selectedItem.obj.stop(); selectedItem.obj.set(0); this.forceUpdate(); }}><i className="fa fa-stop"></i></button>
+                    onClick={() => { selectedItem.obj.stop(); selectedItem.obj.set(0); this.forceUpdate(); }}><i className="fa fa-backward"></i></button>
             <button type="button" className="mv-panel-btn mv-danger" title={_("Record movie")} disabled={recording || !m.cameraCurve}
                     onClick={() => {
                       const animation = selectedItem.obj;
@@ -645,6 +645,7 @@ class ProjectPanel extends React.Component{
                           animation.setVisible(true);
                           this.setState({recording: false});
                         };
+                        animation.set(0);
                         animation.play(true);
                         recorder.start(animation.duration * 1000 + 1000);
                       }, 1000);

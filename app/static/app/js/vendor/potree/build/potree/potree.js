@@ -65263,7 +65263,8 @@ void main() {
 		play(once){
 			this.stop();
 
-			const tStart = performance.now();
+			if(this.t >= 1) this.t = 0;
+			const tStart = performance.now() - this.t * this.duration * 1000;
 			this.wasVisible = this.visible;
 			this.setVisible(false);
 
