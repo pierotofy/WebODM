@@ -19,7 +19,6 @@ import Toolbar from './components/modelview/Toolbar';
 import ProjectPanel from './components/modelview/ProjectPanel';
 import SettingsWindow from './components/modelview/SettingsWindow';
 import Magnifier from './components/modelview/Magnifier';
-import Stockpiles from './components/modelview/Stockpiles';
 import ProfilePanel from './components/modelview/ProfilePanel';
 import HistoryPanel from './components/modelview/HistoryPanel';
 import Gizmo from './components/modelview/Gizmo';
@@ -360,7 +359,6 @@ class ModelView extends React.Component {
         });
     });
 
-    this.stockpiles = new Stockpiles(viewer);
     viewer.renderer.domElement.addEventListener( 'mousedown', this.handleRenderMouseClick );
     viewer.renderer.domElement.addEventListener( 'mousedown', this.handleRenderMouseDownCapture, true );
     viewer.renderer.domElement.addEventListener( 'mouseup', this.handleRenderMouseUpCapture, true );
@@ -585,7 +583,6 @@ class ModelView extends React.Component {
     clearInterval(this.saveSceneInterval);
     clearInterval(this.historyInterval);
     document.removeEventListener("keydown", this.handleKeyDown);
-    this.stockpiles.dispose();
     viewer.renderer.domElement.removeEventListener( 'mousedown', this.handleRenderMouseClick );
     viewer.renderer.domElement.removeEventListener( 'mousedown', this.handleRenderMouseDownCapture, true );
     viewer.renderer.domElement.removeEventListener( 'mouseup', this.handleRenderMouseUpCapture, true );

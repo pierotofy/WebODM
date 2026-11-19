@@ -362,66 +362,6 @@
         }
     }
 
-    .mv-stockpile-result{
-        position: sticky;
-        top: 0;
-        z-index: 1;
-        padding: 8px;
-        background: #162024;
-
-        .mv-stockpile-net{
-            display: flex;
-            align-items: baseline;
-            justify-content: space-between;
-
-            span:last-child{
-                font-size: 24px;
-                font-weight: bold;
-            }
-        }
-        .mv-stockpile-parts{
-            display: flex;
-            margin-top: 8px;
-
-            div{
-                flex: 1 1 0;
-                display: flex;
-                flex-direction: column;
-            }
-            span:first-child{
-                color: #8b9aa0;
-                font-size: 12px;
-            }
-        }
-        .mv-stockpile-legend{
-            margin-top: 8px;
-            color: #8b9aa0;
-            font-size: 12px;
-
-            div:last-child{
-                display: flex;
-                justify-content: space-between;
-                margin-top: 4px;
-            }
-        }
-        .mv-stockpile-bar{
-            height: 8px;
-            border-radius: 2px;
-            background: linear-gradient(to right, rgb(26, 64, 230), rgb(89, 230, 255), rgb(51, 64, 84), rgb(255, 184, 51), rgb(219, 26, 26));
-        }
-    }
-
-    .mv-stockpile-note{
-        flex: 1 1 100%;
-        color: #8b9aa0;
-        font-size: 13px;
-    }
-
-    .mv-stockpile-warning{
-        flex: 1 1 100%;
-        color: #ffc53d;
-    }
-
     .mv-panel-error{
         flex: 1 1 100%;
         color: #ff7b7b;
