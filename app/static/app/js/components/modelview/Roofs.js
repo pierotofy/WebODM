@@ -9,6 +9,7 @@ class Roofs{
     this.onInsert = onInsert;
     this.active = false;
     this.manual = null;
+    this.dragged = null;
     this.updated = 0;
 
     viewer.addEventListener("update", this.update);
@@ -34,6 +35,40 @@ class Roofs{
     this.manual = null;
     this.active = false;
     this.viewer.renderer.domElement.style.cursor = "";
+  }
+
+  reach(point){
+    const camera = this.viewer.scene.getActiveCamera();
+    const height = this.viewer.renderer.domElement.clientHeight;
+    if (camera.isPerspectiveCamera) return 10 * 2 * camera.position.distanceTo(point) * Math.tan(camera.fov * Math.PI / 360) / height;
+    return 10 * (camera.top - camera.bottom) / camera.zoom / height;
+  }
+
+  snap(point, face, tolerance){
+    let best = null, distance = tolerance;
+    const others = this.viewer.scene.measurements.filter(m => m.kind === "roof" && m !== face && m.points.length >= 2);
+
+    for (const other of others){
+      for (const p of other.points){
+        if (p.position.distanceTo(point) <= distance){
+          distance = p.position.distanceTo(point);
+          best = p.position.clone();
+        }
+      }
+    }
+    if (best) return best;
+
+    for (const other of others){
+      other.points.forEach((p, i) => {
+        if (!other.closed && i === other.points.length - 1) return;
+        const onEdge = new THREE.Line3(p.position, other.points[(i + 1) % other.points.length].position).closestPointToPoint(point, true, new THREE.Vector3());
+        if (onEdge.distanceTo(point) <= distance){
+          distance = onEdge.distanceTo(point);
+          best = onEdge;
+        }
+      });
+    }
+    return best;
   }
 
   plane(points, cx, cy, cz){
@@ -230,11 +265,13 @@ class Roofs{
     const hit = Potree.Utils.getMousePointCloudIntersection(viewer.inputHandler.mouse, viewer.scene.getActiveCamera(), viewer, viewer.scene.pointclouds, {pickClipped: true});
     if (!hit) return;
 
-    let corners = [hit.location];
+    let corners = [this.snap(hit.location, this.manual, this.reach(hit.location)) || hit.location];
     if (!e.shiftKey){
       this.manual = null;
       corners = this.detect(hit.location);
       if (!corners) return;
+      corners = corners.map(p => this.snap(p, null, 0.5) || p).filter((p, i, list) => p.distanceTo(list[(i + 1) % list.length]) > 0.01);
+      if (corners.length < 3) return;
     }
 
     if (!e.shiftKey || !this.manual){
@@ -248,10 +285,20 @@ class Roofs{
       viewer.scene.addMeasurement(face);
       if (e.shiftKey) this.manual = face;
       this.onInsert(face);
-    }else this.manual.addMarker(hit.location);
+    }else this.manual.addMarker(corners[0]);
   }
 
   update = () => {
+    const drag = this.viewer.inputHandler.drag;
+    const held = drag && drag.object && drag.object.parent && drag.object.parent.kind === "roof" ? drag.object : null;
+    if (held) this.dragged = {face: held.parent, index: held.parent.spheres.indexOf(held)};
+    if (this.dragged && this.dragged.index >= 0 && this.dragged.index < this.dragged.face.points.length){
+      const position = this.dragged.face.points[this.dragged.index].position;
+      const snapped = this.snap(position, this.dragged.face, this.reach(position));
+      if (snapped && snapped.distanceTo(position) > 0) this.dragged.face.setPosition(this.dragged.index, snapped);
+    }
+    if (!held) this.dragged = null;
+
     const now = performance.now();
     if (now - this.updated < 300) return;
     this.updated = now;
@@ -307,8 +354,8 @@ class Roofs{
           for (const e2 of other.roof.edges){
             const short = e1.length <= e2.length ? e1 : e2, long = e1.length <= e2.length ? e2 : e1;
             const line = new THREE.Line3(long.a, long.b);
-            if (line.closestPointToPoint(short.a, true, new THREE.Vector3()).distanceTo(short.a) > 0.6 ||
-                line.closestPointToPoint(short.b, true, new THREE.Vector3()).distanceTo(short.b) > 0.6) continue;
+            if (line.closestPointToPoint(short.a, true, new THREE.Vector3()).distanceTo(short.a) > 0.1 ||
+                line.closestPointToPoint(short.b, true, new THREE.Vector3()).distanceTo(short.b) > 0.1) continue;
 
             if (links[i].indexOf(j) === -1){
               links[i].push(j);
