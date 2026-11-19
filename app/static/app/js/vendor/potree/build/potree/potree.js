@@ -74128,10 +74128,11 @@ void main() {
 				features.push(object);
 			}
 
+			let conv = measurement.lengthUnit != null && measurement.lengthUnitDisplay != null ? measurement.lengthUnitDisplay.unitspermeter / measurement.lengthUnit.unitspermeter : 1;
 			features.forEach(f => {
-				if (measurement.showDistances && coords.length > 1) f.properties.distance = measurement.getTotalDistance();
-				if (measurement.showArea && coords.length > 2) f.properties.area = measurement.getArea();
-				if (measurement.showHeight && coords.length > 1) f.properties.height = Math.max(...coords.map(c => c[2])) - Math.min(...coords.map(c => c[2]));
+				if (measurement.showDistances && coords.length > 1) f.properties.distance = measurement.getTotalDistance() * conv;
+				if (measurement.showArea && coords.length > 2) f.properties.area = measurement.getArea() * conv * conv;
+				if (measurement.showHeight && coords.length > 1) f.properties.height = (Math.max(...coords.map(c => c[2])) - Math.min(...coords.map(c => c[2]))) * conv;
 			});
 
 			return features;
