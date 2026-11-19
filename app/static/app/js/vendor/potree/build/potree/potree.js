@@ -65090,6 +65090,7 @@ void main() {
 			}
 
 			this.line.material.resolution.set(width, height);
+			this.line.material.color.set(viewer.selectedItem === this ? 0xffff00 : 0xffffff);
 
 			const frame = this.at(this.t);
 			this.frustum.visible = !!frame;
