@@ -54,7 +54,6 @@ class Toolbar extends React.Component{
     const { viewer } = this.props;
     const item = this.inserting;
     this.inserting = null;
-    if (viewer.roofTool) viewer.roofTool.stop();
     if (viewer.inputHandler.paused){
       viewer.inputHandler.startDragging(viewer.inputHandler.paused);
       viewer.inputHandler.paused = null;
@@ -168,7 +167,7 @@ class Toolbar extends React.Component{
           { icon: "mv-icon mv-icon-area", title: _("Surface area"),
             onClick: () => this.measure({showDistances: true, showArea: true, closed: true, name: _("Area")}) },
           { icon: "mv-icon mv-icon-roof", title: _("Roof"),
-            onClick: () => { this.cancelInsertion(); viewer.roofTool.start(); } },
+            onClick: () => { this.measure({showDistances: false, showArea: false, closed: true, name: _("Roof")}, "roof"); this.inserting.open = true; } },
           { icon: "mv-icon mv-icon-volume", title: _("Volume"),
             onClick: () => { this.inserting = viewer.volumeTool.startInsertion(); this.props.onInsert(this.inserting); } },
           { icon: "mv-icon mv-icon-profile", title: _("Height profile"),
