@@ -622,6 +622,9 @@ class ProjectPanel extends React.Component{
           <div key="loop" className="mv-panel-field">
             <label><input type="checkbox" checked={m.loop}
                           onChange={e => { m.stop(); m.loop = e.target.checked; m.update(); this.forceUpdate(); }} /> {_("Loop")}</label>
+            {m.kind === "orbit" && m.orbit ?
+            <label><input type="checkbox" checked={m.orbit.reverse}
+                          onChange={e => { m.stop(); m.orbit.reverse = e.target.checked; m.update(); this.forceUpdate(); }} /> {_("Reverse")}</label> : ""}
           </div>,
           <div key="duration" className="mv-panel-field">
             <label>{_("Duration (s)")}</label>
