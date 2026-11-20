@@ -624,7 +624,7 @@ class ProjectPanel extends React.Component{
                           onChange={e => { m.stop(); m.loop = e.target.checked; m.update(); this.forceUpdate(); }} /> {_("Loop")}</label>
           </div>,
           <div key="duration" className="mv-panel-field">
-            <label>{_("Duration")}</label>
+            <label>{_("Duration (s)")}</label>
             <input type="number" min="0.1" step="0.5" value={timeEdit && timeEdit.key === "duration" ? timeEdit.value : +selectedItem.obj.duration.toFixed(1)}
                    onChange={e => this.setState({timeEdit: {key: "duration", value: e.target.value}})}
                    onDoubleClick={() => this.setState({timeEdit: {key: "duration", value: ""}})}
