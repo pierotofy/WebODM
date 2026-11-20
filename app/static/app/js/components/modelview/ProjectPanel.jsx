@@ -655,13 +655,6 @@ class ProjectPanel extends React.Component{
             <input type="range" min="0" max="1" step="0.001" value={selectedItem.obj.t}
                    onChange={e => this.seek(m, parseFloat(e.target.value), true)} />
           </div>,
-          <div key="resolution" className="mv-panel-field">
-            <label>{_("Quality")}</label>
-            <select value={this.state.recordSize || "native"} disabled={recording} onChange={e => this.setState({recordSize: e.target.value})}>
-              <option value="native">{_("Native")}</option>
-              <option value="4k">4K</option>
-            </select>
-          </div>,
           <div key="controls" className="mv-panel-controls">
             <button type="button" className="mv-panel-btn" title={m.onPlay ? _("Pause") : _("Play")} disabled={recording || !m.cameraCurve}
                     onClick={() => {
@@ -731,6 +724,13 @@ class ProjectPanel extends React.Component{
                         animation.play(true);
                       }, 1000);
                     }}><i className={recording ? "fa fa-circle-notch fa-spin" : "fa fa-circle"}></i></button>
+          </div>,
+          <div key="resolution" className="mv-panel-field">
+            <label>{_("Quality")}</label>
+            <select value={this.state.recordSize || "native"} disabled={recording} onChange={e => this.setState({recordSize: e.target.value})}>
+              <option value="native">{_("Native")}</option>
+              <option value="4k">4K</option>
+            </select>
           </div>] : ""}
 
           {selectedItem.type === "annotation" ? [
