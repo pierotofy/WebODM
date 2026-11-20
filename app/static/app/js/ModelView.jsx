@@ -587,7 +587,9 @@ class ModelView extends React.Component {
     }
     else if (key === "edlStrength") viewer.setEDLStrength(value);
     else if (key === "edlRadius") viewer.setEDLRadius(value);
-    else if (key === "hq") viewer.useHQ = value;
+    else if (key === "hq"){
+        if (this.getCurrentModelType() === "cloud") viewer.useHQ = value;
+    }
     else if (key === "compass") viewer.compass.setVisible(value);
     else if (key === "smoothness"){
         const factor = {smooth: 0.5, standard: 1, snappy: 2.5}[value] || 1;
@@ -835,6 +837,7 @@ class ModelView extends React.Component {
     
     // Using opacity we can still perform measurements
     viewer.setEDLOpacity(flag ? 1 : 0);
+    viewer.useHQ = flag && !!this.settings.hq;
 
     // On mobile, for performance and because opacity doesn't
     // seem to work consistently, we remove the ability to do

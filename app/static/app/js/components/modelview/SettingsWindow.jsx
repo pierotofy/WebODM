@@ -162,7 +162,7 @@ class SettingsWindow extends React.Component{
         this.row(_("EDL Radius"), "",
           this.slider("edlRadius", viewer.edlRadius, 1, 4, 0.1, viewer.edlRadius.toFixed(1))),
         this.row(_("High Quality)"), _("Blends overlapping points for a smoother image. Slower."),
-          this.toggle("hq", !!viewer.useHQ))
+          this.toggle("hq", !!viewer.useHQ, modelType !== "cloud"))
       ]);
     }else if (tab === "navigation"){
       content = [
