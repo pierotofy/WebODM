@@ -13,6 +13,7 @@ class SettingsWindow extends React.Component{
     modelType: PropTypes.string.isRequired,
     onChange: PropTypes.func.isRequired,
     onSetInitialCameraView: PropTypes.func,
+    onReset: PropTypes.func.isRequired,
     onClose: PropTypes.func.isRequired
   }
 
@@ -111,6 +112,10 @@ class SettingsWindow extends React.Component{
             <i className={viewSaving ? "fa fa-circle-notch fa-spin" : (viewSaved ? "fa fa-check" : "fa fa-video")}></i> {_("Set")}
           </button>));
       }
+
+      content.push(this.row(_("Reset Defaults"), _("Resets all settings to their default values."),
+        <button type="button" className="mv-settings-action"
+                onClick={() => { this.props.onReset(); this.forceUpdate(); }}>{_("Reset")}</button>));
     }else if (tab === "display"){
       const background = settings.background || "gradient";
       content = [

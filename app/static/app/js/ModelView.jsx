@@ -13,7 +13,7 @@ import update from 'immutability-helper';
 import * as THREE from 'THREE';
 import $ from 'jquery';
 import { _, interpolate } from './classes/gettext';
-import { getUnitSystem, onUnitSystemChanged, offUnitSystemChanged } from './classes/Units';
+import { getUnitSystem, setUnitSystem, onUnitSystemChanged, offUnitSystemChanged } from './classes/Units';
 import UnitSelector from './components/UnitSelector';
 import Toolbar from './components/modelview/Toolbar';
 import ProjectPanel from './components/modelview/ProjectPanel';
@@ -350,6 +350,26 @@ class ModelView extends React.Component {
         
           this.handleUnitSystemChanged();
 
+          this.defaults = {
+              magnifier: true,
+              gizmo: false,
+              compass: true,
+              minimap: true,
+              background: "gradient",
+              fov: viewer.getFOV(),
+              cameraMode: "PERSPECTIVE",
+              pointBudget: viewer.getPointBudget(),
+              pointSizeType: Object.keys(Potree.PointSizeType).find(k => Potree.PointSizeType[k] === material.pointSizeType),
+              pointShape: Object.keys(Potree.PointShape).find(k => Potree.PointShape[k] === material.shape),
+              pointSize: material.size,
+              edlEnabled: true,
+              edlStrength: viewer.edlStrength,
+              edlRadius: viewer.edlRadius,
+              hq: false,
+              smoothness: "standard",
+              moveSpeed: Math.log10(viewer.getMoveSpeed())
+          };
+
           for (let k in this.settings) this.setSetting(k, this.settings[k]);
 
           // Load saved scene (if any)
@@ -604,6 +624,14 @@ class ModelView extends React.Component {
 
     this.settings[key] = value;
     localStorage.setItem("modelview_settings", JSON.stringify(this.settings));
+    this.forceUpdate();
+  }
+
+  resetSettings = () => {
+    for (let k in this.defaults) this.setSetting(k, this.defaults[k]);
+    this.settings = {};
+    localStorage.removeItem("modelview_settings");
+    setUnitSystem("metric");
     this.forceUpdate();
   }
 
@@ -1186,6 +1214,7 @@ class ModelView extends React.Component {
                                 settings={this.settings}
                                 modelType={selectedModelType}
                                 onChange={this.setSetting}
+                                onReset={this.resetSettings}
                                 onSetInitialCameraView={this.props.public ? null : this.setInitialCameraView}
                                 onClose={() => this.setState({panel: null})} />
                     : ""}
