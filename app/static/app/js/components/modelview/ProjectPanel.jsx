@@ -691,11 +691,10 @@ class ProjectPanel extends React.Component{
                           animation.setVisible(true);
                           this.setState({recording: false});
                         };
-                        animation.set(0);
+                        recorder.start((animation.t >= 1 ? 1 : 1 - animation.t) * animation.duration * 1000 + 1000);
                         animation.play(true);
-                        recorder.start(animation.duration * 1000 + 1000);
                       }, 1000);
-                    }}><i className={recording ? "fa fa-stop" : "fa fa-circle"}></i></button>
+                    }}><i className={recording ? "fa fa-circle-notch fa-spin" : "fa fa-circle"}></i></button>
           </div>] : ""}
 
           {selectedItem.type === "annotation" ? [
