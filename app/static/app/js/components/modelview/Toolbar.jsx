@@ -15,6 +15,7 @@ class Toolbar extends React.Component{
     onToggleCameras: PropTypes.func.isRequired,
     onAttributeChange: PropTypes.func.isRequired,
     onInsert: PropTypes.func.isRequired,
+    onReorient: PropTypes.func,
     onEnterVR: PropTypes.func
   }
 
@@ -119,7 +120,13 @@ class Toolbar extends React.Component{
           { separator: true },
           { icon: "mv-icon mv-icon-viewpoint", title: _("Viewpoint"),
             onClick: () => viewer.fitToScreen() }
-        ]
+        ].concat(this.props.onReorient ? [
+          { icon: "mv-icon mv-icon-reorient", title: _("Reorient"),
+            onClick: () => {
+              this.inserting = viewer.measuringTool.startInsertion({showDistances: false, showArea: false, closed: true, maxMarkers: 3, name: _("Reorient")});
+              this.props.onReorient(this.inserting);
+            } }
+        ] : [])
       },
       {
         id: "display", icon: "mv-icon mv-icon-display", title: _("Display"),

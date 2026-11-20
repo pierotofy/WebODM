@@ -21,6 +21,7 @@ import SettingsWindow from './components/modelview/SettingsWindow';
 import Magnifier from './components/modelview/Magnifier';
 import Roofs from './components/modelview/Roofs';
 import Highlight from './components/modelview/Highlight';
+import Reorient from './components/modelview/Reorient';
 import ProfilePanel from './components/modelview/ProfilePanel';
 import HistoryPanel from './components/modelview/HistoryPanel';
 import Gizmo from './components/modelview/Gizmo';
@@ -97,6 +98,9 @@ class ModelView extends React.Component {
     this.sparkRenderer = null;
 
     this.cameraMeshes = [];
+    this.orientation = new THREE.Matrix4();
+    this.modelRoot = new THREE.Group();
+    this.modelRoot.matrixAutoUpdate = false;
   }
 
   basePath = () => {
@@ -222,7 +226,55 @@ class ModelView extends React.Component {
       delete json.view;
       delete json.settings;
 
+      if (!this.orientation.equals(new THREE.Matrix4())) json.orientation = this.orientation.toArray();
+
       return json;
+  }
+
+  setOrientation = (matrix) => {
+    this.orientation.copy(matrix);
+    const rotation = new THREE.Quaternion().setFromRotationMatrix(matrix);
+
+    viewer.scene.pointclouds.forEach(pc => {
+      if (!pc.userData.base) pc.userData.base = {position: pc.position.clone(), quaternion: pc.quaternion.clone()};
+      pc.position.copy(pc.userData.base.position).applyMatrix4(matrix);
+      pc.quaternion.copy(pc.userData.base.quaternion).premultiply(rotation);
+      pc.updateMatrixWorld(true);
+    });
+
+    this.modelRoot.matrix.copy(matrix);
+    this.modelRoot.matrixWorldNeedsUpdate = true;
+  }
+
+  applyReorientation = (rotation, center) => {
+    const scene = viewer.scene;
+    const matrix = new THREE.Matrix4().compose(center.clone().sub(center.clone().applyQuaternion(rotation)), rotation, new THREE.Vector3(1, 1, 1));
+
+    scene.measurements.forEach(m => m.points.forEach((p, i) => m.setPosition(i, p.position.clone().applyMatrix4(matrix))));
+    scene.profiles.forEach(profile => profile.points.forEach((p, i) => profile.setPosition(i, p.clone().applyMatrix4(matrix))));
+    scene.volumes.forEach(volume => {
+      volume.position.applyMatrix4(matrix);
+      volume.quaternion.premultiply(rotation);
+    });
+    scene.annotations.descendants().forEach(a => {
+      a.position.applyMatrix4(matrix);
+      if (a.hasView()){
+        a.cameraPosition.applyMatrix4(matrix);
+        a.cameraTarget.applyMatrix4(matrix);
+      }
+    });
+    scene.cameraAnimations.forEach(a => {
+      if (a.orbit){
+        a.orbit.center.applyMatrix4(matrix);
+        a.orbit.target.applyMatrix4(matrix);
+      }
+    });
+
+    const target = scene.view.getPivot().applyMatrix4(matrix);
+    scene.view.position.applyMatrix4(matrix);
+    scene.view.lookAt(target);
+
+    this.setOrientation(matrix.multiply(this.orientation));
   }
 
   componentDidMount() {
@@ -267,6 +319,7 @@ class ModelView extends React.Component {
     const directional = new THREE.DirectionalLight( 0xcccccc, 0.5 );
     directional.position.z = 99999999999;
     viewer.scene.scene.add( directional );
+    viewer.scene.scene.add(this.modelRoot);
 
     this.pointCloudFilePath(pointCloudPath =>{ 
         Potree.loadPointCloud(pointCloudPath, "Point Cloud", e => {
@@ -323,6 +376,8 @@ class ModelView extends React.Component {
                 }
             }
 
+            if (sceneData.orientation) this.setOrientation(new THREE.Matrix4().fromArray(sceneData.orientation));
+
             // Load
             const potreeLoadProject = () => {
                 Potree.loadProject(viewer, sceneData);
@@ -362,6 +417,7 @@ class ModelView extends React.Component {
     });
 
     this.highlight = new Highlight(viewer);
+    this.reorient = new Reorient(viewer, this.applyReorientation);
     viewer.roofTool = new Roofs(viewer, item => this.setState({panel: "project", inserted: item, focused: null}));
     viewer.renderer.domElement.addEventListener( 'mousedown', this.handleRenderMouseClick );
     viewer.renderer.domElement.addEventListener( 'mousedown', this.handleRenderMouseDownCapture, true );
@@ -390,12 +446,13 @@ class ModelView extends React.Component {
         volumes: json.volumes,
         profiles: json.profiles,
         annotations: json.annotations,
-        cameraAnimations: json.cameraAnimations.map(a => Object.assign({}, a, {t: 0}))
+        cameraAnimations: json.cameraAnimations.map(a => Object.assign({}, a, {t: 0})),
+        orientation: this.orientation.toArray()
     });
   }
 
   recordHistory = () => {
-    if (viewer.inputHandler.drag || viewer.scene.cameraAnimations.some(a => a.dragging)) return;
+    if (viewer.inputHandler.drag || viewer.scene.cameraAnimations.some(a => a.dragging) || this.reorient.active()) return;
 
     const data = this.getHistoryData();
     const prevData = this.history[this.historyIndex].data;
@@ -443,6 +500,7 @@ class ModelView extends React.Component {
     scene.annotations.removeAllChildren();
     while (scene.cameraAnimations.length > 0) scene.removeCameraAnimation(scene.cameraAnimations[0]);
 
+    this.setOrientation(new THREE.Matrix4().fromArray(data.orientation));
     Potree.loadProject(viewer, data);
 
     scene.annotations.descendants().forEach(a => { if (hidden.indexOf(a.uuid) !== -1) a.visible = false; });
@@ -589,6 +647,7 @@ class ModelView extends React.Component {
     document.removeEventListener("keydown", this.handleKeyDown);
     viewer.roofTool.dispose();
     this.highlight.dispose();
+    this.reorient.dispose();
     viewer.renderer.domElement.removeEventListener( 'mousedown', this.handleRenderMouseClick );
     viewer.renderer.domElement.removeEventListener( 'mousedown', this.handleRenderMouseDownCapture, true );
     viewer.renderer.domElement.removeEventListener( 'mouseup', this.handleRenderMouseUpCapture, true );
@@ -759,7 +818,7 @@ class ModelView extends React.Component {
 
                     cameraMesh.matrix.set(...getMatrix(feat.properties.translation, feat.properties.rotation, scale).elements);
                     
-                    viewer.scene.scene.add(cameraMesh);
+                    this.modelRoot.add(cameraMesh);
 
                     cameraMesh._feat = feat;
                     this.cameraMeshes.push(cameraMesh.children[0].children[1]);
@@ -908,7 +967,7 @@ class ModelView extends React.Component {
                             this.sparkRenderer.cropVertices = cropCoords.map(v => new THREE.Vector2(v.x, v.y));
                         }
 
-                        viewer.scene.scene.add(splats);
+                        this.modelRoot.add(splats);
                         this.splatsReference = splats;
 
                         this.sparkRenderer.addEventListener("firstDisplay", () => {
@@ -951,7 +1010,7 @@ class ModelView extends React.Component {
             object.translateX(offset.x);
             object.translateY(offset.y);
 
-            viewer.scene.scene.add(object);
+            this.modelRoot.add(object);
 
             this.modelReference = object;
             this.setPointCloudsVisible(false);
@@ -1093,6 +1152,7 @@ class ModelView extends React.Component {
                                         onToggleCameras={this.toggleCameras}
                                         onAttributeChange={() => this.forceUpdate()}
                                         onInsert={item => this.setState({panel: "project", inserted: item, focused: null})}
+                                        onReorient={this.props.task.epsg || this.props.task.wkt ? null : measure => this.reorient.start(measure)}
                                         onEnterVR={this.state.vr ? () => this.vrButton.element.click() : null} /> : ""}
 
                     {viewer && panel === "project" ?
