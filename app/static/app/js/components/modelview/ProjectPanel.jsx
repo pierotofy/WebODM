@@ -337,6 +337,16 @@ class ProjectPanel extends React.Component{
                 m.update();
                 this.forceUpdate();
               }}>{_("Rebalance")}</button> : null;
+    const { task } = this.props;
+    let srsName = _("Native");
+    if (task.epsg) srsName = task.srs.name ? `${task.srs.name} (EPSG:${task.epsg})` : `EPSG:${task.epsg}`;
+    else if (task.wkt) srsName = task.srs.name;
+    let coordinates = [];
+    if (isPoint && points.length === 1){
+      const located = m.latlon && m.latlon.x === points[0].x && m.latlon.y === points[0].y;
+      if (m.display !== "latlon") coordinates = [points[0].x.toFixed(3), points[0].y.toFixed(3), (points[0].z * conv).toFixed(3)];
+      else coordinates = [located ? m.latlon.lon.toFixed(9) : "", located ? m.latlon.lat.toFixed(9) : "", (points[0].z * conv).toFixed(3)];
+    }
     const canEditPoints = !!selectedItem && (selectedItem.type === "profile" ||
       (selectedItem.type === "measure" && !m.showCoordinates && !m.showAngles && !m.showCircle && !m.showAzimuth && !m.showHeight && m.kind !== "perpendicular"));
     const minPoints = selectedItem && selectedItem.type === "measure" && m.closed ? 3 : 2;
@@ -491,24 +501,33 @@ class ProjectPanel extends React.Component{
             <span>{p[0]}</span><span>{p[1]}</span>
           </div>)}
 
-          {isPoint && points.length === 1 ?
-          <div className="mv-panel-field mv-panel-xyz">
+          {isPoint && points.length === 1 ? [
+          <div key="coordinates" className="mv-panel-field mv-panel-xyz">
             <label>{_("Coordinates")}</label>
-            {["x", "y", "z"].map(axis =>
-            <input key={axis + points[0][axis]} type="number" step="any" title={axis}
-                   defaultValue={(points[0][axis] * (axis === "z" ? conv : 1)).toFixed(3)}
+            {coordinates.map((value, i) =>
+            <input key={i + value} type="number" step="any" title={(m.display === "latlon" ? ["lon", "lat", "alt"] : ["x", "y", "z"])[i]}
+                   defaultValue={value} readOnly={m.display === "latlon" && i < 2}
+                   style={{flex: `${value.length || 1} 1 0`, minWidth: 0, fontSize: m.display === "latlon" ? "11px" : "12px", padding: m.display === "latlon" ? "0 2px" : "0 4px"}}
                    onKeyDown={e => { if (e.key === "Enter") e.target.blur(); }}
                    onBlur={e => {
-                     const value = parseFloat(e.target.value);
-                     if (isNaN(value)) return;
+                     const number = parseFloat(e.target.value);
+                     if (isNaN(number) || (m.display === "latlon" && i < 2)) return;
                      const position = points[0].clone();
-                     position[axis] = axis === "z" ? value / conv : value;
+                     position[["x", "y", "z"][i]] = i === 2 ? number / conv : number;
                      m.setPosition(0, position);
                      this.forceUpdate();
                    }} />)}
             <button type="button" className="mv-panel-btn" title={_("Copy")}
-                    onClick={() => this.copy(`${points[0].x.toFixed(3)}, ${points[0].y.toFixed(3)}, ${(points[0].z * conv).toFixed(3)}`, "copy")}><i className={updated === "copy" ? "fa fa-check" : "far fa-copy"}></i></button>
-          </div> : ""}
+                    onClick={() => this.copy(coordinates.join(", "), "copy")}><i className={updated === "copy" ? "fa fa-check" : "far fa-copy"}></i></button>
+          </div>,
+          <div key="display" className="mv-panel-field">
+            <label>{_("Display")}</label>
+            <select value={m.display === "latlon" ? "latlon" : "native"}
+                    onChange={e => { m.display = e.target.value; m.update(); this.forceUpdate(); }}>
+              <option value="native">{srsName}</option>
+              {task.epsg || task.wkt ? <option value="latlon">{_("Lat/Lon")} (EPSG:4326)</option> : null}
+            </select>
+          </div>] : ""}
 
           {selectedItem.type === "volume" ? ["position", "rotation", "scale"].map(prop =>
           <div key={prop} className="mv-panel-field mv-panel-xyz">

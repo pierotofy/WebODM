@@ -415,6 +415,7 @@ class ModelView extends React.Component {
                 this.history = [{label: "", data: this.getHistoryData()}];
                 this.historyIndex = 0;
                 this.historyInterval = setInterval(this.recordHistory, 500);
+                this.latLonInterval = setInterval(this.updateLatLon, 500);
             }, 1000);
 
             // Every 3 seconds, check if the scene has changed
@@ -462,12 +463,46 @@ class ModelView extends React.Component {
     return JSON.stringify({
         type: json.type,
         version: json.version,
-        measurements: json.measurements,
+        measurements: json.measurements.map(m => Object.assign({}, m, {latlon: undefined})),
         volumes: json.volumes,
         profiles: json.profiles,
         annotations: json.annotations,
         cameraAnimations: json.cameraAnimations.map(a => Object.assign({}, a, {t: 0})),
         orientation: this.orientation.toArray()
+    });
+  }
+
+  updateLatLon = () => {
+    if (this.latLonReq || viewer.inputHandler.drag) return;
+
+    const stale = viewer.scene.measurements.filter(m => m.display === "latlon" && m.points.length === 1 &&
+      (!m.latlon || m.latlon.x !== m.points[0].position.x || m.latlon.y !== m.points[0].position.y));
+    if (stale.length === 0) return;
+
+    const { task } = this.props;
+    const positions = stale.map(m => m.points[0].position.clone());
+
+    this.latLonReq = $.ajax({
+        url: `/api/projects/${task.project}/tasks/${task.id}/reproject`,
+        contentType: 'application/json',
+        data: JSON.stringify({
+            geojson: {type: "MultiPoint", coordinates: positions.map(p => [p.x, p.y])},
+            source: task.epsg ? `EPSG:${task.epsg}` : task.wkt,
+            target: "EPSG:4326"
+        }),
+        type: 'POST'
+    }).done(result => {
+        stale.forEach((m, i) => {
+            m.latlon = {x: positions[i].x, y: positions[i].y, lat: result.coordinates[i][1], lon: result.coordinates[i][0]};
+            m.update();
+        });
+    }).fail(() => {
+        stale.forEach(m => {
+            m.display = "native";
+            m.update();
+        });
+    }).always(() => {
+        this.latLonReq = null;
     });
   }
 
@@ -676,6 +711,7 @@ class ModelView extends React.Component {
     offUnitSystemChanged(this.handleUnitSystemChanged);
     clearInterval(this.saveSceneInterval);
     clearInterval(this.historyInterval);
+    clearInterval(this.latLonInterval);
     document.removeEventListener("keydown", this.handleKeyDown);
     viewer.roofTool.dispose();
     this.highlight.dispose();

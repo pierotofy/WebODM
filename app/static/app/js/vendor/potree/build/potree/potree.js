@@ -54246,6 +54246,11 @@
 					
 					let positions = position.toArray();
 					let msg = `${Utils.addCommas(positions[0].toFixed(3))} / ${Utils.addCommas(positions[1].toFixed(3))} / ${Utils.addCommas((positions[2] / window.viewer.lengthUnit.unitspermeter * window.viewer.lengthUnitDisplay.unitspermeter).toFixed(3))}`;
+					if(this.display === 'latlon'){
+						msg = this.latlon && this.latlon.x === positions[0] && this.latlon.y === positions[1]
+							? `${this.latlon.lon.toFixed(9)} / ${this.latlon.lat.toFixed(9)} / ${Utils.addCommas((positions[2] / window.viewer.lengthUnit.unitspermeter * window.viewer.lengthUnitDisplay.unitspermeter).toFixed(3))}`
+							: '...';
+					}
 					coordinateLabel.setText(msg);
 
 					coordinateLabel.visible = this.showCoordinates;
@@ -64762,6 +64767,12 @@ void main() {
 		if(measurement.kind){
 			data.kind = measurement.kind;
 		}
+		if(measurement.display === 'latlon'){
+			data.display = measurement.display;
+		}
+		if(measurement.latlon){
+			data.latlon = measurement.latlon;
+		}
 		if(measurement.kind === 'perpendicular' && measurement.normal && measurement.points.length === 2){
 			data.points.push(measurement.points[0].position.clone().add(measurement.normal).toArray());
 		}
@@ -65416,6 +65427,12 @@ void main() {
 		measure.showEdges = data.showEdges;
 		if(data.kind){
 			measure.kind = data.kind;
+		}
+		if(data.display){
+			measure.display = data.display;
+		}
+		if(data.latlon){
+			measure.latlon = data.latlon;
 		}
 		// color
 
