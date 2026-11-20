@@ -90081,7 +90081,7 @@ ENDSEC
 
 				// profile segments
 				for(let profile of this.scene.profiles){
-					boxes.push(...profile.boxes);
+					if(profile.visible) boxes.push(...profile.boxes);
 				}
 				
 				// Needed for .getInverse(), pre-empt a determinant of 0, see #815 / #816
