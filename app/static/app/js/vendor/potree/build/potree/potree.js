@@ -57837,6 +57837,7 @@ uniform int clipMethod;
 #if defined(num_clipboxes) && num_clipboxes > 0
 	uniform mat4 clipBoxes[num_clipboxes];
 	uniform vec2 clipSelected;
+	uniform vec2 clipHighlight;
 #endif
 
 #if defined(num_clipspheres) && num_clipspheres > 0
@@ -58611,6 +58612,7 @@ void doClipping(){
 	int clipVolumesCount = 0;
 	int insideCount = 0;
 	bool insideSelected = false;
+	bool insideHighlight = false;
 
 	#if defined(num_clipboxes) && num_clipboxes > 0
 		for(int i = 0; i < num_clipboxes; i++){
@@ -58620,9 +58622,18 @@ void doClipping(){
 			inside = inside && -0.5 <= clipPosition.z && clipPosition.z <= 0.5;
 
 			if(inside && float(i) >= clipSelected.x && float(i) <= clipSelected.y) insideSelected = true;
-			insideCount = insideCount + (inside ? 1 : 0);
-			clipVolumesCount++;
-		}	
+			if(float(i) >= clipHighlight.x){
+				if(inside) insideHighlight = true;
+			}else{
+				insideCount = insideCount + (inside ? 1 : 0);
+				clipVolumesCount++;
+			}
+		}
+
+		if(insideHighlight && clipHighlight.y > 0.5){
+			vColor.r += 0.5;
+			if(insideSelected) vColor.g += 0.5;
+		}
 	#endif
 
 	#if defined(num_cropvertices) && num_cropvertices > 0
@@ -58647,10 +58658,11 @@ void doClipping(){
 	bool insideAny = insideCount > 0;
 	bool insideAll = (clipVolumesCount > 0) && (clipVolumesCount == insideCount);
 
+	if(clipVolumesCount == 0) return;
+
 	if(clipMethod == CLIPMETHOD_INSIDE_ANY){
 		if(insideAny && clipTask == CLIPTASK_HIGHLIGHT){
 			vColor.r += 0.5;
-			if(insideSelected) vColor.g += 0.5;
 		}else if(!insideAny && clipTask == CLIPTASK_SHOW_INSIDE){
 			gl_Position = vec4(100.0, 100.0, 100.0, 1.0);
 		}else if(insideAny && clipTask == CLIPTASK_SHOW_OUTSIDE){
@@ -58659,7 +58671,6 @@ void doClipping(){
 	}else if(clipMethod == CLIPMETHOD_INSIDE_ALL){
 		if(insideAll && clipTask == CLIPTASK_HIGHLIGHT){
 			vColor.r += 0.5;
-			if(insideSelected) vColor.g += 0.5;
 		}else if(!insideAll && clipTask == CLIPTASK_SHOW_INSIDE){
 			gl_Position = vec4(100.0, 100.0, 100.0, 1.0);
 		}else if(insideAll && clipTask == CLIPTASK_SHOW_OUTSIDE){
@@ -61871,7 +61882,7 @@ void main() {
 			visible = visible && level < maxLevel;
 			visible = visible || node.getLevel() <= 2;
 
-			let clipBoxes = pointcloud.material.clipBoxes;
+			let clipBoxes = pointcloud.material.clipBoxes.filter(c => !c.highlight);
 			if(true && clipBoxes.length > 0){
 
 				//node.debug = false;
@@ -63959,6 +63970,9 @@ void main() {
 
 					const chosen = material.clipBoxes.map((c, i) => c.box.parent === window.viewer.selectedItem ? i : -1).filter(i => i !== -1);
 					shader.setUniform2f("clipSelected", chosen.length ? [chosen[0], chosen[chosen.length - 1]] : [-1, -2]);
+
+					const firstHighlight = material.clipBoxes.findIndex(c => c.highlight);
+					shader.setUniform2f("clipHighlight", [firstHighlight === -1 ? material.clipBoxes.length : firstHighlight, material.highlightProfiles ? 1 : 0]);
 				}
 
 				// TODO CLIPSPHERES
@@ -71186,6 +71200,7 @@ void main() {
 					attributeMaterial.clipTask = material.clipTask;
 					attributeMaterial.clipMethod = material.clipMethod;
 					attributeMaterial.setClipBoxes(material.clipBoxes);
+					attributeMaterial.highlightProfiles = true;
 					attributeMaterial.setClipPolygons(material.clipPolygons);
 					attributeMaterial.cropVertices = material.cropVertices;
 
@@ -90093,7 +90108,7 @@ ENDSEC
 					let boxInverse = box.matrixWorld.clone().invert();
 					let boxPosition = box.getWorldPosition(new Vector3());
 
-					return {box: box, inverse: boxInverse, position: boxPosition};
+					return {box: box, inverse: boxInverse, position: boxPosition, highlight: !(box instanceof BoxVolume)};
 				});
 
 				let clipPolygons = this.scene.polygonClipVolumes.filter(vol => vol.initialized && vol.visible);
@@ -90101,6 +90116,7 @@ ENDSEC
 				// set clip volumes in material
 				for(let pointcloud of visiblePointClouds){
 					pointcloud.material.setClipBoxes(clipBoxes);
+					pointcloud.material.highlightProfiles = true;
 					pointcloud.material.setClipPolygons(clipPolygons);
 					pointcloud.material.clipTask = this.clipTask;
 					pointcloud.material.clipMethod = this.clipMethod;
