@@ -625,18 +625,6 @@ class ProjectPanel extends React.Component{
             <button type="button" className="mv-panel-action"
                     onClick={() => viewer.annotationTool.startLookAt({cameraTarget: m.orbit.target, cameraPosition: (m.at(m.t) || {position: m.orbit.center}).position.clone(), position: new THREE.Vector3(), marker: {parent: scene.scene}})}><i className="fa fa-crosshairs"></i> {_("Look At")}</button>
           </div> : null,
-          m.kind === "orbit" && m.orbit ?
-          <div key="height" className="mv-panel-field">
-            <label>{interpolate(_("Height (%(unit)s)"), {unit})}</label>
-            <input type="number" step="0.1" value={+((m.orbit.center.z - m.orbit.target.z) * conv).toFixed(2)}
-                   onChange={e => {
-                     const height = parseFloat(e.target.value);
-                     if (isNaN(height)) return;
-                     m.orbit.center.z = m.orbit.target.z + height / conv;
-                     m.update();
-                     this.forceUpdate();
-                   }} />
-          </div> : null,
           <div key="loop" className="mv-panel-field">
             <label><input type="checkbox" checked={m.loop}
                           onChange={e => { m.stop(); m.loop = e.target.checked; m.update(); this.forceUpdate(); }} /> {_("Loop")}</label>
