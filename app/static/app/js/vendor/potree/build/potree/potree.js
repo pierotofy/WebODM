@@ -73645,7 +73645,7 @@ void main() {
 		}
 
 		hide () {
-			this.elRoot.fadeOut();
+			this.elRoot.hide();
 			this.enabled = false;
 		}
 
