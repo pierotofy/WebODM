@@ -646,6 +646,13 @@ class ProjectPanel extends React.Component{
             <input type="range" min="0" max="1" step="0.001" value={selectedItem.obj.t}
                    onChange={e => this.seek(m, parseFloat(e.target.value), true)} />
           </div>,
+          <div key="resolution" className="mv-panel-field">
+            <label>{_("Recording")}</label>
+            <select value={this.state.recordSize || "native"} disabled={recording} onChange={e => this.setState({recordSize: e.target.value})}>
+              <option value="native">{_("Native")}</option>
+              <option value="4k">4K</option>
+            </select>
+          </div>,
           <div key="controls" className="mv-panel-controls">
             <button type="button" className="mv-panel-btn" title={m.onPlay ? _("Pause") : _("Play")} disabled={recording || !m.cameraCurve}
                     onClick={() => {
@@ -654,7 +661,7 @@ class ProjectPanel extends React.Component{
                       this.forceUpdate();
                     }}><i className={m.onPlay ? "fa fa-pause" : "fa fa-play"}></i></button>
             <button type="button" className="mv-panel-btn" title={_("Rewind")} disabled={recording}
-                    onClick={() => this.seek(m, 0, false)}><i className="fa fa-backward"></i></button>
+                    onClick={() => this.seek(m, 0, false)}><i className="fa fa-redo"></i></button>
             <button type="button" className="mv-panel-btn mv-danger" title={recording ? _("Stop recording") : _("Record movie")} disabled={!m.cameraCurve}
                     onClick={() => {
                       if (recording){
@@ -671,18 +678,34 @@ class ProjectPanel extends React.Component{
 
                       this.recordTimeout = setTimeout(() => {
                         const chunks = [];
-                        const recorder = new MediaRecorder(viewer.renderer.domElement.captureStream(29.97), {mimeType: "video/webm; codecs=vp8"});
+                        const mimeType = ["video/mp4;codecs=avc1.42E01E", "video/mp4;codecs=avc1", "video/mp4;codecs=h264", "video/mp4", "video/webm; codecs=vp8"].find(type => MediaRecorder.isTypeSupported(type));
+                        let stream = null;
+                        let draw = null;
+                        if (this.state.recordSize === "4k"){
+                          const canvas = document.createElement("canvas");
+                          canvas.width = 3840;
+                          canvas.height = 2160;
+                          const context = canvas.getContext("2d", {alpha: false});
+                          draw = () => {
+                            const source = viewer.renderer.domElement;
+                            const scale = Math.min(canvas.width / source.width, canvas.height / source.height);
+                            context.fillStyle = "#000";
+                            context.fillRect(0, 0, canvas.width, canvas.height);
+                            context.drawImage(source, (canvas.width - source.width * scale) / 2, (canvas.height - source.height * scale) / 2, source.width * scale, source.height * scale);
+                          };
+                          viewer.addEventListener("render.pass.perspective_overlay", draw);
+                          stream = canvas.captureStream(30);
+                        }else stream = viewer.renderer.domElement.captureStream(29.97);
+                        const recorder = new MediaRecorder(stream, draw ? {mimeType, videoBitsPerSecond: 35000000} : {mimeType});
                         this.recorder = recorder;
-                        recorder.ondataavailable = e => {
-                          chunks.push(e.data);
-                          if (recorder.state === "recording") recorder.stop();
-                        };
+                        recorder.ondataavailable = e => chunks.push(e.data);
                         recorder.onstop = () => {
-                          const video = new Blob(chunks, {type: "video/webm"});
+                          if (draw) viewer.removeEventListener("render.pass.perspective_overlay", draw);
+                          const video = new Blob(chunks, {type: mimeType});
                           if (video.size > 0){
                             const link = document.createElement("a");
                             link.href = URL.createObjectURL(video);
-                            link.download = "recording.webm";
+                            link.download = mimeType.indexOf("mp4") !== -1 ? "recording.mp4" : "recording.webm";
                             link.click();
                           }
                           this.recorder = null;
@@ -691,7 +714,8 @@ class ProjectPanel extends React.Component{
                           animation.setVisible(true);
                           this.setState({recording: false});
                         };
-                        recorder.start((animation.t >= 1 ? 1 : 1 - animation.t) * animation.duration * 1000 + 1000);
+                        recorder.start();
+                        this.recordTimeout = setTimeout(this.stopRecording, (animation.t >= 1 ? 1 : 1 - animation.t) * animation.duration * 1000 + 1000);
                         animation.play(true);
                       }, 1000);
                     }}><i className={recording ? "fa fa-circle-notch fa-spin" : "fa fa-circle"}></i></button>
