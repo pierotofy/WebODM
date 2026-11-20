@@ -82,7 +82,7 @@ class Reorient{
     plane.position.copy(this.center);
     plane.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), this.normal);
 
-    const material = new THREE.MeshBasicMaterial({color: 0xffff00, depthTest: false, depthWrite: false});
+    const material = new THREE.MeshBasicMaterial({color: 0xff0000, depthTest: false, depthWrite: false});
     const shaft = new THREE.Mesh(new THREE.CylinderGeometry(this.radius * 0.02, this.radius * 0.02, this.radius * 0.75, 12), material);
     shaft.position.y = this.radius * 0.375;
     const head = new THREE.Mesh(new THREE.ConeGeometry(this.radius * 0.08, this.radius * 0.25, 16), material);
