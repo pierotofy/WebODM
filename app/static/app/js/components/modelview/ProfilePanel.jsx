@@ -2,15 +2,25 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import $ from 'jquery';
 import '../../css/modelview/Profile.scss';
-import { _, interpolate } from '../../classes/gettext';
+import { _ } from '../../classes/gettext';
 
 class ProfilePanel extends React.Component{
   static propTypes = {
     viewer: PropTypes.object.isRequired
   }
 
+  constructor(props){
+    super(props);
+
+    this.state = {
+      exportOpen: false
+    };
+  }
+
   componentDidMount(){
     const { viewer } = this.props;
+
+    document.addEventListener("click", this.closeMenu);
 
     viewer.profileWindow = new Potree.ProfileWindow(viewer);
     viewer.profileWindowController = new Potree.ProfileWindowController(viewer);
@@ -19,25 +29,40 @@ class ProfilePanel extends React.Component{
     $(this.root).resizable({containment: "parent", handles: "e, s, se", minWidth: 320, minHeight: 220});
   }
 
+  componentWillUnmount(){
+    document.removeEventListener("click", this.closeMenu);
+  }
+
+  closeMenu = (e) => {
+    if (e.target.closest && e.target.closest(".mv-menu-toggle")) return;
+    if (this.state.exportOpen) this.setState({exportOpen: false});
+  }
+
   render(){
+    const { exportOpen } = this.state;
+
     return (<div id="profile_window" className="mv-profile"
                  style={{display: "none"}} ref={domNode => { this.root = domNode; }}>
       <div id="profile_titlebar" className="mv-profile-header" ref={domNode => { this.header = domNode; }}>
         <span className="mv-profile-title">{_("Profile")}</span>
-        <button type="button" id="closeProfileContainer" title={_("Close")}><i className="mv-icon mv-icon-close"></i></button>
+        <button type="button" className={"mv-panel-btn mv-menu-toggle " + (exportOpen ? "active" : "")} title={_("Export")}
+                onClick={() => this.setState({exportOpen: !exportOpen})}><i className="mv-icon mv-icon-export"></i></button>
+        <button type="button" id="closeProfileContainer" className="mv-panel-btn" title={_("Close")}><i className="mv-icon mv-icon-close"></i></button>
       </div>
+
+      {exportOpen ?
+      <div className="mv-context-menu mv-export-menu">
+        <div onClick={() => document.getElementById("potree_download_csv_icon").click()}>CSV</div>
+        <div onClick={() => document.getElementById("potree_download_las_icon").click()}>LAS</div>
+      </div> : ""}
 
       <div id="profile_draw_container" className="mv-profile-body">
         <svg id="profileSVG"></svg>
         <div id="profileCanvasContainer"></div>
         <div id="profileSelectionProperties" style={{display: "none"}}></div>
 
-        <div className="mv-profile-actions">
-          <div className="mv-profile-points"
-               dangerouslySetInnerHTML={{__html: interpolate(_("%(num)s points"), {num: '<span id="profile_num_points">-</span>'})}}></div>
-          <a id="potree_download_profile_ortho_link" href="#" download="profile.csv"><span id="potree_download_csv_icon">{_("Export to CSV")}</span></a>
-          <a id="potree_download_profile_link" href="#" download="profile.las"><span id="potree_download_las_icon">{_("Export to LAS")}</span></a>
-        </div>
+        <a id="potree_download_profile_ortho_link" href="#" download="profile.csv" style={{display: "none"}}><span id="potree_download_csv_icon"></span></a>
+        <a id="potree_download_profile_link" href="#" download="profile.las" style={{display: "none"}}><span id="potree_download_las_icon"></span></a>
       </div>
 
       <div className="mv-profile-footer">

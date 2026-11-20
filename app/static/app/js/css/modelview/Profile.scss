@@ -28,22 +28,50 @@
         text-shadow: none;
         cursor: move;
 
-        button{
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 32px;
-            height: 32px;
-            padding: 0;
+        .mv-panel-btn{
+            flex: none;
+            width: 40px;
+            height: 40px;
             border: 0;
             border-radius: 4px;
             background: transparent;
             color: #fff;
+            font-size: 16px;
 
             &:hover{
                 background: rgba(255, 255, 255, 0.15);
             }
+            &:focus{
+                outline: none;
+            }
         }
+
+        .mv-panel-btn.active{
+            background: #5b737d;
+        }
+    }
+
+    .mv-context-menu{
+        position: absolute;
+        z-index: 2;
+        min-width: 140px;
+        padding: 4px 0;
+        border-radius: 4px;
+        background: #111a1d;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+
+        & > div{
+            padding: 7px 12px;
+            cursor: pointer;
+            &:hover{
+                background: #444;
+            }
+        }
+    }
+
+    .mv-export-menu{
+        top: 56px;
+        right: 16px;
     }
 
     .mv-profile-title{
@@ -90,43 +118,6 @@
         color: #fff;
         opacity: 0.9;
         user-select: text;
-    }
-
-    .mv-profile-actions{
-        position: absolute;
-        top: 8px;
-        right: 8px;
-        width: 168px;
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-
-        .mv-profile-points, a{
-            display: block;
-            height: 24px;
-            border-radius: 4px;
-            line-height: 24px;
-            text-align: center;
-            font-weight: 500;
-        }
-
-        .mv-profile-points{
-            background: rgba(255, 255, 255, 0.25);
-        }
-
-        a{
-            background: #5b737d;
-            color: #fff;
-            text-decoration: none;
-
-            &:hover{
-                background: #6f8a95;
-            }
-
-            span{
-                display: block;
-            }
-        }
     }
 
     .mv-profile-footer{
