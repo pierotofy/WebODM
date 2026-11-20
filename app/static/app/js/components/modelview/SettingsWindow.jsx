@@ -24,7 +24,8 @@ class SettingsWindow extends React.Component{
       tab: "general",
       viewSaving: false,
       viewSaved: false,
-      viewError: ""
+      viewError: "",
+      resetDone: false
     };
   }
 
@@ -115,7 +116,13 @@ class SettingsWindow extends React.Component{
 
       content.push(this.row(_("Reset Defaults"), _("Resets all settings to their default values."),
         <button type="button" className="mv-settings-action"
-                onClick={() => { this.props.onReset(); this.forceUpdate(); }}>{_("Reset")}</button>));
+                onClick={() => {
+                  this.props.onReset();
+                  this.setState({resetDone: true});
+                  setTimeout(() => this.setState({resetDone: false}), 2000);
+                }}>
+          <i className={this.state.resetDone ? "fa fa-check" : "fa fa-undo"}></i> {_("Reset")}
+        </button>));
     }else if (tab === "display"){
       const background = settings.background || "gradient";
       content = [
