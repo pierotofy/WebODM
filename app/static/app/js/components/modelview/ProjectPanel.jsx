@@ -338,9 +338,7 @@ class ProjectPanel extends React.Component{
                 this.forceUpdate();
               }}>{_("Rebalance")}</button> : null;
     const { task } = this.props;
-    let srsName = _("Native");
-    if (task.epsg) srsName = task.srs.name ? `${task.srs.name} (EPSG:${task.epsg})` : `EPSG:${task.epsg}`;
-    else if (task.wkt) srsName = task.srs.name;
+    const srsName = task.epsg ? (task.srs.name ? `${task.srs.name} (EPSG:${task.epsg})` : `EPSG:${task.epsg}`) : task.srs.name;
     let coordinates = [];
     if (isPoint && points.length === 1){
       const located = m.latlon && m.latlon.x === points[0].x && m.latlon.y === points[0].y;
@@ -520,14 +518,15 @@ class ProjectPanel extends React.Component{
             <button type="button" className="mv-panel-btn" title={_("Copy")}
                     onClick={() => this.copy(coordinates.join(", "), "copy")}><i className={updated === "copy" ? "fa fa-check" : "far fa-copy"}></i></button>
           </div>,
+          task.epsg || task.wkt ?
           <div key="display" className="mv-panel-field">
             <label>{_("Display")}</label>
             <select value={m.display === "latlon" ? "latlon" : "native"}
                     onChange={e => { m.display = e.target.value; m.update(); this.forceUpdate(); }}>
               <option value="native">{srsName}</option>
-              {task.epsg || task.wkt ? <option value="latlon">{_("Lat/Lon")} (EPSG:4326)</option> : null}
+              <option value="latlon">{_("Lat/Lon")} (EPSG:4326)</option>
             </select>
-          </div>] : ""}
+          </div> : null] : ""}
 
           {selectedItem.type === "volume" ? ["position", "rotation", "scale"].map(prop =>
           <div key={prop} className="mv-panel-field mv-panel-xyz">
