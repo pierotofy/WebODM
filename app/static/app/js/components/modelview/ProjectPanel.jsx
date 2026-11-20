@@ -647,7 +647,7 @@ class ProjectPanel extends React.Component{
                    onChange={e => this.seek(m, parseFloat(e.target.value), true)} />
           </div>,
           <div key="resolution" className="mv-panel-field">
-            <label>{_("Recording")}</label>
+            <label>{_("Record")}</label>
             <select value={this.state.recordSize || "native"} disabled={recording} onChange={e => this.setState({recordSize: e.target.value})}>
               <option value="native">{_("Native")}</option>
               <option value="4k">4K</option>
@@ -696,7 +696,10 @@ class ProjectPanel extends React.Component{
                           viewer.addEventListener("render.pass.perspective_overlay", draw);
                           stream = canvas.captureStream(30);
                         }else stream = viewer.renderer.domElement.captureStream(29.97);
-                        const recorder = new MediaRecorder(stream, draw ? {mimeType, videoBitsPerSecond: 35000000} : {mimeType});
+                        const recorder = new MediaRecorder(stream, {
+                          mimeType,
+                          videoBitsPerSecond: draw ? 35000000 : Math.round(Math.min(50000000, Math.max(8000000, 70000000 * viewer.renderer.domElement.width * viewer.renderer.domElement.height / (3840 * 2160))))
+                        });
                         this.recorder = recorder;
                         recorder.ondataavailable = e => chunks.push(e.data);
                         recorder.onstop = () => {
