@@ -10,7 +10,7 @@
     border-radius: 4px;
     background: #1f282c;
     color: #efeff0;
-    font-size: 14px;
+    font-size: 12px;
     overflow: hidden;
 
     button:focus{
@@ -21,22 +21,22 @@
         flex: none;
         display: flex;
         align-items: center;
-        gap: 8px;
-        height: 63px;
-        padding: 16px;
+        gap: 6px;
+        height: 44px;
+        padding: 8px 12px;
         background: #33434a;
         text-shadow: none;
         cursor: move;
 
         .mv-panel-btn{
             flex: none;
-            width: 40px;
-            height: 40px;
+            width: 30px;
+            height: 30px;
             border: 0;
             border-radius: 4px;
             background: transparent;
             color: #fff;
-            font-size: 16px;
+            font-size: 14px;
 
             &:hover{
                 background: rgba(255, 255, 255, 0.15);
@@ -61,7 +61,7 @@
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 
         & > div{
-            padding: 7px 12px;
+            padding: 5px 10px;
             cursor: pointer;
             &:hover{
                 background: #444;
@@ -70,13 +70,13 @@
     }
 
     .mv-export-menu{
-        top: 56px;
-        right: 16px;
+        top: 40px;
+        right: 12px;
     }
 
     .mv-profile-title{
         flex: 1 1 auto;
-        font-size: 16px;
+        font-size: 13px;
         font-weight: bold;
     }
 
@@ -125,7 +125,7 @@
         display: flex;
         align-items: center;
         gap: 4px;
-        height: 36px;
+        height: 32px;
         padding: 0 8px;
         border-top: 1px solid #44575f;
 

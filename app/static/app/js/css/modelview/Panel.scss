@@ -11,18 +11,18 @@
     border-radius: 4px;
     background: #1f282c;
     color: #efeff0;
-    font-size: 14px;
+    font-size: 12px;
     overflow: hidden;
 
     .mv-panel-btn{
         flex: none;
-        width: 40px;
-        height: 40px;
+        width: 30px;
+        height: 30px;
         border: 0;
         border-radius: 4px;
         background: transparent;
         color: #fff;
-        font-size: 16px;
+        font-size: 14px;
 
         &:hover{
             background: rgba(255, 255, 255, 0.15);
@@ -45,7 +45,7 @@
         display: flex;
         align-items: center;
         gap: 4px;
-        padding: 8px;
+        padding: 6px;
         border-bottom: 1px solid #44575f;
     }
 
@@ -55,8 +55,8 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        height: 40px;
-        padding: 0 12px;
+        height: 30px;
+        padding: 0 8px;
         border-radius: 4px;
         background: #2c3a40;
 
@@ -73,17 +73,17 @@
     }
 
     .mv-tree-folder{
-        padding-left: 8px !important;
+        padding-left: 6px !important;
     }
 
     .mv-tree-child{
-        padding-left: 28px !important;
+        padding-left: 22px !important;
     }
 
     .mv-tree-rename{
         flex: 1 1 auto;
         min-width: 0;
-        height: 28px;
+        height: 24px;
         border: 1px solid #fff;
         border-radius: 4px;
         background: #162024;
@@ -98,7 +98,7 @@
     .mv-panel-controls{
         display: flex;
         justify-content: center;
-        gap: 16px;
+        gap: 12px;
         padding: 4px 8px;
     }
 
@@ -129,7 +129,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            min-height: 32px;
+            min-height: 26px;
 
             > i{
                 cursor: grab;
@@ -154,9 +154,9 @@
 
             .mv-panel-rebalance{
                 flex: none;
-                height: 26px;
+                height: 24px;
                 padding: 0 8px;
-                font-size: 13px;
+                font-size: 12px;
                 background: #fff;
                 color: #111;
                 border: none;
@@ -171,9 +171,9 @@
             input[type="number"]{
                 flex: none;
                 width: 64px;
-                height: 26px;
+                height: 24px;
                 padding: 0 6px;
-                font-size: 13px;
+                font-size: 12px;
                 background: #2c3a40;
                 color: #fff;
                 border: none;
@@ -183,8 +183,8 @@
     }
 
     .mv-export-menu{
-        top: 52px;
-        right: 8px;
+        top: 40px;
+        right: 6px;
     }
 
     .mv-panel-toolbar .mv-panel-action{
@@ -194,13 +194,13 @@
     }
 
     .mv-panel-empty{
-        padding: 32px 16px;
+        padding: 20px 12px;
         text-align: center;
         color: #a9b7bc;
     }
 
     .mv-history-row{
-        height: 40px;
+        height: 32px;
 
         &.undone{
             color: #8b9aa0;
@@ -210,9 +210,9 @@
     .mv-panel-property{
         display: flex;
         justify-content: space-between;
-        gap: 12px;
-        padding: 6px 8px;
-        font-size: 16px;
+        gap: 8px;
+        padding: 4px 6px;
+        font-size: 13px;
     }
 
     .mv-panel-points{
@@ -228,7 +228,7 @@
         }
         th, td{
             padding: 4px 3px;
-            font-size: 13px;
+            font-size: 12px;
             text-align: right;
             white-space: nowrap;
         }
@@ -251,7 +251,7 @@
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 
         & > div{
-            padding: 7px 12px;
+            padding: 5px 10px;
             cursor: pointer;
             &:hover{
                 background: #444;
@@ -267,15 +267,15 @@
         &::-webkit-scrollbar{
             background-color: transparent;
         }
-        padding: 8px 0;
+        padding: 4px 0;
     }
 
     .mv-tree-row{
         display: flex;
         align-items: center;
-        gap: 8px;
-        height: 48px;
-        padding: 0 8px 0 16px;
+        gap: 6px;
+        height: 32px;
+        padding: 0 6px 0 10px;
         cursor: pointer;
 
         > i{
@@ -314,18 +314,18 @@
             background-color: transparent;
         }
         border-top: 1px solid #44575f;
-        padding-bottom: 12px;
+        padding-bottom: 8px;
     }
 
     .mv-panel-tabs{
         display: flex;
         border-bottom: 2px solid #44575f;
-        margin-bottom: 12px;
+        margin-bottom: 6px;
     }
 
     .mv-panel-tab{
         flex: 1 1 0;
-        padding: 12px 8px;
+        padding: 8px 6px;
         text-align: center;
         color: #8b9aa0;
         cursor: pointer;
@@ -348,9 +348,9 @@
             flex: 1 1 100%;
         }
         input[type="number"]{
-            height: 32px;
+            height: 28px;
             padding: 0 6px;
-            font-size: 13px;
+            font-size: 12px;
             -moz-appearance: textfield;
             appearance: textfield;
 
@@ -365,21 +365,21 @@
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        gap: 12px;
-        padding: 8px;
+        gap: 8px;
+        padding: 6px;
 
         label{
             flex: none;
             margin: 0;
-            font-size: 16px;
+            font-size: 13px;
             font-weight: normal;
         }
 
         input[type="number"], input[type="text"], textarea{
             flex: 1 1 0;
             min-width: 0;
-            height: 40px;
-            padding: 0 12px;
+            height: 30px;
+            padding: 0 8px;
             border: 0;
             border-radius: 4px;
             background: #162024;
@@ -459,14 +459,14 @@
 
         textarea{
             height: auto;
-            padding: 8px 12px;
+            padding: 6px 8px;
             resize: vertical;
         }
 
         select{
             flex: 1 1 0;
             min-width: 0;
-            height: 40px;
+            height: 30px;
             padding: 0 8px;
             border: 0;
             border-radius: 4px;
@@ -477,12 +477,12 @@
 
     .mv-panel-action{
         flex: 1 1 100%;
-        height: 40px;
+        height: 32px;
         border: 0;
         border-radius: 4px;
         background: #fff;
         color: #111;
-        font-size: 15px;
+        font-size: 13px;
 
         .mv-icon{
             width: 16px;

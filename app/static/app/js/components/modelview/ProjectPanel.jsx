@@ -505,7 +505,7 @@ class ProjectPanel extends React.Component{
             {coordinates.map((value, i) =>
             <input key={i + value} type="number" step="any" title={(m.display === "latlon" ? ["lon", "lat", "alt"] : ["x", "y", "z"])[i]}
                    defaultValue={value} readOnly={m.display === "latlon" && i < 2}
-                   style={{flex: `${value.length || 1} 1 0`, minWidth: 0, fontSize: m.display === "latlon" ? "11px" : "12px", padding: m.display === "latlon" ? "0 2px" : "0 4px"}}
+                   style={{flex: `${value.length || 1} 1 0`, minWidth: 0, padding: m.display === "latlon" ? "0 2px" : "0 4px"}}
                    onKeyDown={e => { if (e.key === "Enter") e.target.blur(); }}
                    onBlur={e => {
                      const number = parseFloat(e.target.value);

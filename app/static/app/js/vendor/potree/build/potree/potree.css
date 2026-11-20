@@ -195,6 +195,7 @@ a:hover, a:visited, a:link, a:active{
 .annotation{
 	position:		absolute;
 	padding:		10px;
+	font-size:		13px;
 	opacity:		0.5;
 	transform:		translate(-50%, -30px);
 	will-change:	left, top;
@@ -210,13 +211,13 @@ a:hover, a:visited, a:link, a:active{
 	opacity:		1;
 	margin:			auto;
 	display:		table;
-	padding:		1px 8px;
+	padding:		1px 6px;
 	cursor: 		pointer;
 }
 
 .annotation-expand{
 	color:			white;
-	font-size:		0.6em;
+	font-size:		12px;
 	opacity:		1;
 }
 
@@ -301,7 +302,8 @@ a:hover, a:visited, a:link, a:active{
 	position:		relative;
 	color:			white;
 	background-color:	black;
-	padding:		10px;
+	padding:		6px 8px;
+	font-size:		12px;
 	margin:			5px auto 0px auto;
 	border-radius:	4px;
 	display:		none;
