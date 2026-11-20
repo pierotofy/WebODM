@@ -656,7 +656,7 @@ class ProjectPanel extends React.Component{
                    onChange={e => this.seek(m, parseFloat(e.target.value), true)} />
           </div>,
           <div key="resolution" className="mv-panel-field">
-            <label>{_("Record")}</label>
+            <label>{_("Quality")}</label>
             <select value={this.state.recordSize || "native"} disabled={recording} onChange={e => this.setState({recordSize: e.target.value})}>
               <option value="native">{_("Native")}</option>
               <option value="4k">4K</option>
