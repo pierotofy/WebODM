@@ -660,6 +660,8 @@ class ModelView extends React.Component {
     }else if (us === 'imperialUS'){
         window.viewer.setLengthUnitAndDisplayUnit(dsUnit, 'ft (US)');
     }
+
+    if (window.viewer.profileWindowController) window.viewer.profileWindowController.recompute();
   }
 
   getCropCoordinates(){
